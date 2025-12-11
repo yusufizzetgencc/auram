@@ -1,14 +1,40 @@
-import { View, type ViewProps } from 'react-native';
+/**
+ * KOKU - Themed View Component
+ */
 
-import { useThemeColor } from '@/hooks/use-theme-color';
+import React from 'react';
+import { View, ViewStyle, StyleSheet } from 'react-native';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export type ThemedViewProps = ViewProps & {
-  lightColor?: string;
-  darkColor?: string;
-};
+interface ThemedViewProps {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  variant?: 'default' | 'secondary' | 'tertiary';
+}
 
-export function ThemedView({ style, lightColor, darkColor, ...otherProps }: ThemedViewProps) {
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
+export function ThemedView({
+  children,
+  style,
+  variant = 'default',
+}: ThemedViewProps) {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
 
-  return <View style={[{ backgroundColor }, style]} {...otherProps} />;
+  const getBackgroundColor = () => {
+    switch (variant) {
+      case 'secondary':
+        return colors.backgroundSecondary;
+      case 'tertiary':
+        return colors.backgroundTertiary;
+      default:
+        return colors.background;
+    }
+  };
+
+  return (
+    <View style={[{ backgroundColor: getBackgroundColor() }, style]}>
+      {children}
+    </View>
+  );
 }

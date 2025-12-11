@@ -1,0 +1,1136 @@
+{
+  "parfumler": [
+    {
+      "id": "1",
+      "isim": "Amber Gecesi",
+      "notalar": {
+        "ust": ["bergamot", "biber"],
+        "orta": ["gül", "safran"],
+        "alt": ["amber", "vanilya", "sandal ağacı"]
+      },
+      "tip": "Amber",
+      "ikincilTip": "Odunsu",
+      "mevsim": ["Kış", "Sonbahar"],
+      "cinsiyet": "unisex",
+      "yogunluk": "yogun",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "ozel"],
+      "iklim": ["soguk", "kuru"],
+      "ortam": "kapali",
+      "aktivite": ["sosyal"],
+      "kiyafetStili": ["formal", "gece"],
+      "aciklama": "Sıcak ve sofistike bir gece kokusu. Amber ve vanilyanın mükemmel uyumu.",
+      "puan": 4.8,
+      "etiketler": ["sıcak", "seksi", "sofistike", "karizmatik"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 6.5,
+        "idealPH": 5.5,
+        "asidikEtki": "Alt notalar daha baskın, sıcak karakteri artar",
+        "bazikEtki": "Üst notalar daha uzun kalır, hafif tatlılaşır"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": -0.2, "bazikCilt": 0.1, "kuruCilt": -0.3, "yagliCilt": 0.2},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.1, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": 0.3, "bazikCilt": -0.1, "kuruCilt": 0.1, "yagliCilt": 0.4}
+      }
+    },
+    {
+      "id": "2",
+      "isim": "Akdeniz Esintisi",
+      "notalar": {
+        "ust": ["limon", "bergamot", "portakal"],
+        "orta": ["lavanta", "yasemin"],
+        "alt": ["misk", "sedir"]
+      },
+      "tip": "Ferah",
+      "mevsim": ["Yaz", "İlkbahar"],
+      "cinsiyet": "unisex",
+      "yogunluk": "hafif",
+      "kalicilik": "kisa",
+      "kullanimAmaci": ["gunluk", "is"],
+      "iklim": ["sicak", "nemli"],
+      "ortam": "acik",
+      "aktivite": ["spor", "sosyal"],
+      "kiyafetStili": ["casual", "sportif"],
+      "aciklama": "Yaz günleri için ideal, ferah ve canlandırıcı bir koku.",
+      "puan": 4.5,
+      "etiketler": ["ferah", "enerjik", "temiz", "hafif"],
+      "phUyumu": {
+        "minPH": 4.5,
+        "maxPH": 5.5,
+        "idealPH": 5.0,
+        "asidikEtki": "Narenciye notaları patlayıcı açılır, çok ferah",
+        "bazikEtki": "Üst notalar çabuk uçar, daha yumuşak kalır"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.3, "bazikCilt": -0.3, "kuruCilt": -0.4, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "alt": {"asidikCilt": -0.1, "bazikCilt": 0.2, "kuruCilt": 0.0, "yagliCilt": 0.3}
+      }
+    },
+    {
+      "id": "3",
+      "isim": "Gül Bahçesi",
+      "notalar": {
+        "ust": ["bergamot", "limon"],
+        "orta": ["gül", "frezya", "şakayık"],
+        "alt": ["misk", "paçuli"]
+      },
+      "tip": "Çiçeksi",
+      "mevsim": ["İlkbahar", "Yaz"],
+      "cinsiyet": "kadın",
+      "yogunluk": "orta",
+      "kalicilik": "orta",
+      "kullanimAmaci": ["gunluk", "is", "ozel"],
+      "iklim": ["sicak", "kuru"],
+      "ortam": "her_ikisi",
+      "aktivite": ["ofis", "sosyal"],
+      "kiyafetStili": ["formal", "trendy"],
+      "aciklama": "Romantik ve zarif bir çiçek buketi. Her kadının dolabında olması gereken klasik.",
+      "puan": 4.7,
+      "etiketler": ["romantik", "zarif", "feminen", "klasik"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 6.0,
+        "idealPH": 5.5,
+        "asidikEtki": "Çiçek notaları daha keskin ve belirgin",
+        "bazikEtki": "Daha yumuşak ve pudramsı bir karakter"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.1, "bazikCilt": -0.1, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.2, "bazikCilt": 0.1, "kuruCilt": -0.1, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.0, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.2}
+      }
+    },
+    {
+      "id": "4",
+      "isim": "Baharat Rüzgarı",
+      "notalar": {
+        "ust": ["biber", "elemi"],
+        "orta": ["tarçın", "karanfil", "kakule"],
+        "alt": ["vanilya", "sandal ağacı", "vetiver"]
+      },
+      "tip": "Baharatlı",
+      "ikincilTip": "Odunsu",
+      "mevsim": ["Sonbahar", "Kış"],
+      "cinsiyet": "erkek",
+      "yogunluk": "yogun",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "ozel"],
+      "iklim": ["soguk"],
+      "ortam": "kapali",
+      "aktivite": ["sosyal"],
+      "kiyafetStili": ["formal", "gece"],
+      "aciklama": "Egzotik ve çekici baharat notaları. Kendinden emin erkekler için.",
+      "puan": 4.6,
+      "etiketler": ["egzotik", "maskülen", "çekici", "güçlü"],
+      "phUyumu": {
+        "minPH": 5.2,
+        "maxPH": 6.5,
+        "idealPH": 5.8,
+        "asidikEtki": "Baharatlar daha keskin ve yakıcı",
+        "bazikEtki": "Daha yumuşak ve kremsi bir his"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.2, "bazikCilt": -0.2, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.3, "bazikCilt": -0.1, "kuruCilt": 0.0, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.1, "bazikCilt": 0.1, "kuruCilt": 0.2, "yagliCilt": 0.4}
+      }
+    },
+    {
+      "id": "5",
+      "isim": "Narenciye Patlaması",
+      "notalar": {
+        "ust": ["portakal", "limon", "greyfurt"],
+        "orta": ["yasemin", "neroli"],
+        "alt": ["sedir", "amber"]
+      },
+      "tip": "Ferah",
+      "ikincilTip": "Meyvemsi",
+      "mevsim": ["Yaz"],
+      "cinsiyet": "unisex",
+      "yogunluk": "hafif",
+      "kalicilik": "kisa",
+      "kullanimAmaci": ["gunluk"],
+      "iklim": ["sicak"],
+      "ortam": "acik",
+      "aktivite": ["spor", "sosyal"],
+      "kiyafetStili": ["casual", "sportif"],
+      "aciklama": "Enerji dolu yaz ferahlığı. Güne dinamik başlamak isteyenler için.",
+      "puan": 4.4,
+      "etiketler": ["enerjik", "canlı", "taze", "dinamik"],
+      "phUyumu": {
+        "minPH": 4.5,
+        "maxPH": 5.2,
+        "idealPH": 4.8,
+        "asidikEtki": "Narenciye patlaması maksimum seviyede",
+        "bazikEtki": "Üst notalar hızlı uçar, daha mat kalır"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.4, "bazikCilt": -0.4, "kuruCilt": -0.5, "yagliCilt": 0.0},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.2, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": -0.2, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.3}
+      }
+    },
+    {
+      "id": "6",
+      "isim": "Sandal Ağacı Sıcaklığı",
+      "notalar": {
+        "ust": ["bergamot", "biber"],
+        "orta": ["iris", "menekşe"],
+        "alt": ["sandal ağacı", "paçuli", "amber"]
+      },
+      "tip": "Odunsu",
+      "mevsim": ["Kış", "Sonbahar"],
+      "cinsiyet": "erkek",
+      "yogunluk": "yogun",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["is", "aksam"],
+      "iklim": ["soguk", "kuru"],
+      "ortam": "kapali",
+      "aktivite": ["ofis", "sosyal"],
+      "kiyafetStili": ["formal"],
+      "aciklama": "Maskülen ve derin odunsu notalar. Profesyonel ortamlar için ideal.",
+      "puan": 4.7,
+      "etiketler": ["maskülen", "profesyonel", "sofistike", "güçlü"],
+      "phUyumu": {
+        "minPH": 5.3,
+        "maxPH": 6.8,
+        "idealPH": 6.0,
+        "asidikEtki": "Odunsu notalar daha keskin ve reçineli",
+        "bazikEtki": "Kremsi ve yumuşak bir sandal ağacı"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": -0.1, "bazikCilt": 0.0, "kuruCilt": -0.3, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.0, "bazikCilt": 0.1, "kuruCilt": -0.1, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": 0.2, "bazikCilt": 0.3, "kuruCilt": 0.2, "yagliCilt": 0.5}
+      }
+    },
+    {
+      "id": "7",
+      "isim": "Misk Dokunuşu",
+      "notalar": {
+        "ust": ["bergamot", "lavanta"],
+        "orta": ["geranium", "yasemin"],
+        "alt": ["misk", "amber"]
+      },
+      "tip": "Ferah",
+      "mevsim": ["İlkbahar", "Tüm Mevsimler"],
+      "cinsiyet": "unisex",
+      "yogunluk": "hafif",
+      "kalicilik": "orta",
+      "kullanimAmaci": ["gunluk"],
+      "iklim": ["sicak", "soguk", "nemli", "kuru"],
+      "ortam": "her_ikisi",
+      "aktivite": ["ofis", "ev", "sosyal"],
+      "kiyafetStili": ["casual", "formal"],
+      "aciklama": "Hafif ve çekici günlük koku. Her ortama uyum sağlar.",
+      "puan": 4.3,
+      "etiketler": ["hafif", "günlük", "temiz", "çok yönlü"],
+      "phUyumu": {
+        "minPH": 4.8,
+        "maxPH": 6.2,
+        "idealPH": 5.5,
+        "asidikEtki": "Ferah notalar ön plana çıkar",
+        "bazikEtki": "Misk notası daha belirgin ve kalıcı"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.2, "bazikCilt": -0.1, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.1, "kuruCilt": -0.1, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": -0.1, "bazikCilt": 0.3, "kuruCilt": 0.1, "yagliCilt": 0.3}
+      }
+    },
+    {
+      "id": "8",
+      "isim": "Vanilya Rüyası",
+      "notalar": {
+        "ust": ["badem", "kiraz"],
+        "orta": ["tonka fasulyesi", "heliotrope"],
+        "alt": ["vanilya", "amber", "misk"]
+      },
+      "tip": "Tatlı",
+      "ikincilTip": "Amber",
+      "mevsim": ["Sonbahar", "Kış"],
+      "cinsiyet": "kadın",
+      "yogunluk": "orta",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "ozel"],
+      "iklim": ["soguk"],
+      "ortam": "kapali",
+      "aktivite": ["sosyal"],
+      "kiyafetStili": ["trendy", "gece"],
+      "aciklama": "Tatlı ve sarmalayan sıcaklık. Romantik anlar için mükemmel.",
+      "puan": 4.6,
+      "etiketler": ["tatlı", "romantik", "sıcak", "feminen"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 6.0,
+        "idealPH": 5.5,
+        "asidikEtki": "Tatlı notalar daha keskin ve belirgin",
+        "bazikEtki": "Kremsi ve yumuşak bir vanilya"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.0, "bazikCilt": -0.2, "kuruCilt": -0.3, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.2, "kuruCilt": -0.1, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.2, "bazikCilt": 0.3, "kuruCilt": 0.2, "yagliCilt": 0.4}
+      }
+    },
+    {
+      "id": "9",
+      "isim": "Çiçek Esintisi",
+      "notalar": {
+        "ust": ["limon", "armut"],
+        "orta": ["yasemin", "gül", "zambak"],
+        "alt": ["sandal ağacı", "misk"]
+      },
+      "tip": "Çiçeksi",
+      "mevsim": ["İlkbahar"],
+      "cinsiyet": "kadın",
+      "yogunluk": "hafif",
+      "kalicilik": "orta",
+      "kullanimAmaci": ["gunluk", "is"],
+      "iklim": ["sicak", "kuru"],
+      "ortam": "her_ikisi",
+      "aktivite": ["ofis", "sosyal"],
+      "kiyafetStili": ["casual", "formal", "trendy"],
+      "aciklama": "Zarif ve feminen çiçek dansı. Baharın tüm tazeliği.",
+      "puan": 4.5,
+      "etiketler": ["zarif", "taze", "feminen", "bahar"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 5.8,
+        "idealPH": 5.3,
+        "asidikEtki": "Çiçekler daha canlı ve taze",
+        "bazikEtki": "Daha yumuşak ve pudramsı"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.2, "bazikCilt": -0.2, "kuruCilt": -0.3, "yagliCilt": 0.0},
+        "orta": {"asidikCilt": 0.3, "bazikCilt": 0.0, "kuruCilt": -0.1, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.0, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.2}
+      }
+    },
+    {
+      "id": "10",
+      "isim": "Karamel Tutkusu",
+      "notalar": {
+        "ust": ["kahve", "bitter badem"],
+        "orta": ["karamel", "pralin"],
+        "alt": ["vanilya", "amber", "misk"]
+      },
+      "tip": "Tatlı",
+      "ikincilTip": "Amber",
+      "mevsim": ["Kış"],
+      "cinsiyet": "kadın",
+      "yogunluk": "yogun",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "ozel"],
+      "iklim": ["soguk"],
+      "ortam": "kapali",
+      "aktivite": ["sosyal"],
+      "kiyafetStili": ["gece", "trendy"],
+      "aciklama": "Baştan çıkarıcı tatlı notalar. Kış gecelerinin vazgeçilmezi.",
+      "puan": 4.8,
+      "etiketler": ["tatlı", "seksi", "baştan çıkarıcı", "gurme"],
+      "phUyumu": {
+        "minPH": 5.2,
+        "maxPH": 6.2,
+        "idealPH": 5.7,
+        "asidikEtki": "Karamel daha yoğun ve yapışkan",
+        "bazikEtki": "Kremsi ve süt karameli gibi"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": -0.1, "bazikCilt": -0.2, "kuruCilt": -0.3, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.2, "bazikCilt": 0.1, "kuruCilt": 0.0, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.3, "bazikCilt": 0.2, "kuruCilt": 0.2, "yagliCilt": 0.5}
+      }
+    },
+    {
+      "id": "11",
+      "isim": "Okyanus Dalgası",
+      "notalar": {
+        "ust": ["deniz tuzu", "bergamot"],
+        "orta": ["deniz yosunu", "yasemin"],
+        "alt": ["misk", "sedir", "amber"]
+      },
+      "tip": "Ferah",
+      "mevsim": ["Yaz"],
+      "cinsiyet": "erkek",
+      "yogunluk": "hafif",
+      "kalicilik": "orta",
+      "kullanimAmaci": ["gunluk", "spor"],
+      "iklim": ["sicak", "nemli"],
+      "ortam": "acik",
+      "aktivite": ["spor", "sosyal"],
+      "kiyafetStili": ["casual", "sportif"],
+      "aciklama": "Okyanus esintisi ve tazelik. Aktif yaşam tarzı için ideal.",
+      "puan": 4.4,
+      "etiketler": ["taze", "sporcu", "okyanus", "dinamik"],
+      "phUyumu": {
+        "minPH": 4.5,
+        "maxPH": 5.5,
+        "idealPH": 5.0,
+        "asidikEtki": "Tuzlu ve mineral notalar belirgin",
+        "bazikEtki": "Daha yumuşak deniz esintisi"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.3, "bazikCilt": -0.2, "kuruCilt": -0.4, "yagliCilt": 0.0},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "alt": {"asidikCilt": -0.1, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.3}
+      }
+    },
+    {
+      "id": "12",
+      "isim": "Çam Ormanı",
+      "notalar": {
+        "ust": ["çam iğnesi", "bergamot"],
+        "orta": ["lavanta", "biberiye"],
+        "alt": ["sedir", "misk", "vetiver"]
+      },
+      "tip": "Odunsu",
+      "ikincilTip": "Yeşil",
+      "mevsim": ["Kış", "Sonbahar"],
+      "cinsiyet": "erkek",
+      "yogunluk": "orta",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["gunluk", "is"],
+      "iklim": ["soguk", "kuru"],
+      "ortam": "her_ikisi",
+      "aktivite": ["ofis", "sosyal"],
+      "kiyafetStili": ["casual", "formal"],
+      "aciklama": "Doğanın derinliklerinden güç. Doğal ve maskülen.",
+      "puan": 4.5,
+      "etiketler": ["doğal", "maskülen", "orman", "güçlü"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 6.5,
+        "idealPH": 5.8,
+        "asidikEtki": "Yeşil notalar daha keskin ve taze",
+        "bazikEtki": "Odunsu notalar daha baskın"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.2, "bazikCilt": -0.1, "kuruCilt": -0.3, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.1, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": 0.1, "bazikCilt": 0.3, "kuruCilt": 0.2, "yagliCilt": 0.4}
+      }
+    },
+    {
+      "id": "13",
+      "isim": "Şeftali Çiçeği",
+      "notalar": {
+        "ust": ["şeftali", "armut"],
+        "orta": ["gül", "frezya", "manolya"],
+        "alt": ["misk", "sandal ağacı"]
+      },
+      "tip": "Meyvemsi",
+      "ikincilTip": "Çiçeksi",
+      "mevsim": ["İlkbahar", "Yaz"],
+      "cinsiyet": "kadın",
+      "yogunluk": "hafif",
+      "kalicilik": "orta",
+      "kullanimAmaci": ["gunluk"],
+      "iklim": ["sicak"],
+      "ortam": "acik",
+      "aktivite": ["sosyal", "ofis"],
+      "kiyafetStili": ["casual", "trendy"],
+      "aciklama": "Meyvemsi ve romantik bir buket. Genç ve taze.",
+      "puan": 4.3,
+      "etiketler": ["meyvemsi", "taze", "genç", "romantik"],
+      "phUyumu": {
+        "minPH": 4.8,
+        "maxPH": 5.5,
+        "idealPH": 5.2,
+        "asidikEtki": "Meyve notaları patlayıcı ve canlı",
+        "bazikEtki": "Daha yumuşak ve olgun meyve"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.3, "bazikCilt": -0.3, "kuruCilt": -0.4, "yagliCilt": 0.0},
+        "orta": {"asidikCilt": 0.2, "bazikCilt": 0.0, "kuruCilt": -0.1, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": 0.0, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.2}
+      }
+    },
+    {
+      "id": "14",
+      "isim": "Baharatlı Akşam",
+      "notalar": {
+        "ust": ["elemi", "biber"],
+        "orta": ["karanfil", "tarçın", "iris"],
+        "alt": ["paçuli", "vetiver", "deri"]
+      },
+      "tip": "Baharatlı",
+      "ikincilTip": "Odunsu",
+      "mevsim": ["Sonbahar", "Kış"],
+      "cinsiyet": "erkek",
+      "yogunluk": "yogun",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "ozel"],
+      "iklim": ["soguk"],
+      "ortam": "kapali",
+      "aktivite": ["sosyal"],
+      "kiyafetStili": ["formal", "gece"],
+      "aciklama": "Gece için gizemli ve çekici. Akşam yemekleri için ideal.",
+      "puan": 4.7,
+      "etiketler": ["gizemli", "çekici", "maskülen", "sofistike"],
+      "phUyumu": {
+        "minPH": 5.3,
+        "maxPH": 6.5,
+        "idealPH": 5.9,
+        "asidikEtki": "Baharatlar çok keskin olabilir",
+        "bazikEtki": "Daha yumuşak ve sıcak baharatlar"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.1, "bazikCilt": -0.2, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.3, "bazikCilt": 0.0, "kuruCilt": 0.0, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.2, "bazikCilt": 0.2, "kuruCilt": 0.2, "yagliCilt": 0.5}
+      }
+    },
+    {
+      "id": "15",
+      "isim": "Limon Bahçesi",
+      "notalar": {
+        "ust": ["limon", "portakal yaprakları"],
+        "orta": ["neroli", "yasemin"],
+        "alt": ["sedir", "misk"]
+      },
+      "tip": "Ferah",
+      "mevsim": ["Yaz", "İlkbahar"],
+      "cinsiyet": "unisex",
+      "yogunluk": "hafif",
+      "kalicilik": "kisa",
+      "kullanimAmaci": ["gunluk"],
+      "iklim": ["sicak"],
+      "ortam": "acik",
+      "aktivite": ["ev", "sosyal", "spor"],
+      "kiyafetStili": ["casual", "sportif"],
+      "aciklama": "Canlandırıcı narenciye patlaması. Yaz sabahları için mükemmel.",
+      "puan": 4.2,
+      "etiketler": ["canlandırıcı", "taze", "sabah", "enerjik"],
+      "phUyumu": {
+        "minPH": 4.3,
+        "maxPH": 5.0,
+        "idealPH": 4.7,
+        "asidikEtki": "Limon en parlak ve canlı halinde",
+        "bazikEtki": "Çok çabuk uçar, kalıcılık düşük"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.5, "bazikCilt": -0.5, "kuruCilt": -0.5, "yagliCilt": -0.1},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "alt": {"asidikCilt": -0.2, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.3}
+      }
+    },
+    {
+      "id": "16",
+      "isim": "Paçuli Gölgesi",
+      "notalar": {
+        "ust": ["bergamot", "mandalina"],
+        "orta": ["gül", "geranium"],
+        "alt": ["paçuli", "sandal ağacı", "vanilya"]
+      },
+      "tip": "Odunsu",
+      "mevsim": ["Sonbahar", "Kış"],
+      "cinsiyet": "unisex",
+      "yogunluk": "orta",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "gunluk"],
+      "iklim": ["soguk", "kuru"],
+      "ortam": "her_ikisi",
+      "aktivite": ["sosyal", "ofis"],
+      "kiyafetStili": ["casual", "formal", "trendy"],
+      "aciklama": "Gizemli ve sofistike derinlik. Karakter sahibi bireyler için.",
+      "puan": 4.6,
+      "etiketler": ["gizemli", "sofistike", "derin", "karakterli"],
+      "phUyumu": {
+        "minPH": 5.2,
+        "maxPH": 6.5,
+        "idealPH": 5.8,
+        "asidikEtki": "Paçuli daha toprak ve keskin",
+        "bazikEtki": "Daha kremsi ve yumuşak paçuli"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.1, "bazikCilt": -0.1, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.1, "kuruCilt": -0.1, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": 0.2, "bazikCilt": 0.3, "kuruCilt": 0.2, "yagliCilt": 0.5}
+      }
+    },
+    {
+      "id": "17",
+      "isim": "Yasemin Gecesi",
+      "notalar": {
+        "ust": ["bergamot", "mandalina"],
+        "orta": ["yasemin", "tuberose", "ylang ylang"],
+        "alt": ["misk", "sandal ağacı", "vanilya"]
+      },
+      "tip": "Çiçeksi",
+      "mevsim": ["İlkbahar", "Yaz"],
+      "cinsiyet": "kadın",
+      "yogunluk": "orta",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "ozel"],
+      "iklim": ["sicak"],
+      "ortam": "her_ikisi",
+      "aktivite": ["sosyal"],
+      "kiyafetStili": ["gece", "trendy"],
+      "aciklama": "Gece çiçeklerinin büyüsü. Etkileyici ve unutulmaz.",
+      "puan": 4.8,
+      "etiketler": ["etkileyici", "seksi", "feminen", "büyüleyici"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 6.0,
+        "idealPH": 5.5,
+        "asidikEtki": "Yasemin daha keskin ve narkotik",
+        "bazikEtki": "Daha yumuşak ve kremsi yasemin"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.1, "bazikCilt": -0.1, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.3, "bazikCilt": 0.1, "kuruCilt": 0.0, "yagliCilt": 0.4},
+        "alt": {"asidikCilt": 0.1, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.3}
+      }
+    },
+    {
+      "id": "18",
+      "isim": "Fındık ve Karamel",
+      "notalar": {
+        "ust": ["fındık", "badem"],
+        "orta": ["karamel", "tonka fasulyesi"],
+        "alt": ["vanilya", "sandal ağacı", "misk"]
+      },
+      "tip": "Tatlı",
+      "ikincilTip": "Amber",
+      "mevsim": ["Kış", "Sonbahar"],
+      "cinsiyet": "unisex",
+      "yogunluk": "orta",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["gunluk", "aksam"],
+      "iklim": ["soguk"],
+      "ortam": "kapali",
+      "aktivite": ["ev", "sosyal"],
+      "kiyafetStili": ["casual", "trendy"],
+      "aciklama": "Sıcak ve davetkar tatlılık. Kış aylarının vazgeçilmezi.",
+      "puan": 4.5,
+      "etiketler": ["tatlı", "sıcak", "davetkar", "gurme"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 6.0,
+        "idealPH": 5.5,
+        "asidikEtki": "Fındık ve karamel daha yoğun",
+        "bazikEtki": "Kremsi ve süt karameli karakteri"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.0, "bazikCilt": -0.2, "kuruCilt": -0.3, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.2, "bazikCilt": 0.1, "kuruCilt": 0.0, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.2, "bazikCilt": 0.2, "kuruCilt": 0.2, "yagliCilt": 0.4}
+      }
+    },
+    {
+      "id": "19",
+      "isim": "Nane Serinliği",
+      "notalar": {
+        "ust": ["nane", "limon", "bergamot"],
+        "orta": ["lavanta", "geranium"],
+        "alt": ["misk", "sedir"]
+      },
+      "tip": "Ferah",
+      "ikincilTip": "Yeşil",
+      "mevsim": ["Yaz"],
+      "cinsiyet": "erkek",
+      "yogunluk": "hafif",
+      "kalicilik": "kisa",
+      "kullanimAmaci": ["gunluk", "spor"],
+      "iklim": ["sicak"],
+      "ortam": "acik",
+      "aktivite": ["spor"],
+      "kiyafetStili": ["sportif", "casual"],
+      "aciklama": "Serinletici yaz esintisi. Spor sonrası için ideal.",
+      "puan": 4.2,
+      "etiketler": ["serinletici", "sporcu", "taze", "aktif"],
+      "phUyumu": {
+        "minPH": 4.5,
+        "maxPH": 5.3,
+        "idealPH": 4.9,
+        "asidikEtki": "Nane çok serinletici ve keskin",
+        "bazikEtki": "Nane yumuşak ve kısa süreli"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.4, "bazikCilt": -0.4, "kuruCilt": -0.5, "yagliCilt": 0.0},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "alt": {"asidikCilt": -0.1, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.3}
+      }
+    },
+    {
+      "id": "20",
+      "isim": "Sedir Ormanı",
+      "notalar": {
+        "ust": ["bergamot", "lavanta"],
+        "orta": ["biberiye", "adaçayı"],
+        "alt": ["sedir", "sandal ağacı", "misk"]
+      },
+      "tip": "Odunsu",
+      "mevsim": ["Sonbahar", "Kış"],
+      "cinsiyet": "erkek",
+      "yogunluk": "orta",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["is", "gunluk"],
+      "iklim": ["soguk", "kuru"],
+      "ortam": "her_ikisi",
+      "aktivite": ["ofis"],
+      "kiyafetStili": ["formal", "casual"],
+      "aciklama": "Güçlü ve karakterli odunsu akord. İş dünyası için.",
+      "puan": 4.6,
+      "etiketler": ["profesyonel", "güçlü", "karakterli", "doğal"],
+      "phUyumu": {
+        "minPH": 5.2,
+        "maxPH": 6.5,
+        "idealPH": 5.8,
+        "asidikEtki": "Sedir keskin ve reçineli",
+        "bazikEtki": "Sedir kremsi ve yumuşak"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.1, "bazikCilt": -0.1, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.1, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": 0.2, "bazikCilt": 0.3, "kuruCilt": 0.2, "yagliCilt": 0.5}
+      }
+    },
+    {
+      "id": "21",
+      "isim": "Gül ve Şakayık",
+      "notalar": {
+        "ust": ["bergamot", "elma"],
+        "orta": ["gül", "şakayık", "frezya"],
+        "alt": ["misk", "amber"]
+      },
+      "tip": "Çiçeksi",
+      "mevsim": ["İlkbahar"],
+      "cinsiyet": "kadın",
+      "yogunluk": "orta",
+      "kalicilik": "orta",
+      "kullanimAmaci": ["gunluk", "ozel"],
+      "iklim": ["sicak", "kuru"],
+      "ortam": "her_ikisi",
+      "aktivite": ["sosyal", "ofis"],
+      "kiyafetStili": ["trendy", "formal"],
+      "aciklama": "Romantizmin çiçek hali. Özel günler için ideal.",
+      "puan": 4.7,
+      "etiketler": ["romantik", "zarif", "feminen", "özel"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 5.8,
+        "idealPH": 5.4,
+        "asidikEtki": "Çiçekler canlı ve parlak",
+        "bazikEtki": "Pudramsı ve yumuşak çiçekler"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.2, "bazikCilt": -0.2, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.3, "bazikCilt": 0.1, "kuruCilt": -0.1, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.0, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.2}
+      }
+    },
+    {
+      "id": "22",
+      "isim": "Baharatlı Kış",
+      "notalar": {
+        "ust": ["tarçın", "biber"],
+        "orta": ["karanfil", "zencefil"],
+        "alt": ["misk", "sandal ağacı", "vanilya"]
+      },
+      "tip": "Baharatlı",
+      "mevsim": ["Kış"],
+      "cinsiyet": "unisex",
+      "yogunluk": "yogun",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "ozel"],
+      "iklim": ["soguk"],
+      "ortam": "kapali",
+      "aktivite": ["sosyal"],
+      "kiyafetStili": ["formal", "gece"],
+      "aciklama": "Kış gecelerinin sıcaklığı. Şömine başı keyfi.",
+      "puan": 4.5,
+      "etiketler": ["sıcak", "baharatlı", "kış", "davetkar"],
+      "phUyumu": {
+        "minPH": 5.3,
+        "maxPH": 6.5,
+        "idealPH": 5.9,
+        "asidikEtki": "Baharatlar yakıcı ve keskin",
+        "bazikEtki": "Sıcak ve sarmalayan baharatlar"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.2, "bazikCilt": -0.2, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.3, "bazikCilt": 0.0, "kuruCilt": 0.0, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.1, "bazikCilt": 0.2, "kuruCilt": 0.2, "yagliCilt": 0.4}
+      }
+    },
+    {
+      "id": "23",
+      "isim": "Mandalina Sabahı",
+      "notalar": {
+        "ust": ["mandalina", "portakal", "bergamot"],
+        "orta": ["neroli", "beyaz çiçekler"],
+        "alt": ["misk", "amber"]
+      },
+      "tip": "Ferah",
+      "ikincilTip": "Meyvemsi",
+      "mevsim": ["Yaz", "İlkbahar"],
+      "cinsiyet": "unisex",
+      "yogunluk": "hafif",
+      "kalicilik": "kisa",
+      "kullanimAmaci": ["gunluk"],
+      "iklim": ["sicak"],
+      "ortam": "acik",
+      "aktivite": ["ev", "ofis"],
+      "kiyafetStili": ["casual"],
+      "aciklama": "Güne enerji dolu başlangıç. Her gün kullanılabilir.",
+      "puan": 4.3,
+      "etiketler": ["enerjik", "taze", "günlük", "kolay"],
+      "phUyumu": {
+        "minPH": 4.5,
+        "maxPH": 5.3,
+        "idealPH": 4.9,
+        "asidikEtki": "Narenciye canlı ve parlak",
+        "bazikEtki": "Narenciye hızlı uçar"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.4, "bazikCilt": -0.4, "kuruCilt": -0.4, "yagliCilt": 0.0},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "alt": {"asidikCilt": -0.1, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.3}
+      }
+    },
+    {
+      "id": "24",
+      "isim": "Amber Ormanı",
+      "notalar": {
+        "ust": ["bergamot", "elemi"],
+        "orta": ["lavanta", "geranium"],
+        "alt": ["amber", "paçuli", "sandal ağacı"]
+      },
+      "tip": "Odunsu",
+      "ikincilTip": "Amber",
+      "mevsim": ["Sonbahar"],
+      "cinsiyet": "erkek",
+      "yogunluk": "orta",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["is", "aksam"],
+      "iklim": ["soguk", "kuru"],
+      "ortam": "her_ikisi",
+      "aktivite": ["ofis", "sosyal"],
+      "kiyafetStili": ["formal", "casual"],
+      "aciklama": "Sonbahar ormanının ruhu. Doğal ve sofistike.",
+      "puan": 4.6,
+      "etiketler": ["doğal", "sofistike", "sonbahar", "sıcak"],
+      "phUyumu": {
+        "minPH": 5.2,
+        "maxPH": 6.3,
+        "idealPH": 5.7,
+        "asidikEtki": "Amber keskin ve reçineli",
+        "bazikEtki": "Amber yumuşak ve sarmalayan"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.0, "bazikCilt": -0.1, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.1, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": 0.3, "bazikCilt": 0.2, "kuruCilt": 0.2, "yagliCilt": 0.5}
+      }
+    },
+    {
+      "id": "25",
+      "isim": "Lavanta Huzuru",
+      "notalar": {
+        "ust": ["lavanta", "bergamot"],
+        "orta": ["geranium", "yasemin"],
+        "alt": ["misk", "vanilya", "tonka"]
+      },
+      "tip": "Ferah",
+      "ikincilTip": "Çiçeksi",
+      "mevsim": ["İlkbahar", "Tüm Mevsimler"],
+      "cinsiyet": "unisex",
+      "yogunluk": "hafif",
+      "kalicilik": "orta",
+      "kullanimAmaci": ["gunluk"],
+      "iklim": ["sicak", "soguk", "kuru"],
+      "ortam": "her_ikisi",
+      "aktivite": ["ev", "ofis"],
+      "kiyafetStili": ["casual"],
+      "aciklama": "Huzur veren akşam kokusu. Rahatlama anları için.",
+      "puan": 4.4,
+      "etiketler": ["rahatlatıcı", "huzur", "temiz", "günlük"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 6.0,
+        "idealPH": 5.5,
+        "asidikEtki": "Lavanta taze ve keskin",
+        "bazikEtki": "Lavanta yumuşak ve sakinleştirici"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.2, "bazikCilt": -0.1, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.1, "kuruCilt": -0.1, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": 0.0, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.3}
+      }
+    },
+    {
+      "id": "26",
+      "isim": "Oud Kraliçesi",
+      "notalar": {
+        "ust": ["safran", "gül"],
+        "orta": ["oud", "paçuli"],
+        "alt": ["amber", "misk", "sandal ağacı"]
+      },
+      "tip": "Odunsu",
+      "ikincilTip": "Baharatlı",
+      "mevsim": ["Kış", "Sonbahar"],
+      "cinsiyet": "unisex",
+      "yogunluk": "yogun",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "ozel"],
+      "iklim": ["soguk"],
+      "ortam": "kapali",
+      "aktivite": ["sosyal"],
+      "kiyafetStili": ["formal", "gece"],
+      "aciklama": "Lüks ve egzotik. Unutulmaz izlenim bırakır.",
+      "puan": 4.9,
+      "etiketler": ["lüks", "egzotik", "prestijli", "unutulmaz"],
+      "phUyumu": {
+        "minPH": 5.5,
+        "maxPH": 7.0,
+        "idealPH": 6.2,
+        "asidikEtki": "Oud daha hayvansal ve yoğun",
+        "bazikEtki": "Oud kremsi ve yumuşak"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.1, "bazikCilt": -0.1, "kuruCilt": -0.2, "yagliCilt": 0.2},
+        "orta": {"asidikCilt": 0.2, "bazikCilt": 0.1, "kuruCilt": 0.1, "yagliCilt": 0.4},
+        "alt": {"asidikCilt": 0.3, "bazikCilt": 0.3, "kuruCilt": 0.3, "yagliCilt": 0.6}
+      }
+    },
+    {
+      "id": "27",
+      "isim": "Kakao Sıcaklığı",
+      "notalar": {
+        "ust": ["kahve", "portakal"],
+        "orta": ["kakao", "pralin"],
+        "alt": ["vanilya", "amber", "tonka"]
+      },
+      "tip": "Tatlı",
+      "ikincilTip": "Amber",
+      "mevsim": ["Kış"],
+      "cinsiyet": "unisex",
+      "yogunluk": "yogun",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "ev"],
+      "iklim": ["soguk"],
+      "ortam": "kapali",
+      "aktivite": ["ev", "sosyal"],
+      "kiyafetStili": ["casual", "trendy"],
+      "aciklama": "Gurme tatlılık ve sıcaklık. Kış akşamları için ideal.",
+      "puan": 4.7,
+      "etiketler": ["gurme", "sıcak", "tatlı", "rahat"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 6.0,
+        "idealPH": 5.5,
+        "asidikEtki": "Kakao daha bitter ve yoğun",
+        "bazikEtki": "Kakao kremsi ve süt çikolata gibi"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.0, "bazikCilt": -0.2, "kuruCilt": -0.3, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.2, "bazikCilt": 0.1, "kuruCilt": 0.0, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.3, "bazikCilt": 0.2, "kuruCilt": 0.2, "yagliCilt": 0.5}
+      }
+    },
+    {
+      "id": "28",
+      "isim": "Deniz Tuzu",
+      "notalar": {
+        "ust": ["deniz tuzu", "greyfurt"],
+        "orta": ["yasemin", "deniz yosunu"],
+        "alt": ["misk", "amber", "sedir"]
+      },
+      "tip": "Ferah",
+      "mevsim": ["Yaz"],
+      "cinsiyet": "unisex",
+      "yogunluk": "hafif",
+      "kalicilik": "orta",
+      "kullanimAmaci": ["gunluk", "spor"],
+      "iklim": ["sicak", "nemli"],
+      "ortam": "acik",
+      "aktivite": ["spor", "sosyal"],
+      "kiyafetStili": ["casual", "sportif"],
+      "aciklama": "Sahil rüzgarının tazeliği. Yaz tatili hissi.",
+      "puan": 4.4,
+      "etiketler": ["deniz", "taze", "yaz", "tatil"],
+      "phUyumu": {
+        "minPH": 4.5,
+        "maxPH": 5.5,
+        "idealPH": 5.0,
+        "asidikEtki": "Mineral ve tuzlu notalar belirgin",
+        "bazikEtki": "Daha yumuşak okyanus esintisi"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.3, "bazikCilt": -0.2, "kuruCilt": -0.3, "yagliCilt": 0.0},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.0, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "alt": {"asidikCilt": -0.1, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.3}
+      }
+    },
+    {
+      "id": "29",
+      "isim": "Odunsu Akord",
+      "notalar": {
+        "ust": ["biber", "elemi"],
+        "orta": ["iris", "menekşe"],
+        "alt": ["sandal ağacı", "paçuli", "sedir"]
+      },
+      "tip": "Odunsu",
+      "mevsim": ["Sonbahar", "Kış"],
+      "cinsiyet": "erkek",
+      "yogunluk": "yogun",
+      "kalicilik": "uzun",
+      "kullanimAmaci": ["aksam", "is"],
+      "iklim": ["soguk"],
+      "ortam": "kapali",
+      "aktivite": ["ofis", "sosyal"],
+      "kiyafetStili": ["formal"],
+      "aciklama": "Akşam için sofistike seçim. Liderler için.",
+      "puan": 4.8,
+      "etiketler": ["lider", "sofistike", "güçlü", "prestijli"],
+      "phUyumu": {
+        "minPH": 5.3,
+        "maxPH": 6.8,
+        "idealPH": 6.0,
+        "asidikEtki": "Odunlar keskin ve güçlü",
+        "bazikEtki": "Odunlar kremsi ve zarif"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.0, "bazikCilt": -0.1, "kuruCilt": -0.2, "yagliCilt": 0.1},
+        "orta": {"asidikCilt": 0.1, "bazikCilt": 0.1, "kuruCilt": -0.1, "yagliCilt": 0.2},
+        "alt": {"asidikCilt": 0.3, "bazikCilt": 0.3, "kuruCilt": 0.3, "yagliCilt": 0.5}
+      }
+    },
+    {
+      "id": "30",
+      "isim": "Gül ve Misk",
+      "notalar": {
+        "ust": ["limon", "bergamot"],
+        "orta": ["gül", "ylang ylang"],
+        "alt": ["misk", "frezya", "amber"]
+      },
+      "tip": "Çiçeksi",
+      "mevsim": ["İlkbahar", "Yaz"],
+      "cinsiyet": "kadın",
+      "yogunluk": "hafif",
+      "kalicilik": "orta",
+      "kullanimAmaci": ["gunluk", "is"],
+      "iklim": ["sicak"],
+      "ortam": "her_ikisi",
+      "aktivite": ["ofis", "sosyal"],
+      "kiyafetStili": ["formal", "casual"],
+      "aciklama": "Klasik ve zamansız zarafet. Her kadının favorisi.",
+      "puan": 4.6,
+      "etiketler": ["klasik", "zamansız", "zarif", "şık"],
+      "phUyumu": {
+        "minPH": 5.0,
+        "maxPH": 5.8,
+        "idealPH": 5.4,
+        "asidikEtki": "Gül canlı ve taze",
+        "bazikEtki": "Gül yumuşak ve pudramsı"
+      },
+      "notaKalicilik": {
+        "ust": {"asidikCilt": 0.2, "bazikCilt": -0.2, "kuruCilt": -0.2, "yagliCilt": 0.0},
+        "orta": {"asidikCilt": 0.2, "bazikCilt": 0.1, "kuruCilt": -0.1, "yagliCilt": 0.3},
+        "alt": {"asidikCilt": 0.0, "bazikCilt": 0.2, "kuruCilt": 0.1, "yagliCilt": 0.2}
+      }
+    }
+  ],
+  "notalar": [
+    "amber", "vanilya", "sandal ağacı", "bergamot", "biber", "gül", "safran",
+    "limon", "portakal", "lavanta", "yasemin", "misk", "sedir", "paçuli",
+    "frezya", "şakayık", "manolya", "tarçın", "karanfil", "kakule", "vetiver",
+    "greyfurt", "neroli", "iris", "menekşe", "tonka fasulyesi", "kakao",
+    "karamel", "pralin", "kahve", "badem", "fındık", "nane", "biberiye",
+    "adaçayı", "çam iğnesi", "elemi", "deri", "tütün yaprağı", "oud",
+    "kehribar", "benzoin", "ylang ylang", "tuberose", "gardenia", "orkide",
+    "zambak", "şeftali", "armut", "elma", "mandalina", "çilek", "mango",
+    "ananas", "hindistan cevizi", "yeşil çay", "bambu", "lotus", "deniz tuzu",
+    "deniz yosunu", "ozon", "pamuk çiçeği", "zencefil", "nutmeg", "heliotrope",
+    "kiraz", "geranium", "beyaz çiçekler", "frangipani", "kan portakalı"
+  ],
+  "kokuTipleri": [
+    {"id": "ciceksi", "isim": "Çiçeksi", "icon": "flower", "color": "#E8A4C9", "aciklama": "Gül, yasemin, lavanta gibi çiçek notaları"},
+    {"id": "odunsu", "isim": "Odunsu", "icon": "tree", "color": "#8B7355", "aciklama": "Sandal ağacı, sedir, paçuli notaları"},
+    {"id": "ferah", "isim": "Ferah", "icon": "water", "color": "#7EC8E3", "aciklama": "Narenciye, deniz notaları, nane"},
+    {"id": "amber", "isim": "Amber", "icon": "flame", "color": "#D4A574", "aciklama": "Vanilya, amber, karamel notaları"},
+    {"id": "baharatli", "isim": "Baharatlı", "icon": "sparkles", "color": "#C75B39", "aciklama": "Tarçın, karanfil, biber notaları"},
+    {"id": "meyvemsi", "isim": "Meyvemsi", "icon": "nutrition", "color": "#FF6B6B", "aciklama": "Şeftali, mango, elma gibi meyve notaları"},
+    {"id": "tatli", "isim": "Tatlı", "icon": "ice-cream", "color": "#FFB6C1", "aciklama": "Vanilya, karamel, çikolata gibi gurme notalar"},
+    {"id": "yesil", "isim": "Yeşil", "icon": "leaf", "color": "#90EE90", "aciklama": "Yeşil çay, bambu, doğal bitkisel notalar"}
+  ],
+  "mevsimler": [
+    {"id": "ilkbahar", "isim": "İlkbahar", "icon": "flower-outline", "color": "#A8E6CF"},
+    {"id": "yaz", "isim": "Yaz", "icon": "sunny-outline", "color": "#FFE66D"},
+    {"id": "sonbahar", "isim": "Sonbahar", "icon": "leaf-outline", "color": "#FF8C42"},
+    {"id": "kis", "isim": "Kış", "icon": "snow-outline", "color": "#95C8F4"},
+    {"id": "tum", "isim": "Tüm Mevsimler", "icon": "infinite-outline", "color": "#B8B8C8"}
+  ],
+  "ciltTipleri": [
+    {"id": "normal", "isim": "Normal", "icon": "hand-left-outline", "aciklama": "Dengeli nem seviyesi, koku uzun süre kalır", "phEtkisi": 0},
+    {"id": "kuru", "isim": "Kuru", "icon": "water-outline", "aciklama": "Koku daha hızlı uçabilir, nemlendirici kullanın", "phEtkisi": 0.2},
+    {"id": "yagli", "isim": "Yağlı", "icon": "water", "aciklama": "Koku çok uzun süre kalır, hafif kokular tercih edin", "phEtkisi": -0.2}
+  ],
+  "terlemeOranlari": [
+    {"id": "az", "isim": "Az", "icon": "sunny-outline", "aciklama": "Koku uzun süre kalır", "phEtkisi": 0},
+    {"id": "normal", "isim": "Normal", "icon": "partly-sunny-outline", "aciklama": "Standart kalıcılık", "phEtkisi": -0.1},
+    {"id": "cok", "isim": "Çok", "icon": "rainy-outline", "aciklama": "Ferah ve hafif kokular daha iyi uyum sağlar", "phEtkisi": -0.2}
+  ],
+  "ciltHassasiyetleri": [
+    {"id": "hassas", "isim": "Hassas", "icon": "alert-circle-outline", "aciklama": "Baharatlı kokulardan kaçının", "phEtkisi": 0.1},
+    {"id": "normal", "isim": "Normal", "icon": "checkmark-circle-outline", "aciklama": "Her türlü koku uygundur", "phEtkisi": 0},
+    {"id": "dayanikli", "isim": "Dayanıklı", "icon": "shield-checkmark-outline", "aciklama": "Yoğun kokular bile sorun yaratmaz", "phEtkisi": -0.1}
+  ],
+  "yogunluklar": [
+    {"id": "hafif", "isim": "Hafif", "icon": "remove-outline", "aciklama": "Yakın mesafede hissedilir"},
+    {"id": "orta", "isim": "Orta", "icon": "reorder-two-outline", "aciklama": "Dengeli yoğunluk"},
+    {"id": "yogun", "isim": "Yoğun", "icon": "reorder-four-outline", "aciklama": "Güçlü ve uzaktan hissedilir"}
+  ],
+  "kullanimAmaclari": [
+    {"id": "gunluk", "isim": "Günlük", "icon": "today-outline", "aciklama": "Her gün kullanım için"},
+    {"id": "is", "isim": "İş", "icon": "briefcase-outline", "aciklama": "Profesyonel ortamlar için"},
+    {"id": "aksam", "isim": "Akşam/Gece", "icon": "moon-outline", "aciklama": "Akşam dışarı çıkma için"},
+    {"id": "ozel", "isim": "Özel Gün", "icon": "star-outline", "aciklama": "Özel anlar ve kutlamalar için"}
+  ],
+  "iklimler": [
+    {"id": "sicak", "isim": "Sıcak", "icon": "sunny", "aciklama": "25°C üzeri"},
+    {"id": "soguk", "isim": "Soğuk", "icon": "snow", "aciklama": "15°C altı"},
+    {"id": "nemli", "isim": "Nemli", "icon": "water", "aciklama": "Yüksek nem oranı"},
+    {"id": "kuru", "isim": "Kuru", "icon": "partly-sunny", "aciklama": "Düşük nem oranı"}
+  ],
+  "ortamlar": [
+    {"id": "kapali", "isim": "Kapalı Alan", "icon": "home-outline", "aciklama": "Ofis, ev, restoran"},
+    {"id": "acik", "isim": "Açık Alan", "icon": "leaf-outline", "aciklama": "Park, bahçe, dış mekan"},
+    {"id": "her_ikisi", "isim": "Her İkisi", "icon": "globe-outline", "aciklama": "Hem kapalı hem açık alan"}
+  ],
+  "kiyafetStilleri": [
+    {"id": "casual", "isim": "Casual", "icon": "shirt-outline", "aciklama": "Günlük rahat giyim"},
+    {"id": "formal", "isim": "Formal", "icon": "briefcase-outline", "aciklama": "İş ve resmi ortamlar"},
+    {"id": "sportif", "isim": "Sportif", "icon": "fitness-outline", "aciklama": "Spor ve aktif yaşam"},
+    {"id": "trendy", "isim": "Trendy", "icon": "sparkles-outline", "aciklama": "Moda takipçisi, şık"},
+    {"id": "gece", "isim": "Gece/Özel", "icon": "moon-outline", "aciklama": "Gece dışarı çıkma ve özel anlar"}
+  ],
+  "aktiviteler": [
+    {"id": "spor", "isim": "Spor", "icon": "fitness-outline", "aciklama": "Aktif spor aktiviteleri"},
+    {"id": "ofis", "isim": "Ofis", "icon": "desktop-outline", "aciklama": "İş ve ofis ortamı"},
+    {"id": "ev", "isim": "Ev", "icon": "home-outline", "aciklama": "Ev içi aktiviteler"},
+    {"id": "sosyal", "isim": "Sosyal", "icon": "people-outline", "aciklama": "Sosyal etkinlikler ve buluşmalar"}
+  ],
+  "kaliciliklar": [
+    {"id": "kisa", "isim": "Kısa (2-4 saat)", "icon": "time-outline", "aciklama": "Hafif ve uçucu kokular"},
+    {"id": "orta", "isim": "Orta (4-6 saat)", "icon": "hourglass-outline", "aciklama": "Dengeli kalıcılık"},
+    {"id": "uzun", "isim": "Uzun (6+ saat)", "icon": "infinite-outline", "aciklama": "Güçlü ve kalıcı kokular"}
+  ],
+  "phAraliklari": [
+    {"id": "asidik", "isim": "Asidik (4.0-5.0)", "minPH": 4.0, "maxPH": 5.0, "aciklama": "Üst notalar parlak, alt notalar geri planda"},
+    {"id": "normal", "isim": "Normal (5.0-6.0)", "minPH": 5.0, "maxPH": 6.0, "aciklama": "Dengeli koku performansı"},
+    {"id": "bazik", "isim": "Bazik (6.0-7.0)", "minPH": 6.0, "maxPH": 7.0, "aciklama": "Alt notalar baskın, üst notalar hızlı uçar"}
+  ],
+  "phHesaplamaFormulu": {
+    "tabanPH": 5.0,
+    "ciltTipiKatsayi": 0.2,
+    "terlemeKatsayi": -0.1,
+    "hassasiyetKatsayi": 0.1,
+    "aciklama": "Tahmini pH = Taban pH + (Cilt Tipi * Katsayı) + (Terleme * Katsayı) + (Hassasiyet * Katsayı)"
+  }
+}

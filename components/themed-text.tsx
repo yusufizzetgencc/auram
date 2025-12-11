@@ -1,60 +1,92 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
+/**
+ * KOKU - Themed Text Component
+ */
 
-import { useThemeColor } from '@/hooks/use-theme-color';
+import React from 'react';
+import { Text, TextStyle, StyleSheet } from 'react-native';
+import { Colors, FontSizes, FontWeights } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export type ThemedTextProps = TextProps & {
-  lightColor?: string;
-  darkColor?: string;
-  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
-};
+type TextType = 'default' | 'title' | 'subtitle' | 'heading' | 'body' | 'caption' | 'label';
+
+interface ThemedTextProps {
+  children: React.ReactNode;
+  type?: TextType;
+  style?: TextStyle;
+  color?: string;
+  center?: boolean;
+}
 
 export function ThemedText({
-  style,
-  lightColor,
-  darkColor,
+  children,
   type = 'default',
-  ...rest
+  style,
+  color,
+  center = false,
 }: ThemedTextProps) {
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+
+  const getTypeStyle = (): TextStyle => {
+    switch (type) {
+      case 'title':
+        return {
+          fontSize: FontSizes['3xl'],
+          fontWeight: FontWeights.bold,
+          color: color || colors.text,
+          letterSpacing: -0.5,
+        };
+      case 'subtitle':
+        return {
+          fontSize: FontSizes.xl,
+          fontWeight: FontWeights.semiBold,
+          color: color || colors.text,
+        };
+      case 'heading':
+        return {
+          fontSize: FontSizes.lg,
+          fontWeight: FontWeights.semiBold,
+          color: color || colors.text,
+        };
+      case 'body':
+        return {
+          fontSize: FontSizes.base,
+          fontWeight: FontWeights.regular,
+          color: color || colors.textSecondary,
+          lineHeight: FontSizes.base * 1.5,
+        };
+      case 'caption':
+        return {
+          fontSize: FontSizes.sm,
+          fontWeight: FontWeights.regular,
+          color: color || colors.textMuted,
+        };
+      case 'label':
+        return {
+          fontSize: FontSizes.xs,
+          fontWeight: FontWeights.medium,
+          color: color || colors.textMuted,
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+        };
+      default:
+        return {
+          fontSize: FontSizes.base,
+          fontWeight: FontWeights.regular,
+          color: color || colors.text,
+        };
+    }
+  };
 
   return (
-    <Text
-      style={[
-        { color },
-        type === 'default' ? styles.default : undefined,
-        type === 'title' ? styles.title : undefined,
-        type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
-        type === 'subtitle' ? styles.subtitle : undefined,
-        type === 'link' ? styles.link : undefined,
-        style,
-      ]}
-      {...rest}
-    />
+    <Text style={[getTypeStyle(), center && styles.center, style]}>
+      {children}
+    </Text>
   );
 }
 
 const styles = StyleSheet.create({
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  defaultSemiBold: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    lineHeight: 32,
-  },
-  subtitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 16,
-    color: '#0a7ea4',
+  center: {
+    textAlign: 'center',
   },
 });
