@@ -1,10 +1,10 @@
 /**
- * AROMIXEN - Kişisel Parfüm Öneri Uygulaması
- * Type Tanımlamaları
+ * AROMIXEN - Lüks Parfüm Öneri Uygulaması
+ * Type Tanımlamaları - Genişletilmiş
  */
 
-// Koku Tipleri
-export type KokuTipi = 'Çiçeksi' | 'Odunsu' | 'Ferah' | 'Amber' | 'Baharatlı' | 'Meyvemsi' | 'Tatlı' | 'Yeşil';
+// Koku Tipleri - Genişletilmiş
+export type KokuTipi = 'Çiçeksi' | 'Odunsu' | 'Ferah' | 'Amber' | 'Baharatlı' | 'Meyvemsi' | 'Tatlı' | 'Yeşil' | 'Oryantal' | 'Aquatik' | 'Deri' | 'Pudralı';
 
 // Mevsimler
 export type Mevsim = 'İlkbahar' | 'Yaz' | 'Sonbahar' | 'Kış' | 'Tüm Mevsimler';
@@ -13,7 +13,7 @@ export type Mevsim = 'İlkbahar' | 'Yaz' | 'Sonbahar' | 'Kış' | 'Tüm Mevsimle
 export type Cinsiyet = 'erkek' | 'kadın' | 'unisex';
 
 // Cilt Tipi
-export type CiltTipi = 'normal' | 'kuru' | 'yagli';
+export type CiltTipi = 'normal' | 'kuru' | 'yagli' | 'karma';
 
 // Terleme Oranı
 export type TerlemeOrani = 'az' | 'normal' | 'cok';
@@ -25,19 +25,19 @@ export type CiltHassasiyeti = 'hassas' | 'normal' | 'dayanikli';
 export type KokuYogunlugu = 'hafif' | 'orta' | 'yogun';
 
 // Kullanım Amacı
-export type KullanimAmaci = 'gunluk' | 'is' | 'aksam' | 'ozel';
+export type KullanimAmaci = 'gunluk' | 'is' | 'aksam' | 'ozel' | 'romantik' | 'spor';
 
 // İklim
-export type Iklim = 'sicak' | 'soguk' | 'nemli' | 'kuru';
+export type Iklim = 'sicak' | 'soguk' | 'nemli' | 'kuru' | 'iliman';
 
 // Ortam
 export type Ortam = 'kapali' | 'acik' | 'her_ikisi';
 
 // Kıyafet Stili
-export type KiyafetStili = 'casual' | 'formal' | 'sportif' | 'trendy' | 'gece';
+export type KiyafetStili = 'casual' | 'formal' | 'sportif' | 'trendy' | 'gece' | 'bohem' | 'minimalist';
 
 // Aktivite Yoğunluğu
-export type AktiviteYogunlugu = 'spor' | 'ofis' | 'ev' | 'sosyal';
+export type AktiviteYogunlugu = 'spor' | 'ofis' | 'ev' | 'sosyal' | 'seyahat';
 
 // Kalıcılık Tercihi
 export type KalicilikTercihi = 'kisa' | 'orta' | 'uzun';
@@ -47,26 +47,60 @@ export type PHBilgiDurumu = 'biliyorum' | 'bilmiyorum';
 
 // pH Aralığı Tipi
 export type PHAraligi = 'asidik' | 'normal' | 'bazik';
-// asidik: 4.0-5.0, normal: 5.0-6.0, bazik: 6.0-7.0
+
+// ========== YENİ TİPLER ==========
+
+// Yaş Grubu
+export type YasGrubu = '18-24' | '25-34' | '35-44' | '45-54' | '55+';
+
+// Bütçe Aralığı
+export type Butce = 'ekonomik' | 'orta' | 'premium' | 'luks';
+
+// Parfüm Deneyim Seviyesi
+export type DeneyimSeviyesi = 'yeni_baslayan' | 'orta' | 'uzman' | 'koleksiyoner';
+
+// Günün Saati
+export type GununSaati = 'sabah' | 'oglen' | 'aksam' | 'gece' | 'tum_gun';
+
+// Koku Alma Hassasiyeti
+export type KokuAlmaHassasiyeti = 'dusuk' | 'normal' | 'yuksek' | 'cok_yuksek';
+
+// Alerji/Hassasiyet Durumu
+export type AlerjiDurumu = 'yok' | 'alkol' | 'cicek' | 'baharat' | 'diger';
+
+// Parfüm Konsantrasyonu Tercihi
+export type KonsantrasyonTercihi = 'eau_fraiche' | 'eau_de_cologne' | 'eau_de_toilette' | 'eau_de_parfum' | 'parfum';
+
+// Kişilik Tipi
+export type KisilikTipi = 'romantik' | 'dinamik' | 'sofistike' | 'dogal' | 'cesur' | 'mistik';
+
+// Parfüm Kullanım Sıklığı
+export type KullanimSikligi = 'nadir' | 'haftada_1_2' | 'gunluk' | 'gunde_birden_fazla';
+
+// İzlenim Hedefi
+export type IzlenimHedefi = 'cekici' | 'profesyonel' | 'taze' | 'gizemli' | 'sicak' | 'enerjik';
+
+// Marka Tercihi
+export type MarkaTercihi = 'niche' | 'designer' | 'farketmez';
 
 // Parfüm pH Uyumluluğu
 export interface ParfumPHUyumu {
-  minPH: number;      // Minimum uyumlu pH
-  maxPH: number;      // Maximum uyumlu pH
-  idealPH: number;    // İdeal pH değeri
-  asidikEtki: string; // Asidik ciltte nasıl kokar
-  bazikEtki: string;  // Bazik ciltte nasıl kokar
+  minPH: number;
+  maxPH: number;
+  idealPH: number;
+  asidikEtki: string;
+  bazikEtki: string;
 }
 
 // Parfüm Nota Kalıcılık Modifikasyonu
 export interface NotaKalicilikMod {
-  asidikCilt: number;   // -1 ile +1 arası (asidik ciltte kalıcılık değişimi)
-  bazikCilt: number;    // -1 ile +1 arası (bazik ciltte kalıcılık değişimi)
-  kuruCilt: number;     // -1 ile +1 arası
-  yagliCilt: number;    // -1 ile +1 arası
+  asidikCilt: number;
+  bazikCilt: number;
+  kuruCilt: number;
+  yagliCilt: number;
 }
 
-// Parfüm Modeli - Güncellenmiş
+// Parfüm Modeli - Genişletilmiş
 export interface Parfum {
   id: string;
   isim: string;
@@ -89,8 +123,13 @@ export interface Parfum {
   kiyafetStili: KiyafetStili[];
   aciklama: string;
   puan?: number;
+  fiyatAraligi?: Butce;
+  konsantrasyon?: KonsantrasyonTercihi;
+  kisilikTipi?: KisilikTipi[];
+  izlenim?: IzlenimHedefi[];
+  yasGrubu?: YasGrubu[];
+  gununSaati?: GununSaati[];
   etiketler: string[];
-  // pH Özellikleri
   phUyumu: ParfumPHUyumu;
   notaKalicilik: {
     ust: NotaKalicilikMod;
@@ -135,37 +174,56 @@ export interface KiyafetStiliItem {
 // Kullanıcı pH Bilgileri
 export interface UserPHInfo {
   biliyorMu: PHBilgiDurumu;
-  deger: number | null;        // Kullanıcının bildiği pH değeri
-  tahminiDeger: number | null; // Hesaplanan tahmini pH
-  aralik: PHAraligi | null;    // pH aralığı kategorisi
+  deger: number | null;
+  tahminiDeger: number | null;
+  aralik: PHAraligi | null;
 }
 
-// Kullanıcı Tercihleri - Genişletilmiş
+// Kullanıcı Tercihleri - Kapsamlı Genişletilmiş
 export interface UserPreferences {
   // pH Bilgileri
   phInfo: UserPHInfo;
   
-  // 1️⃣ Kişisel Tercihler
-  kokuTipleri: KokuTipi[]; // Çoklu seçim
+  // 1️⃣ Kişisel Bilgiler (YENİ)
+  yasGrubu: YasGrubu | null;
+  kisilikTipi: KisilikTipi | null;
+  
+  // 2️⃣ Parfüm Deneyimi (YENİ)
+  deneyimSeviyesi: DeneyimSeviyesi | null;
+  kullanimSikligi: KullanimSikligi | null;
+  
+  // 3️⃣ Bütçe ve Marka (YENİ)
+  butce: Butce | null;
+  markaTercihi: MarkaTercihi | null;
+  konsantrasyonTercihi: KonsantrasyonTercihi | null;
+  
+  // 4️⃣ Koku Tercihleri
+  kokuTipleri: KokuTipi[];
   yogunluk: KokuYogunlugu | null;
+  izlenimHedefi: IzlenimHedefi | null;
+  
+  // 5️⃣ Kullanım Detayları
   kullanimAmaci: KullanimAmaci | null;
+  gununSaati: GununSaati | null;
   cinsiyet: Cinsiyet | null;
   
-  // 2️⃣ Kişisel Fiziksel Özellikler
+  // 6️⃣ Fiziksel Özellikler
   ciltTipi: CiltTipi | null;
   ciltHassasiyeti: CiltHassasiyeti | null;
   terlemeOrani: TerlemeOrani | null;
+  kokuAlmaHassasiyeti: KokuAlmaHassasiyeti | null;
+  alerjiDurumu: AlerjiDurumu[];
   
-  // 3️⃣ Hava ve Mekan Durumu
+  // 7️⃣ Çevre Faktörleri
   mevsim: Mevsim | null;
   iklim: Iklim | null;
   ortam: Ortam | null;
   
-  // 4️⃣ Yaşam Tarzı ve Kıyafet
+  // 8️⃣ Yaşam Tarzı
   kiyafetStili: KiyafetStili | null;
   aktivite: AktiviteYogunlugu | null;
   
-  // 5️⃣ Koku Alışkanlıkları
+  // 9️⃣ Nota Tercihleri
   sevilenNotalar: string[];
   sevilmeyenNotalar: string[];
   kalicilikTercihi: KalicilikTercihi | null;
@@ -175,7 +233,7 @@ export interface UserPreferences {
 export interface PHHesapSonucu {
   tahminiPH: number;
   aralik: PHAraligi;
-  guvenilirlik: number; // 0-100 arası
+  guvenilirlik: number;
   aciklama: string;
   faktorler: {
     ciltTipiEtkisi: number;
@@ -186,22 +244,22 @@ export interface PHHesapSonucu {
 
 // Parfüm pH Skor Sonucu
 export interface ParfumPHSkor {
-  phUyumSkoru: number;        // 0-100 arası
-  kalicilikModifikasyonu: number; // -1 ile +1 arası
-  ustNotaPerformansi: number;  // 0-100 arası
+  phUyumSkoru: number;
+  kalicilikModifikasyonu: number;
+  ustNotaPerformansi: number;
   ortaNotaPerformansi: number;
   altNotaPerformansi: number;
-  toplamPerformans: number;    // 0-100 arası
+  toplamPerformans: number;
   aciklama: string;
 }
 
-// Onboarding Adımı
+// Onboarding Adımı - Genişletilmiş
 export interface OnboardingStep {
   id: string;
   kategori: string;
   title: string;
   subtitle: string;
-  type: 'single' | 'multiple' | 'multi-select-notes' | 'ph-input' | 'slider';
+  type: 'single' | 'multiple' | 'multi-select-notes' | 'ph-input' | 'slider' | 'multi-select';
   field: keyof UserPreferences | 'phDeger';
   options?: {
     id: string;
@@ -209,6 +267,7 @@ export interface OnboardingStep {
     subtitle?: string;
     icon?: string;
     color?: string;
+    emoji?: string;
   }[];
   noteOptions?: string[];
   sliderConfig?: {
@@ -217,6 +276,8 @@ export interface OnboardingStep {
     step: number;
     unit: string;
   };
+  required?: boolean;
+  helpText?: string;
 }
 
 // Öneri Sonucu - Güncellenmiş
@@ -231,7 +292,6 @@ export interface RecommendationResult {
     uyum: boolean;
     detay: string;
   }[];
-  // pH Bazlı Skorlar
   phSkor: ParfumPHSkor;
 }
 

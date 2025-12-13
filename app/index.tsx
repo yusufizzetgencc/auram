@@ -1,21 +1,27 @@
 /**
- * AROMIXEN - Welcome Screen
+ * AROMIXEN - Premium Welcome Screen
+ * Elegant Mor/Fuşya Teması
  */
 
-import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, StyleSheet, Dimensions, Animated as RNAnimated, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   FadeInDown,
   FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui';
-import { Colors, Spacing, BorderRadius, FontSizes } from '@/constants/theme';
+import { Colors, Spacing, BorderRadius, FontSizes, Shadows } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const { width, height } = Dimensions.get('window');
@@ -24,14 +30,45 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const shadows = Shadows[colorScheme ?? 'light'];
 
+  // Floating animation
+  const floatValue = useSharedValue(0);
+  const pulseValue = useSharedValue(1);
+
+  useEffect(() => {
+    floatValue.value = withRepeat(
+      withTiming(1, { duration: 3000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+    pulseValue.value = withRepeat(
+      withTiming(1.05, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true
+    );
+  }, []);
+
+  const floatStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: floatValue.value * -10 }],
+  }));
+
+  const pulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseValue.value }],
+  }));
+
+  // Gradient colors for theme
   const gradientColors = colorScheme === 'dark'
-    ? ['#0D0D14', '#1A1A26', '#2A2A3A'] as const
-    : ['#FEFEFE', '#F8F4F0', '#F0EBE5'] as const;
+    ? ['#0D0A14', '#150F20', '#1E1628'] as const
+    : ['#FDFBFF', '#F8F4FC', '#F0EAF5'] as const;
 
   const accentGradient = colorScheme === 'dark'
-    ? ['#E8B886', '#D4A574', '#B8956A'] as const
-    : ['#D4A574', '#B8956A', '#9C8460'] as const;
+    ? ['#B366FF', '#9D4EDD', '#7B2CBF'] as const
+    : ['#9D4EDD', '#7B2CBF', '#5A189A'] as const;
+
+  const secondaryGradient = colorScheme === 'dark'
+    ? ['#FF6B9D', '#E63946', '#C9184A'] as const
+    : ['#FF6B9D', '#E63946', '#C9184A'] as const;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -43,20 +80,41 @@ export default function WelcomeScreen() {
         end={{ x: 1, y: 1 }}
       />
 
-      {/* Decorative Elements */}
+      {/* Decorative Gradient Orbs */}
       <View style={styles.decorContainer}>
         <Animated.View
-          entering={FadeInDown.delay(200).duration(800)}
-          style={[styles.decorCircle, styles.decorCircle1, { backgroundColor: colors.tint + '10' }]}
-        />
+          entering={FadeInDown.delay(200).duration(1000)}
+          style={[styles.decorOrb, styles.decorOrb1]}
+        >
+          <LinearGradient
+            colors={['#9D4EDD30', '#9D4EDD10', '#9D4EDD00']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+          />
+        </Animated.View>
         <Animated.View
-          entering={FadeInDown.delay(400).duration(800)}
-          style={[styles.decorCircle, styles.decorCircle2, { backgroundColor: colors.tint + '08' }]}
-        />
+          entering={FadeInDown.delay(400).duration(1000)}
+          style={[styles.decorOrb, styles.decorOrb2]}
+        >
+          <LinearGradient
+            colors={['#FF6B9D20', '#FF6B9D08', '#FF6B9D00']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+          />
+        </Animated.View>
         <Animated.View
-          entering={FadeInDown.delay(600).duration(800)}
-          style={[styles.decorCircle, styles.decorCircle3, { backgroundColor: colors.tint + '05' }]}
-        />
+          entering={FadeInDown.delay(600).duration(1000)}
+          style={[styles.decorOrb, styles.decorOrb3]}
+        >
+          <LinearGradient
+            colors={['#00D4AA15', '#00D4AA05', '#00D4AA00']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+          />
+        </Animated.View>
       </View>
 
       <SafeAreaView style={styles.safeArea}>
@@ -65,48 +123,74 @@ export default function WelcomeScreen() {
           {/* Logo & Title */}
           <Animated.View
             entering={FadeInDown.delay(300).duration(800)}
-            style={styles.logoContainer}
+            style={[styles.logoContainer, floatStyle]}
           >
             <LinearGradient
               colors={accentGradient}
-              style={styles.logoGradient}
+              style={[styles.logoGradient, shadows.glow]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
               <Ionicons name="sparkles" size={48} color="#FFFFFF" />
             </LinearGradient>
+            
+            {/* Glow effect */}
+            <View style={styles.logoGlow}>
+              <LinearGradient
+                colors={['#9D4EDD40', '#9D4EDD00']}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0.5, y: 0.5 }}
+                end={{ x: 0.5, y: 1 }}
+              />
+            </View>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(500).duration(800)}>
-            <ThemedText type="title" center style={styles.title}>
+            <Text style={[styles.title, { color: colors.text }]}>
               AROMIXEN
-            </ThemedText>
+            </Text>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(600).duration(800)}>
+            <Text style={[styles.tagline, { color: colors.tint }]}>
+              ✨ Kişisel Parfüm Uzmanınız ✨
+            </Text>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(700).duration(800)}>
-            <ThemedText type="body" center style={styles.subtitle}>
-              Kişiliğinize en uygun koku profilini keşfedin
+            <ThemedText type="body" center style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Cilt tipiniz, kişiliğiniz ve yaşam tarzınıza göre{'\n'}
+              mükemmel parfümünüzü keşfedin
             </ThemedText>
           </Animated.View>
 
-          {/* Features */}
+          {/* Features Grid */}
           <Animated.View
             entering={FadeInDown.delay(900).duration(800)}
-            style={styles.featuresContainer}
+            style={styles.featuresGrid}
           >
-            <FeatureItem
-              icon="person-outline"
-              text="Kişisel analiz"
-              colors={colors}
-            />
-            <FeatureItem
+            <FeatureCard
               icon="flask-outline"
-              text="50+ Koku"
+              emoji="🧪"
+              title="pH Analizi"
+              subtitle="Cilt kimyanız"
+              color="#00D4AA"
               colors={colors}
             />
-            <FeatureItem
+            <FeatureCard
+              icon="person-outline"
+              emoji="👤"
+              title="Kişilik Testi"
+              subtitle="22+ soru"
+              color="#9D4EDD"
+              colors={colors}
+            />
+            <FeatureCard
               icon="sparkles-outline"
-              text="Akıllı öneri"
+              emoji="✨"
+              title="AI Öneri"
+              subtitle="60+ parfüm"
+              color="#FF6B9D"
               colors={colors}
             />
           </Animated.View>
@@ -114,21 +198,21 @@ export default function WelcomeScreen() {
           {/* Stats */}
           <Animated.View
             entering={FadeInDown.delay(1000).duration(800)}
-            style={styles.statsContainer}
+            style={[styles.statsContainer, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
             <View style={styles.statItem}>
-              <ThemedText style={[styles.statNumber, { color: colors.tint }]}>14</ThemedText>
-              <ThemedText type="caption">Soru</ThemedText>
+              <Text style={[styles.statNumber, { color: colors.tint }]}>22+</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Detaylı Soru</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
-              <ThemedText style={[styles.statNumber, { color: colors.tint }]}>50+</ThemedText>
-              <ThemedText type="caption">Parfüm</ThemedText>
+              <Text style={[styles.statNumber, { color: '#FF6B9D' }]}>60+</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Parfüm</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
             <View style={styles.statItem}>
-              <ThemedText style={[styles.statNumber, { color: colors.tint }]}>%95</ThemedText>
-              <ThemedText type="caption">Uyum</ThemedText>
+              <Text style={[styles.statNumber, { color: '#00D4AA' }]}>%97</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Uyum Oranı</Text>
             </View>
           </Animated.View>
         </View>
@@ -138,32 +222,68 @@ export default function WelcomeScreen() {
           entering={FadeInUp.delay(1100).duration(800)}
           style={styles.bottomContainer}
         >
-          <Button
-            title="Keşfetmeye Başla"
-            onPress={() => router.push('/onboarding')}
-            size="lg"
-            fullWidth
-            icon={<Ionicons name="arrow-forward" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />}
-          />
+          <LinearGradient
+            colors={accentGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.startButton, shadows.lg]}
+          >
+            <Button
+              title="Keşfetmeye Başla"
+              onPress={() => router.push('/onboarding')}
+              size="lg"
+              fullWidth
+              variant="ghost"
+              style={{ backgroundColor: 'transparent' }}
+              textStyle={{ color: '#FFFFFF', fontWeight: '700' }}
+              icon={<Ionicons name="arrow-forward" size={22} color="#FFFFFF" style={{ marginLeft: 8 }} />}
+            />
+          </LinearGradient>
 
-          <ThemedText type="caption" center style={styles.disclaimer}>
-            5 kategori, 14 soru ile size özel parfüm önerileri
-          </ThemedText>
+          <View style={styles.bottomInfo}>
+            <View style={styles.bottomInfoItem}>
+              <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+              <Text style={[styles.bottomInfoText, { color: colors.textMuted }]}>~3 dakika</Text>
+            </View>
+            <View style={[styles.bottomInfoDot, { backgroundColor: colors.textMuted }]} />
+            <View style={styles.bottomInfoItem}>
+              <Ionicons name="shield-checkmark-outline" size={14} color={colors.textMuted} />
+              <Text style={[styles.bottomInfoText, { color: colors.textMuted }]}>Ücretsiz</Text>
+            </View>
+            <View style={[styles.bottomInfoDot, { backgroundColor: colors.textMuted }]} />
+            <View style={styles.bottomInfoItem}>
+              <Ionicons name="lock-closed-outline" size={14} color={colors.textMuted} />
+              <Text style={[styles.bottomInfoText, { color: colors.textMuted }]}>Gizli</Text>
+            </View>
+          </View>
         </Animated.View>
       </SafeAreaView>
     </View>
   );
 }
 
-function FeatureItem({ icon, text, colors }: { icon: keyof typeof Ionicons.glyphMap; text: string; colors: typeof Colors.light }) {
+function FeatureCard({ 
+  icon, 
+  emoji, 
+  title, 
+  subtitle, 
+  color, 
+  colors 
+}: { 
+  icon: keyof typeof Ionicons.glyphMap; 
+  emoji: string;
+  title: string; 
+  subtitle: string;
+  color: string;
+  colors: typeof Colors.light;
+}) {
   return (
-    <View style={styles.featureItem}>
-      <View style={[styles.featureIcon, { backgroundColor: colors.tint + '15' }]}>
-        <Ionicons name={icon} size={20} color={colors.tint} />
+    <View style={[styles.featureCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={[styles.featureIconContainer, { backgroundColor: color + '15' }]}>
+        <Text style={styles.featureEmoji}>{emoji}</Text>
       </View>
-      <ThemedText type="caption" style={{ color: colors.textSecondary }}>
-        {text}
-      </ThemedText>
+      <Text style={[styles.featureTitle, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.featureSubtitle, { color: colors.textMuted }]}>{subtitle}</Text>
     </View>
   );
 }
@@ -179,92 +299,160 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
   },
-  decorCircle: {
+  decorOrb: {
     position: 'absolute',
     borderRadius: 9999,
+    overflow: 'hidden',
   },
-  decorCircle1: {
-    width: width * 1.5,
-    height: width * 1.5,
-    top: -width * 0.5,
-    right: -width * 0.5,
+  decorOrb1: {
+    width: width * 1.2,
+    height: width * 1.2,
+    top: -width * 0.4,
+    right: -width * 0.3,
   },
-  decorCircle2: {
-    width: width,
-    height: width,
-    bottom: -width * 0.3,
-    left: -width * 0.3,
+  decorOrb2: {
+    width: width * 0.9,
+    height: width * 0.9,
+    bottom: -width * 0.2,
+    left: -width * 0.4,
   },
-  decorCircle3: {
-    width: width * 0.8,
-    height: width * 0.8,
-    top: height * 0.3,
-    right: -width * 0.4,
+  decorOrb3: {
+    width: width * 0.6,
+    height: width * 0.6,
+    top: height * 0.35,
+    right: -width * 0.2,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing['2xl'],
+    paddingHorizontal: Spacing.lg,
   },
   logoContainer: {
-    marginBottom: Spacing['2xl'],
+    marginBottom: Spacing.xl,
+    position: 'relative',
   },
   logoGradient: {
-    width: 100,
-    height: 100,
+    width: 110,
+    height: 110,
     borderRadius: BorderRadius['2xl'],
     justifyContent: 'center',
     alignItems: 'center',
   },
+  logoGlow: {
+    position: 'absolute',
+    width: 160,
+    height: 80,
+    bottom: -30,
+    left: -25,
+    borderRadius: 80,
+    overflow: 'hidden',
+  },
   title: {
-    marginBottom: Spacing.md,
-    letterSpacing: 6,
-    fontSize: FontSizes['3xl'],
+    fontSize: 42,
+    fontWeight: '800',
+    letterSpacing: 8,
+    marginBottom: Spacing.xs,
+    textAlign: 'center',
+  },
+  tagline: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 2,
+    marginBottom: Spacing.lg,
+    textAlign: 'center',
   },
   subtitle: {
-    marginBottom: Spacing['2xl'],
-    paddingHorizontal: Spacing.xl,
+    marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.md,
+    lineHeight: 24,
   },
-  featuresContainer: {
+  featuresGrid: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing['2xl'],
-    marginBottom: Spacing['2xl'],
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
   },
-  featureItem: {
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  featureIcon: {
-    width: 48,
-    height: 48,
+  featureCard: {
+    width: (width - Spacing.lg * 2 - Spacing.md * 2) / 3,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  featureIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  featureEmoji: {
+    fontSize: 22,
+  },
+  featureTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  featureSubtitle: {
+    fontSize: 10,
+    textAlign: 'center',
   },
   statsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
   },
   statItem: {
     alignItems: 'center',
+    paddingHorizontal: Spacing.md,
   },
   statNumber: {
-    fontSize: FontSizes.xl,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
   },
   statDivider: {
     width: 1,
     height: 30,
   },
   bottomContainer: {
-    paddingHorizontal: Spacing['2xl'],
-    paddingBottom: Spacing['2xl'],
-    gap: Spacing.base,
+    paddingHorizontal: Spacing.xl,
+    paddingBottom: Spacing.xl,
+    gap: Spacing.md,
   },
-  disclaimer: {
-    marginTop: Spacing.sm,
+  startButton: {
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
+  },
+  bottomInfo: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  bottomInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  bottomInfoText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  bottomInfoDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
   },
 });

@@ -1,26 +1,28 @@
 /**
- * AROMIXEN - Results Screen
+ * AROMIXEN - Premium Results Screen
  * pH Bazlı Kişiselleştirilmiş Parfüm Önerileri
+ * Elegant Mor/Fuşya Teması
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-  Modal,
-  Animated,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { BorderRadius, Colors, ScentTypeColors, Shadows, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { RecommendationResult } from '@/types';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    Animated,
+    Dimensions,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -36,7 +38,8 @@ export default function ResultsScreen() {
     getRecommendations, 
     kullaniciPH, 
     phSonucu,
-    resetPreferences 
+    resetPreferences,
+    preferences,
   } = useApp();
 
   const [selectedParfum, setSelectedParfum] = useState<RecommendationResult | null>(null);
@@ -44,14 +47,13 @@ export default function ResultsScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Eğer öneri yoksa yeniden hesapla
     if (recommendations.length === 0) {
       getRecommendations();
     }
 
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 500,
+      duration: 600,
       useNativeDriver: true,
     }).start();
   }, []);
@@ -80,24 +82,32 @@ export default function ResultsScreen() {
     const effectivePH = kullaniciPH || 5.5;
     const phAralik = effectivePH < 5.0 ? 'asidik' : effectivePH > 6.0 ? 'bazik' : 'normal';
     
-    let phColor = '#4CAF50';
+    let phColor = '#00D4AA';
     let phIcon = 'checkmark-circle';
     let phTitle = 'Normal pH';
+    let phEmoji = '⚖️';
     
     if (phAralik === 'asidik') {
-      phColor = '#FF9800';
+      phColor = '#FF8C42';
       phIcon = 'flash';
       phTitle = 'Asidik Cilt';
+      phEmoji = '🍊';
     } else if (phAralik === 'bazik') {
-      phColor = '#9C27B0';
+      phColor = '#9D4EDD';
       phIcon = 'water';
       phTitle = 'Bazik Cilt';
+      phEmoji = '🌲';
     }
 
     return (
-      <View style={[styles.phCard, { backgroundColor: colors.card, borderColor: phColor }, shadows.md]}>
+      <LinearGradient
+        colors={[phColor + '20', phColor + '10']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.phCard, { borderColor: phColor }]}
+      >
         <View style={[styles.phIconContainer, { backgroundColor: phColor }]}>
-          <Ionicons name={phIcon as any} size={24} color="#FFF" />
+          <Text style={styles.phEmoji}>{phEmoji}</Text>
         </View>
         <View style={styles.phContent}>
           <Text style={[styles.phTitle, { color: phColor }]}>{phTitle}</Text>
@@ -112,20 +122,35 @@ export default function ResultsScreen() {
           <Text style={[styles.phBadgeText, { color: phColor }]}>
             %{phSonucu?.guvenilirlik || 80}
           </Text>
-          <Text style={[styles.phBadgeLabel, { color: colors.textSecondary }]}>Güvenilirlik</Text>
+          <Text style={[styles.phBadgeLabel, { color: colors.textMuted }]}>Güvenilirlik</Text>
         </View>
-      </View>
+      </LinearGradient>
     );
   };
 
   // Öneri Kartı
   const renderRecommendationCard = (result: RecommendationResult, index: number) => {
     const { parfum, matchPercentage, phSkor } = result;
+    const typeColor = ScentTypeColors[parfum.tip] || colors.tint;
     
-    // Uyum seviyesine göre renk
-    let matchColor = '#4CAF50';
-    if (matchPercentage < 60) matchColor = '#FF9800';
-    else if (matchPercentage < 75) matchColor = '#2196F3';
+    // Uyum seviyesine göre renk ve badge
+    let matchColor = '#00D4AA';
+    let matchBadge = '💚';
+    if (matchPercentage >= 85) {
+      matchColor = '#9D4EDD';
+      matchBadge = '💜';
+    } else if (matchPercentage >= 70) {
+      matchColor = '#00D4AA';
+      matchBadge = '💚';
+    } else if (matchPercentage >= 55) {
+      matchColor = '#FF8C42';
+      matchBadge = '🧡';
+    } else {
+      matchColor = '#8A7A9C';
+      matchBadge = '🤍';
+    }
+
+    const isTopThree = index < 3;
 
     return (
       <Animated.View
@@ -135,66 +160,94 @@ export default function ResultsScreen() {
           transform: [{
             translateY: fadeAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [50, 0],
+              outputRange: [30, 0],
             }),
           }],
         }}
       >
         <TouchableOpacity
-          style={[styles.recommendationCard, { backgroundColor: colors.card }, shadows.sm]}
+          style={[
+            styles.recommendationCard, 
+            { backgroundColor: colors.card, borderColor: colors.border },
+            isTopThree && { borderColor: matchColor, borderWidth: 2 },
+            shadows.sm
+          ]}
           onPress={() => openParfumDetail(result)}
           activeOpacity={0.8}
         >
-          {/* Sıra Numarası */}
-          <View style={[styles.rankBadge, { backgroundColor: index < 3 ? colors.tint : colors.textMuted }]}>
+          {/* Rank Badge */}
+          <LinearGradient
+            colors={isTopThree ? [matchColor, matchColor + 'DD'] : [colors.textMuted, colors.textMuted + 'DD']}
+            style={styles.rankBadge}
+          >
             <Text style={styles.rankText}>#{index + 1}</Text>
-          </View>
+          </LinearGradient>
 
-          {/* Ana İçerik */}
+          {/* Content */}
           <View style={styles.cardContent}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.parfumName, { color: colors.text }]}>{parfum.isim}</Text>
-              <View style={[styles.matchBadge, { backgroundColor: `${matchColor}20` }]}>
+              <View style={styles.cardTitleRow}>
+                <Text style={[styles.parfumName, { color: colors.text }]} numberOfLines={1}>
+                  {parfum.isim}
+                </Text>
+                {parfum.marka && (
+                  <Text style={[styles.parfumMarka, { color: colors.textMuted }]}>
+                    {parfum.marka}
+                  </Text>
+                )}
+              </View>
+              <View style={[styles.matchBadge, { backgroundColor: matchColor + '20' }]}>
+                <Text style={styles.matchEmoji}>{matchBadge}</Text>
                 <Text style={[styles.matchText, { color: matchColor }]}>%{matchPercentage}</Text>
               </View>
             </View>
 
-            {/* Tip ve Mevsim */}
+            {/* Tags */}
             <View style={styles.tagRow}>
-              <View style={styles.tag}>
-                <Ionicons name="pricetag-outline" size={12} color={colors.textSecondary} />
-                <Text style={[styles.tagText, { color: colors.textSecondary }]}>{parfum.tip}</Text>
+              <View style={[styles.typeTag, { backgroundColor: typeColor + '20' }]}>
+                <Text style={[styles.typeTagText, { color: typeColor }]}>{parfum.tip}</Text>
               </View>
               <View style={styles.tag}>
-                <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
-                <Text style={[styles.tagText, { color: colors.textSecondary }]}>{parfum.mevsim.join(', ')}</Text>
+                <Ionicons name="calendar-outline" size={12} color={colors.textMuted} />
+                <Text style={[styles.tagText, { color: colors.textSecondary }]}>
+                  {parfum.mevsim[0]}
+                </Text>
               </View>
+              {parfum.puan && (
+                <View style={styles.tag}>
+                  <Ionicons name="star" size={12} color="#FFD700" />
+                  <Text style={[styles.tagText, { color: colors.textSecondary }]}>
+                    {parfum.puan}
+                  </Text>
+                </View>
+              )}
             </View>
 
-            {/* pH Uyumu */}
+            {/* pH Uyumu Bar */}
             <View style={styles.phScoreRow}>
-              <Text style={[styles.phScoreLabel, { color: colors.textSecondary }]}>pH Uyumu:</Text>
-              <View style={[styles.phScoreBar, { backgroundColor: colors.border }]}>
-                <View 
-                  style={[
-                    styles.phScoreFill, 
-                    { 
-                      width: `${phSkor.phUyumSkoru}%`,
-                      backgroundColor: phSkor.phUyumSkoru >= 70 ? '#4CAF50' : phSkor.phUyumSkoru >= 50 ? '#FF9800' : '#F44336'
-                    }
-                  ]} 
+              <Text style={[styles.phScoreLabel, { color: colors.textMuted }]}>pH Uyumu</Text>
+              <View style={[styles.phScoreBar, { backgroundColor: colors.backgroundTertiary }]}>
+                <LinearGradient
+                  colors={phSkor.phUyumSkoru >= 70 ? ['#00D4AA', '#2ECC71'] : ['#FF8C42', '#FFB74D']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[styles.phScoreFill, { width: `${phSkor.phUyumSkoru}%` }]}
                 />
               </View>
-              <Text style={[styles.phScoreValue, { color: colors.textSecondary }]}>%{Math.round(phSkor.phUyumSkoru)}</Text>
+              <Text style={[styles.phScoreValue, { color: colors.textSecondary }]}>
+                %{Math.round(phSkor.phUyumSkoru)}
+              </Text>
             </View>
 
-            {/* Uyum Sebepleri */}
+            {/* Match Reasons */}
             {result.matchReasons.length > 0 && (
               <View style={styles.reasonsContainer}>
                 {result.matchReasons.slice(0, 2).map((reason, i) => (
                   <View key={i} style={styles.reasonItem}>
-                    <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
-                    <Text style={[styles.reasonText, { color: colors.textSecondary }]} numberOfLines={1}>{reason}</Text>
+                    <Ionicons name="checkmark-circle" size={14} color="#00D4AA" />
+                    <Text style={[styles.reasonText, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {reason}
+                    </Text>
                   </View>
                 ))}
               </View>
@@ -212,6 +265,7 @@ export default function ResultsScreen() {
     if (!selectedParfum) return null;
 
     const { parfum, matchPercentage, matchReasons, uyumKategorileri, phSkor } = selectedParfum;
+    const typeColor = ScentTypeColors[parfum.tip] || colors.tint;
 
     return (
       <Modal
@@ -231,39 +285,60 @@ export default function ResultsScreen() {
           </View>
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            {/* Parfüm Başlık */}
+            {/* Hero Section */}
+            <LinearGradient
+              colors={[typeColor + '30', typeColor + '10', colors.background]}
+              style={styles.heroGradient}
+            >
+              <View style={[styles.heroIcon, { backgroundColor: typeColor }]}>
+                <Ionicons name="sparkles" size={40} color="#FFF" />
+              </View>
+            </LinearGradient>
+
+            {/* Title */}
             <View style={styles.detailHeader}>
               <Text style={[styles.detailName, { color: colors.text }]}>{parfum.isim}</Text>
+              {parfum.marka && (
+                <Text style={[styles.detailMarka, { color: colors.textMuted }]}>by {parfum.marka}</Text>
+              )}
               <View style={[styles.detailMatchBadge, { backgroundColor: colors.tint }]}>
                 <Text style={styles.detailMatchText}>%{matchPercentage} Uyum</Text>
               </View>
-              <Text style={[styles.detailDescription, { color: colors.textSecondary }]}>{parfum.aciklama}</Text>
+              <Text style={[styles.detailDescription, { color: colors.textSecondary }]}>
+                {parfum.aciklama}
+              </Text>
             </View>
 
-            {/* pH Performans Kartı */}
-            <View style={[styles.phPerformanceCard, { backgroundColor: colors.card }, shadows.sm]}>
+            {/* pH Performance */}
+            <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                <Ionicons name="flask-outline" size={18} /> pH Performansı
+                🧪 pH Performansı
               </Text>
               
               <View style={styles.phPerformanceGrid}>
-                <View style={[styles.phPerformanceItem, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.phPerfLabel, { color: colors.textSecondary }]}>pH Uyumu</Text>
-                  <Text style={[styles.phPerfValue, { color: phSkor.phUyumSkoru >= 70 ? '#4CAF50' : '#FF9800' }]}>
+                <View style={[styles.phPerformanceItem, { backgroundColor: colors.backgroundTertiary }]}>
+                  <Text style={[styles.phPerfValue, { color: phSkor.phUyumSkoru >= 70 ? '#00D4AA' : '#FF8C42' }]}>
                     %{Math.round(phSkor.phUyumSkoru)}
                   </Text>
+                  <Text style={[styles.phPerfLabel, { color: colors.textMuted }]}>pH Uyumu</Text>
                 </View>
-                <View style={[styles.phPerformanceItem, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.phPerfLabel, { color: colors.textSecondary }]}>Üst Nota Perf.</Text>
-                  <Text style={[styles.phPerfValue, { color: colors.text }]}>%{Math.round(phSkor.ustNotaPerformansi)}</Text>
+                <View style={[styles.phPerformanceItem, { backgroundColor: colors.backgroundTertiary }]}>
+                  <Text style={[styles.phPerfValue, { color: colors.text }]}>
+                    %{Math.round(phSkor.ustNotaPerformansi)}
+                  </Text>
+                  <Text style={[styles.phPerfLabel, { color: colors.textMuted }]}>Üst Nota</Text>
                 </View>
-                <View style={[styles.phPerformanceItem, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.phPerfLabel, { color: colors.textSecondary }]}>Orta Nota Perf.</Text>
-                  <Text style={[styles.phPerfValue, { color: colors.text }]}>%{Math.round(phSkor.ortaNotaPerformansi)}</Text>
+                <View style={[styles.phPerformanceItem, { backgroundColor: colors.backgroundTertiary }]}>
+                  <Text style={[styles.phPerfValue, { color: colors.text }]}>
+                    %{Math.round(phSkor.ortaNotaPerformansi)}
+                  </Text>
+                  <Text style={[styles.phPerfLabel, { color: colors.textMuted }]}>Orta Nota</Text>
                 </View>
-                <View style={[styles.phPerformanceItem, { backgroundColor: colors.background }]}>
-                  <Text style={[styles.phPerfLabel, { color: colors.textSecondary }]}>Alt Nota Perf.</Text>
-                  <Text style={[styles.phPerfValue, { color: colors.text }]}>%{Math.round(phSkor.altNotaPerformansi)}</Text>
+                <View style={[styles.phPerformanceItem, { backgroundColor: colors.backgroundTertiary }]}>
+                  <Text style={[styles.phPerfValue, { color: colors.text }]}>
+                    %{Math.round(phSkor.altNotaPerformansi)}
+                  </Text>
+                  <Text style={[styles.phPerfLabel, { color: colors.textMuted }]}>Alt Nota</Text>
                 </View>
               </View>
 
@@ -273,102 +348,62 @@ export default function ResultsScreen() {
               </View>
             </View>
 
-            {/* Notalar */}
-            <View style={styles.notesSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Koku Notaları</Text>
+            {/* Notes Pyramid */}
+            <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>🎭 Nota Piramidi</Text>
               
-              <View style={styles.noteCategory}>
-                <Text style={[styles.noteCategoryTitle, { color: colors.text }]}>🌸 Üst Notalar</Text>
-                <Text style={[styles.noteCategoryDesc, { color: colors.textSecondary }]}>İlk 15 dakika</Text>
-                <View style={styles.noteTags}>
-                  {parfum.notalar.ust.map((nota, i) => (
-                    <View key={i} style={[styles.noteTag, { backgroundColor: '#FFF3E0' }]}>
-                      <Text style={[styles.noteTagText, { color: '#E65100' }]}>{nota}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.noteCategory}>
-                <Text style={[styles.noteCategoryTitle, { color: colors.text }]}>💐 Orta Notalar</Text>
-                <Text style={[styles.noteCategoryDesc, { color: colors.textSecondary }]}>15 dk - 2 saat</Text>
-                <View style={styles.noteTags}>
-                  {parfum.notalar.orta.map((nota, i) => (
-                    <View key={i} style={[styles.noteTag, { backgroundColor: '#E8F5E9' }]}>
-                      <Text style={[styles.noteTagText, { color: '#2E7D32' }]}>{nota}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.noteCategory}>
-                <Text style={[styles.noteCategoryTitle, { color: colors.text }]}>🌲 Alt Notalar</Text>
-                <Text style={[styles.noteCategoryDesc, { color: colors.textSecondary }]}>2+ saat, kalıcı</Text>
-                <View style={styles.noteTags}>
-                  {parfum.notalar.alt.map((nota, i) => (
-                    <View key={i} style={[styles.noteTag, { backgroundColor: '#EFEBE9' }]}>
-                      <Text style={[styles.noteTagText, { color: '#4E342E' }]}>{nota}</Text>
-                    </View>
-                  ))}
-                </View>
+              <View style={styles.notesPyramid}>
+                <NoteLevel 
+                  label="✨ Üst Notalar" 
+                  desc="İlk 15 dakika"
+                  notes={parfum.notalar.ust} 
+                  color="#FFE66D"
+                  colors={colors}
+                />
+                <NoteLevel 
+                  label="💫 Orta Notalar" 
+                  desc="15dk - 2 saat"
+                  notes={parfum.notalar.orta} 
+                  color="#FF8C42"
+                  colors={colors}
+                />
+                <NoteLevel 
+                  label="🌲 Alt Notalar" 
+                  desc="2+ saat, kalıcı"
+                  notes={parfum.notalar.alt} 
+                  color="#8B5A2B"
+                  colors={colors}
+                />
               </View>
             </View>
 
-            {/* Uyum Kategorileri */}
-            <View style={styles.categoriesSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Uyum Detayları</Text>
-              {uyumKategorileri.map((kategori, i) => (
-                <View key={i} style={[styles.categoryItem, { borderBottomColor: colors.border }]}>
-                  <Ionicons 
-                    name={kategori.uyum ? 'checkmark-circle' : 'close-circle'} 
-                    size={20} 
-                    color={kategori.uyum ? '#4CAF50' : '#F44336'} 
-                  />
-                  <View style={styles.categoryContent}>
-                    <Text style={[styles.categoryName, { color: colors.text }]}>{kategori.kategori}</Text>
-                    <Text style={[styles.categoryDetail, { color: colors.textSecondary }]}>{kategori.detay}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-
-            {/* Özellikler */}
-            <View style={styles.featuresSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Özellikler</Text>
+            {/* Features Grid */}
+            <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>📋 Özellikler</Text>
+              
               <View style={styles.featuresGrid}>
-                <View style={[styles.featureItem, { backgroundColor: colors.card }, shadows.sm]}>
-                  <Ionicons name="male-female-outline" size={20} color={colors.tint} />
-                  <Text style={[styles.featureLabel, { color: colors.textSecondary }]}>Cinsiyet</Text>
-                  <Text style={[styles.featureValue, { color: colors.text }]}>{parfum.cinsiyet}</Text>
-                </View>
-                <View style={[styles.featureItem, { backgroundColor: colors.card }, shadows.sm]}>
-                  <Ionicons name="speedometer-outline" size={20} color={colors.tint} />
-                  <Text style={[styles.featureLabel, { color: colors.textSecondary }]}>Yoğunluk</Text>
-                  <Text style={[styles.featureValue, { color: colors.text }]}>{parfum.yogunluk}</Text>
-                </View>
-                <View style={[styles.featureItem, { backgroundColor: colors.card }, shadows.sm]}>
-                  <Ionicons name="time-outline" size={20} color={colors.tint} />
-                  <Text style={[styles.featureLabel, { color: colors.textSecondary }]}>Kalıcılık</Text>
-                  <Text style={[styles.featureValue, { color: colors.text }]}>{parfum.kalicilik}</Text>
-                </View>
-                <View style={[styles.featureItem, { backgroundColor: colors.card }, shadows.sm]}>
-                  <Ionicons name="star-outline" size={20} color={colors.tint} />
-                  <Text style={[styles.featureLabel, { color: colors.textSecondary }]}>Puan</Text>
-                  <Text style={[styles.featureValue, { color: colors.text }]}>{parfum.puan}/5</Text>
-                </View>
+                <FeatureItem icon="person-outline" label="Cinsiyet" value={parfum.cinsiyet} colors={colors} />
+                <FeatureItem icon="speedometer-outline" label="Yoğunluk" value={parfum.yogunluk} colors={colors} />
+                <FeatureItem icon="time-outline" label="Kalıcılık" value={parfum.kalicilik} colors={colors} />
+                <FeatureItem icon="star-outline" label="Puan" value={`${parfum.puan}/5`} colors={colors} />
               </View>
             </View>
 
-            {/* Etiketler */}
-            <View style={styles.tagsSection}>
-              <View style={styles.tagsList}>
-                {parfum.etiketler.map((tag, i) => (
-                  <View key={i} style={[styles.tagItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <Text style={[styles.tagItemText, { color: colors.textSecondary }]}>#{tag}</Text>
-                  </View>
-                ))}
+            {/* Tags */}
+            {parfum.etiketler && parfum.etiketler.length > 0 && (
+              <View style={[styles.sectionCard, { backgroundColor: colors.card }]}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🏷️ Etiketler</Text>
+                <View style={styles.tagsContainer}>
+                  {parfum.etiketler.map((etiket, index) => (
+                    <View key={index} style={[styles.etiketBadge, { backgroundColor: colors.backgroundTertiary }]}>
+                      <Text style={[styles.etiketText, { color: colors.textSecondary }]}>#{etiket}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
-            </View>
+            )}
+
+            <View style={{ height: 40 }} />
           </ScrollView>
         </View>
       </Modal>
@@ -376,13 +411,21 @@ export default function ResultsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Gradient Background */}
+      <LinearGradient
+        colors={colorScheme === 'dark' 
+          ? ['#0D0A14', '#150F20', '#1E1628'] 
+          : ['#FDFBFF', '#F8F4FC', '#F0EAF5']}
+        style={StyleSheet.absoluteFill}
+      />
+
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <View>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Sizin İçin Öneriler</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Sizin İçin Öneriler 💜</Text>
           <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>
-            {recommendations.length} parfüm, pH değerinize göre özelleştirildi
+            {recommendations.length} parfüm, pH ve kişiliğinize göre
           </Text>
         </View>
       </View>
@@ -392,38 +435,92 @@ export default function ResultsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
       >
-        {/* pH Bilgi Kartı */}
+        {/* pH Info Card */}
         {renderPHInfo()}
 
-        {/* Öneriler */}
+        {/* Recommendations */}
         <View style={styles.recommendationsSection}>
-          <Text style={[styles.sectionHeader, { color: colors.text }]}>En Uyumlu Parfümler</Text>
+          <Text style={[styles.sectionHeader, { color: colors.text }]}>
+            ✨ En Uyumlu Parfümler
+          </Text>
           {recommendations.length > 0 ? (
             recommendations.map((result, index) => renderRecommendationCard(result, index))
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="search-outline" size={64} color={colors.textMuted} />
+              <Text style={styles.emptyEmoji}>🔍</Text>
               <Text style={[styles.emptyTitle, { color: colors.text }]}>Öneri Bulunamadı</Text>
-              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Tercihlerinizi değiştirip tekrar deneyin</Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+                Tercihlerinizi değiştirip tekrar deneyin
+              </Text>
             </View>
           )}
         </View>
       </ScrollView>
 
       {/* Footer Actions */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.md, borderTopColor: colors.border, backgroundColor: colors.card }]}>
-        <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.tint }]} onPress={handleRestart}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.md, backgroundColor: colors.card, borderTopColor: colors.border }]}>
+        <TouchableOpacity 
+          style={[styles.secondaryButton, { borderColor: colors.tint }]} 
+          onPress={handleRestart}
+        >
           <Ionicons name="refresh-outline" size={20} color={colors.tint} />
-          <Text style={[styles.secondaryButtonText, { color: colors.tint }]}>Yeniden Başla</Text>
+          <Text style={[styles.secondaryButtonText, { color: colors.tint }]}>Yeniden</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.tint }, shadows.md]} onPress={handleExplore}>
-          <Text style={styles.primaryButtonText}>Tümünü Keşfet</Text>
-          <Ionicons name="arrow-forward" size={20} color="#FFF" />
+        
+        <TouchableOpacity style={styles.primaryButtonContainer} onPress={handleExplore}>
+          <LinearGradient
+            colors={['#9D4EDD', '#7B2CBF']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.primaryButton, shadows.md]}
+          >
+            <Text style={styles.primaryButtonText}>Tümünü Keşfet</Text>
+            <Ionicons name="arrow-forward" size={20} color="#FFF" />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
 
       {/* Detail Modal */}
       {renderDetailModal()}
+    </View>
+  );
+}
+
+function NoteLevel({ label, desc, notes, color, colors }: {
+  label: string;
+  desc: string;
+  notes: string[];
+  color: string;
+  colors: typeof Colors.light;
+}) {
+  return (
+    <View style={[styles.noteLevel, { backgroundColor: color + '15' }]}>
+      <View style={styles.noteLevelHeader}>
+        <Text style={styles.noteLevelLabel}>{label}</Text>
+        <Text style={[styles.noteLevelDesc, { color: colors.textMuted }]}>{desc}</Text>
+      </View>
+      <View style={styles.noteLevelNotes}>
+        {notes.map((nota, index) => (
+          <View key={index} style={[styles.notaBadge, { backgroundColor: colors.card }]}>
+            <Text style={[styles.notaText, { color: colors.text }]}>{nota}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function FeatureItem({ icon, label, value, colors }: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+  colors: typeof Colors.light;
+}) {
+  return (
+    <View style={[styles.featureItem, { backgroundColor: colors.backgroundTertiary }]}>
+      <Ionicons name={icon} size={20} color={colors.tint} />
+      <Text style={[styles.featureLabel, { color: colors.textMuted }]}>{label}</Text>
+      <Text style={[styles.featureValue, { color: colors.text }]}>{value}</Text>
     </View>
   );
 }
@@ -439,7 +536,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   headerSubtitle: {
     fontSize: 14,
@@ -456,29 +553,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
     borderWidth: 2,
     gap: Spacing.md,
   },
   phIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.md,
+    width: 52,
+    height: 52,
+    borderRadius: BorderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  phEmoji: {
+    fontSize: 24,
   },
   phContent: {
     flex: 1,
   },
   phTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   phValue: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     marginVertical: 2,
   },
   phDescription: {
@@ -490,7 +590,7 @@ const styles = StyleSheet.create({
   },
   phBadgeText: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   phBadgeLabel: {
     fontSize: 10,
@@ -500,27 +600,28 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: Spacing.sm,
   },
   recommendationCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
     marginBottom: Spacing.md,
+    gap: Spacing.md,
   },
   rankBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.full,
+    width: 38,
+    height: 38,
+    borderRadius: BorderRadius.md,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.md,
   },
   rankText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFF',
   },
   cardContent: {
@@ -530,30 +631,54 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+  cardTitleRow: {
+    flex: 1,
+    marginRight: Spacing.sm,
   },
   parfumName: {
     fontSize: 16,
-    fontWeight: '600',
-    flex: 1,
+    fontWeight: '700',
+  },
+  parfumMarka: {
+    fontSize: 12,
+    marginTop: 2,
   },
   matchBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
+    gap: 4,
+  },
+  matchEmoji: {
+    fontSize: 12,
   },
   matchText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   tagRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flexWrap: 'wrap',
+  },
+  typeTag: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  typeTagText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   tagText: {
     fontSize: 12,
@@ -566,7 +691,7 @@ const styles = StyleSheet.create({
   },
   phScoreLabel: {
     fontSize: 11,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   phScoreBar: {
     flex: 1,
@@ -580,12 +705,13 @@ const styles = StyleSheet.create({
   },
   phScoreValue: {
     fontSize: 11,
-    fontWeight: '600',
-    width: 30,
+    fontWeight: '700',
+    width: 35,
+    textAlign: 'right',
   },
   reasonsContainer: {
     marginTop: Spacing.xs,
-    gap: 2,
+    gap: 3,
   },
   reasonItem: {
     flexDirection: 'row',
@@ -598,12 +724,15 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    padding: Spacing.xl * 2,
+    padding: Spacing['3xl'],
     gap: Spacing.md,
+  },
+  emptyEmoji: {
+    fontSize: 48,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   emptySubtitle: {
     fontSize: 14,
@@ -628,10 +757,14 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+  primaryButtonContainer: {
+    flex: 1.5,
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
   },
   primaryButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -641,7 +774,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#FFF',
   },
   // Modal Styles
@@ -664,20 +797,37 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   modalContent: {
     flex: 1,
-    padding: Spacing.lg,
+  },
+  heroGradient: {
+    height: 160,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: BorderRadius['2xl'],
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   detailHeader: {
     alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    marginTop: -Spacing.lg,
     marginBottom: Spacing.xl,
   },
   detailName: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '800',
     textAlign: 'center',
+  },
+  detailMarka: {
+    fontSize: 14,
+    marginTop: 4,
   },
   detailMatchBadge: {
     paddingHorizontal: Spacing.lg,
@@ -695,34 +845,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  phPerformanceCard: {
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.lg,
+  sectionCard: {
+    marginHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.xl,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: Spacing.md,
   },
   phPerformanceGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   phPerformanceItem: {
-    width: (width - Spacing.lg * 4 - Spacing.md) / 2,
+    width: (width - Spacing.lg * 4 - Spacing.sm) / 2 - Spacing.sm / 2,
     padding: Spacing.md,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
   },
-  phPerfLabel: {
-    fontSize: 12,
-    marginBottom: 4,
-  },
   phPerfValue: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  phPerfLabel: {
+    fontSize: 11,
+    marginTop: 4,
   },
   phExplanation: {
     flexDirection: 'row',
@@ -737,93 +888,72 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
-  notesSection: {
-    marginBottom: Spacing.lg,
-  },
-  noteCategory: {
-    marginBottom: Spacing.lg,
-  },
-  noteCategoryTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  noteCategoryDesc: {
-    fontSize: 12,
-    marginBottom: Spacing.sm,
-  },
-  noteTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  notesPyramid: {
     gap: Spacing.sm,
   },
-  noteTag: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+  noteLevel: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+  },
+  noteLevelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  noteLevelLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  noteLevelDesc: {
+    fontSize: 11,
+  },
+  noteLevelNotes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  notaBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
     borderRadius: BorderRadius.full,
   },
-  noteTagText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  categoriesSection: {
-    marginBottom: Spacing.lg,
-  },
-  categoryItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-  },
-  categoryContent: {
-    flex: 1,
-  },
-  categoryName: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  categoryDetail: {
+  notaText: {
     fontSize: 12,
-    marginTop: 2,
-  },
-  featuresSection: {
-    marginBottom: Spacing.lg,
+    fontWeight: '500',
   },
   featuresGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   featureItem: {
-    width: (width - Spacing.lg * 4 - Spacing.md) / 2,
+    width: (width - Spacing.lg * 4 - Spacing.sm) / 2 - Spacing.sm / 2,
     padding: Spacing.md,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     alignItems: 'center',
   },
   featureLabel: {
-    fontSize: 12,
+    fontSize: 11,
     marginTop: Spacing.xs,
   },
   featureValue: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginTop: 2,
     textTransform: 'capitalize',
   },
-  tagsSection: {
-    marginBottom: Spacing.xl * 2,
-  },
-  tagsList: {
+  tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
   },
-  tagItem: {
+  etiketBadge: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
-    borderWidth: 1,
   },
-  tagItemText: {
+  etiketText: {
     fontSize: 13,
     fontWeight: '500',
   },

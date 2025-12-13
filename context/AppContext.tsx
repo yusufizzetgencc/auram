@@ -1,33 +1,22 @@
 /**
- * AROMIXEN - Kişisel Parfüm Öneri Uygulaması
- * Global State Management + pH Hesaplama Sistemi
+ * AROMIXEN - Lüks Parfüm Öneri Uygulaması
+ * Global State Management + Gelişmiş pH Hesaplama Sistemi
  */
 
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
-import { 
-  UserPreferences, 
-  Parfum, 
-  RecommendationResult, 
-  Cinsiyet, 
-  KokuTipi, 
-  CiltTipi, 
-  Mevsim, 
-  KiyafetStili,
-  KokuYogunlugu,
-  KullanimAmaci,
-  TerlemeOrani,
-  CiltHassasiyeti,
-  Iklim,
-  Ortam,
-  AktiviteYogunlugu,
-  KalicilikTercihi,
-  PHHesapSonucu,
-  ParfumPHSkor,
-  PHAraligi,
-  UserPHInfo,
-  PHBilgiDurumu
-} from '@/types';
 import parfumData from '@/data/parfumler.json';
+import {
+    KokuTipi,
+    Mevsim,
+    Parfum,
+    ParfumPHSkor,
+    PHAraligi,
+    PHBilgiDurumu,
+    PHHesapSonucu,
+    RecommendationResult,
+    UserPHInfo,
+    UserPreferences
+} from '@/types';
+import React, { createContext, ReactNode, useContext, useMemo, useState } from 'react';
 
 interface AppContextType {
   // User preferences
@@ -73,27 +62,46 @@ const defaultPreferences: UserPreferences = {
   // pH Bilgileri
   phInfo: defaultPHInfo,
   
-  // Kişisel Tercihler
+  // 1️⃣ Kişisel Bilgiler (YENİ)
+  yasGrubu: null,
+  kisilikTipi: null,
+  
+  // 2️⃣ Parfüm Deneyimi (YENİ)
+  deneyimSeviyesi: null,
+  kullanimSikligi: null,
+  
+  // 3️⃣ Bütçe ve Marka (YENİ)
+  butce: null,
+  markaTercihi: null,
+  konsantrasyonTercihi: null,
+  
+  // 4️⃣ Koku Tercihleri
   kokuTipleri: [],
   yogunluk: null,
+  izlenimHedefi: null,
+  
+  // 5️⃣ Kullanım Detayları
   kullanimAmaci: null,
+  gununSaati: null,
   cinsiyet: null,
   
-  // Fiziksel Özellikler
+  // 6️⃣ Fiziksel Özellikler
   ciltTipi: null,
   ciltHassasiyeti: null,
   terlemeOrani: null,
+  kokuAlmaHassasiyeti: null,
+  alerjiDurumu: [],
   
-  // Hava ve Mekan
+  // 7️⃣ Çevre Faktörleri
   mevsim: null,
   iklim: null,
   ortam: null,
   
-  // Yaşam Tarzı
+  // 8️⃣ Yaşam Tarzı
   kiyafetStili: null,
   aktivite: null,
   
-  // Koku Alışkanlıkları
+  // 9️⃣ Nota Tercihleri
   sevilenNotalar: [],
   sevilmeyenNotalar: [],
   kalicilikTercihi: null,
@@ -161,7 +169,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return 'normal';
   };
 
-  // pH Hesaplama Fonksiyonu
+  // pH Hesaplama Fonksiyonu - Geliştirilmiş
   const hesaplaPH = (): PHHesapSonucu => {
     const formul = parfumData.phHesaplamaFormulu;
     let tabanPH = formul.tabanPH; // 5.0
@@ -172,6 +180,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ciltTipiEtkisi = 1 * formul.ciltTipiKatsayi; // +0.2
     } else if (preferences.ciltTipi === 'yagli') {
       ciltTipiEtkisi = -1 * formul.ciltTipiKatsayi; // -0.2
+    } else if (preferences.ciltTipi === 'karma') {
+      ciltTipiEtkisi = 0.5 * formul.ciltTipiKatsayi; // +0.1
     }
 
     // Terleme etkisi
@@ -190,15 +200,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       hassasiyetEtkisi = -1 * formul.hassasiyetKatsayi; // -0.1
     }
 
+    // Yaş etkisi (yeni)
+    let yasEtkisi = 0;
+    if (preferences.yasGrubu === '18-24') {
+      yasEtkisi = -0.1; // Genç cilt genellikle daha asidik
+    } else if (preferences.yasGrubu === '55+') {
+      yasEtkisi = 0.15; // Olgun cilt daha bazik olabilir
+    }
+
     // Tahmini pH hesapla
-    const tahminiPH = Number((tabanPH + ciltTipiEtkisi + terlemeEtkisi + hassasiyetEtkisi).toFixed(2));
+    const tahminiPH = Number((tabanPH + ciltTipiEtkisi + terlemeEtkisi + hassasiyetEtkisi + yasEtkisi).toFixed(2));
     const aralik = getPHAraligi(tahminiPH);
 
     // Güvenilirlik hesapla (ne kadar bilgi varsa o kadar güvenilir)
-    let guvenilirlik = 50; // Temel
-    if (preferences.ciltTipi) guvenilirlik += 20;
+    let guvenilirlik = 40; // Temel
+    if (preferences.ciltTipi) guvenilirlik += 15;
     if (preferences.terlemeOrani) guvenilirlik += 15;
     if (preferences.ciltHassasiyeti) guvenilirlik += 15;
+    if (preferences.yasGrubu) guvenilirlik += 10;
+    if (preferences.kokuAlmaHassasiyeti) guvenilirlik += 5;
 
     // Açıklama oluştur
     let aciklama = '';
@@ -239,11 +259,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // pH Uyum Skoru (0-100)
     let phUyumSkoru = 0;
     if (userPH >= phUyumu.minPH && userPH <= phUyumu.maxPH) {
-      // Uyum aralığında
       const idealFark = Math.abs(userPH - phUyumu.idealPH);
       phUyumSkoru = Math.max(0, 100 - (idealFark * 20));
     } else {
-      // Uyum dışında
       const minFark = Math.abs(userPH - phUyumu.minPH);
       const maxFark = Math.abs(userPH - phUyumu.maxPH);
       const enYakinFark = Math.min(minFark, maxFark);
@@ -261,7 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const ortaMod = notaKalicilik.orta;
     const altMod = notaKalicilik.alt;
 
-    let ustNotaPerformansi = 70; // Temel
+    let ustNotaPerformansi = 70;
     let ortaNotaPerformansi = 70;
     let altNotaPerformansi = 70;
 
@@ -298,9 +316,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Kalıcılık modifikasyonu
     let kalicilikModifikasyonu = 0;
     if (isKuru) {
-      kalicilikModifikasyonu = -0.2; // Kuru ciltte daha kısa kalır
+      kalicilikModifikasyonu = -0.2;
     } else if (isYagli) {
-      kalicilikModifikasyonu = 0.3; // Yağlı ciltte daha uzun kalır
+      kalicilikModifikasyonu = 0.3;
     }
 
     // Açıklama
@@ -332,12 +350,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPHSonucu(null);
   };
 
-  // Gelişmiş Öneri Algoritması - pH Entegreli
+  // Gelişmiş Öneri Algoritması - pH + Yeni Kriterler Entegreli
   const getRecommendations = (): RecommendationResult[] => {
     const results: RecommendationResult[] = [];
     
     // Efektif pH değeri
-    const effectivePH = kullaniciPH || 5.5; // Varsayılan normal pH
+    const effectivePH = kullaniciPH || 5.5;
 
     parfumler.forEach(parfum => {
       let score = 0;
@@ -348,27 +366,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // pH Skoru Hesapla
       const phSkor = hesaplaParfumPHSkoru(parfum, effectivePH);
 
-      // 1️⃣ pH UYUMU (Max 25 puan) - EN ÖNEMLİ
-      maxScore += 25;
-      const phPuan = (phSkor.phUyumSkoru / 100) * 25;
+      // 1️⃣ pH UYUMU (Max 20 puan)
+      maxScore += 20;
+      const phPuan = (phSkor.phUyumSkoru / 100) * 20;
       score += phPuan;
       if (phSkor.phUyumSkoru >= 70) {
-        matchReasons.push(`pH uyumu: %${Math.round(phSkor.phUyumSkoru)} - ${phSkor.aciklama}`);
+        matchReasons.push(`pH uyumu: %${Math.round(phSkor.phUyumSkoru)}`);
       }
       uyumKategorileri.push({
         kategori: 'pH Uyumu',
         uyum: phSkor.phUyumSkoru >= 50,
-        detay: `%${Math.round(phSkor.phUyumSkoru)} uyum - ${phSkor.aciklama}`
+        detay: `%${Math.round(phSkor.phUyumSkoru)} uyum`
       });
 
-      // 2️⃣ KOKU TİPİ UYUMU (Max 20 puan)
-      maxScore += 20;
+      // 2️⃣ KOKU TİPİ UYUMU (Max 18 puan)
+      maxScore += 18;
       if (preferences.kokuTipleri.length > 0) {
         const tipUyumu = preferences.kokuTipleri.includes(parfum.tip as KokuTipi);
         const ikincilUyum = parfum.ikincilTip && preferences.kokuTipleri.includes(parfum.ikincilTip as KokuTipi);
         
         if (tipUyumu) {
-          score += 18;
+          score += 16;
           matchReasons.push(`${parfum.tip} koku tercihinize uygun`);
         }
         if (ikincilUyum) {
@@ -377,121 +395,157 @@ export function AppProvider({ children }: { children: ReactNode }) {
         uyumKategorileri.push({
           kategori: 'Koku Tipi',
           uyum: tipUyumu || !!ikincilUyum,
-          detay: tipUyumu ? `Ana tip: ${parfum.tip}` : 'Koku tipi uyumsuz'
+          detay: tipUyumu ? parfum.tip : 'Uyumsuz'
         });
       }
 
-      // 3️⃣ CİNSİYET UYUMU (Max 15 puan)
-      maxScore += 15;
+      // 3️⃣ CİNSİYET UYUMU (Max 12 puan)
+      maxScore += 12;
       if (preferences.cinsiyet) {
         const cinsiyetUyumu = parfum.cinsiyet === preferences.cinsiyet || parfum.cinsiyet === 'unisex';
         if (cinsiyetUyumu) {
-          score += 15;
-          if (parfum.cinsiyet === preferences.cinsiyet) {
-            matchReasons.push('Cinsiyet tercihinize tam uygun');
-          }
+          score += 12;
         } else {
-          score -= 20; // Uyumsuz cinsiyet ciddi ceza
+          score -= 15; // Uyumsuz cinsiyet ciddi ceza
         }
         uyumKategorileri.push({
           kategori: 'Cinsiyet',
           uyum: cinsiyetUyumu,
-          detay: cinsiyetUyumu ? `${parfum.cinsiyet} parfüm` : 'Cinsiyet uyumsuz'
+          detay: parfum.cinsiyet
         });
       }
 
-      // 4️⃣ MEVSİM UYUMU (Max 15 puan)
-      maxScore += 15;
+      // 4️⃣ MEVSİM UYUMU (Max 10 puan)
+      maxScore += 10;
       if (preferences.mevsim) {
         const mevsimUyumu = parfum.mevsim.includes(preferences.mevsim) || 
                           parfum.mevsim.includes('Tüm Mevsimler' as Mevsim);
         if (mevsimUyumu) {
-          score += 15;
-          matchReasons.push(`${preferences.mevsim} için ideal`);
+          score += 10;
+          matchReasons.push(`${preferences.mevsim} için uygun`);
         }
         uyumKategorileri.push({
           kategori: 'Mevsim',
           uyum: mevsimUyumu,
-          detay: mevsimUyumu ? parfum.mevsim.join(', ') : 'Mevsim uyumsuz'
+          detay: parfum.mevsim.join(', ')
         });
       }
 
-      // 5️⃣ YOĞUNLUK UYUMU (Max 10 puan)
-      maxScore += 10;
+      // 5️⃣ YOĞUNLUK UYUMU (Max 8 puan)
+      maxScore += 8;
       if (preferences.yogunluk && parfum.yogunluk === preferences.yogunluk) {
-        score += 10;
-        matchReasons.push(`${preferences.yogunluk} yoğunluk tercihinize uygun`);
+        score += 8;
         uyumKategorileri.push({
           kategori: 'Yoğunluk',
           uyum: true,
-          detay: `${parfum.yogunluk} yoğunluk`
+          detay: parfum.yogunluk
         });
       }
 
-      // 6️⃣ KULLANIM AMACI UYUMU (Max 10 puan)
-      maxScore += 10;
+      // 6️⃣ KULLANIM AMACI UYUMU (Max 8 puan)
+      maxScore += 8;
       if (preferences.kullanimAmaci && parfum.kullanimAmaci.includes(preferences.kullanimAmaci)) {
-        score += 10;
-        uyumKategorileri.push({
-          kategori: 'Kullanım',
-          uyum: true,
-          detay: parfum.kullanimAmaci.join(', ')
-        });
+        score += 8;
+        matchReasons.push('Kullanım amacınıza uygun');
       }
 
-      // 7️⃣ KALICILIK UYUMU + pH MODİFİKASYONU (Max 10 puan)
-      maxScore += 10;
+      // 7️⃣ KİŞİLİK UYUMU - YENİ (Max 6 puan)
+      maxScore += 6;
+      if (preferences.kisilikTipi && parfum.kisilikTipi?.includes(preferences.kisilikTipi)) {
+        score += 6;
+        matchReasons.push('Kişiliğinize uygun');
+      }
+
+      // 8️⃣ İZLENİM HEDEFİ UYUMU - YENİ (Max 6 puan)
+      maxScore += 6;
+      if (preferences.izlenimHedefi && parfum.izlenim?.includes(preferences.izlenimHedefi)) {
+        score += 6;
+        matchReasons.push(`${preferences.izlenimHedefi} izlenimi için ideal`);
+      }
+
+      // 9️⃣ BÜTÇE UYUMU - YENİ (Max 5 puan)
+      maxScore += 5;
+      if (preferences.butce && parfum.fiyatAraligi) {
+        const butceSirasi = ['ekonomik', 'orta', 'premium', 'luks'];
+        const userBudgetIndex = butceSirasi.indexOf(preferences.butce);
+        const parfumBudgetIndex = butceSirasi.indexOf(parfum.fiyatAraligi);
+        
+        if (parfumBudgetIndex <= userBudgetIndex) {
+          score += 5;
+        } else if (parfumBudgetIndex === userBudgetIndex + 1) {
+          score += 2; // Biraz üstü
+        }
+      }
+
+      // 🔟 YAŞ GRUBU UYUMU - YENİ (Max 4 puan)
+      maxScore += 4;
+      if (preferences.yasGrubu && parfum.yasGrubu?.includes(preferences.yasGrubu)) {
+        score += 4;
+      }
+
+      // 1️⃣1️⃣ GÜNÜN SAATİ UYUMU - YENİ (Max 4 puan)
+      maxScore += 4;
+      if (preferences.gununSaati && parfum.gununSaati?.includes(preferences.gununSaati)) {
+        score += 4;
+      }
+
+      // 1️⃣2️⃣ KALICILIK UYUMU + pH MODİFİKASYONU (Max 6 puan)
+      maxScore += 6;
       if (preferences.kalicilikTercihi) {
-        // pH'ın kalıcılığa etkisini hesapla
         let efektifKalicilik = parfum.kalicilik;
         if (phSkor.kalicilikModifikasyonu > 0.2) {
-          // Yağlı cilt - kalıcılık artar
           if (parfum.kalicilik === 'kisa') efektifKalicilik = 'orta';
           else if (parfum.kalicilik === 'orta') efektifKalicilik = 'uzun';
         } else if (phSkor.kalicilikModifikasyonu < -0.1) {
-          // Kuru cilt - kalıcılık azalır
           if (parfum.kalicilik === 'uzun') efektifKalicilik = 'orta';
           else if (parfum.kalicilik === 'orta') efektifKalicilik = 'kisa';
         }
 
         if (efektifKalicilik === preferences.kalicilikTercihi) {
-          score += 10;
+          score += 6;
           matchReasons.push(`Cildinizde ${preferences.kalicilikTercihi} süreli kalıcılık`);
         }
-        uyumKategorileri.push({
-          kategori: 'Kalıcılık',
-          uyum: efektifKalicilik === preferences.kalicilikTercihi,
-          detay: `Temel: ${parfum.kalicilik}, Sizde: ${efektifKalicilik}`
-        });
       }
 
-      // 8️⃣ İKLİM UYUMU (Max 5 puan)
-      maxScore += 5;
+      // 1️⃣3️⃣ İKLİM UYUMU (Max 4 puan)
+      maxScore += 4;
       if (preferences.iklim && parfum.iklim.includes(preferences.iklim)) {
-        score += 5;
+        score += 4;
       }
 
-      // 9️⃣ KIYAFET STİLİ UYUMU (Max 5 puan)
-      maxScore += 5;
+      // 1️⃣4️⃣ KIYAFET STİLİ UYUMU (Max 4 puan)
+      maxScore += 4;
       if (preferences.kiyafetStili && parfum.kiyafetStili.includes(preferences.kiyafetStili)) {
-        score += 5;
+        score += 4;
       }
 
-      // 🔟 SEVİLEN NOTALAR BONUS (Max 10 puan)
-      maxScore += 10;
+      // 1️⃣5️⃣ ORTAM UYUMU (Max 3 puan)
+      maxScore += 3;
+      if (preferences.ortam && (parfum.ortam === preferences.ortam || parfum.ortam === 'her_ikisi')) {
+        score += 3;
+      }
+
+      // 1️⃣6️⃣ AKTİVİTE UYUMU (Max 3 puan)
+      maxScore += 3;
+      if (preferences.aktivite && parfum.aktivite.includes(preferences.aktivite)) {
+        score += 3;
+      }
+
+      // 1️⃣7️⃣ SEVİLEN NOTALAR BONUS (Max 8 puan)
+      maxScore += 8;
       if (preferences.sevilenNotalar.length > 0) {
         const tumNotalar = [...parfum.notalar.ust, ...parfum.notalar.orta, ...parfum.notalar.alt];
         const eslesen = preferences.sevilenNotalar.filter(nota => 
           tumNotalar.some(n => n.toLowerCase().includes(nota.toLowerCase()))
         );
         if (eslesen.length > 0) {
-          const notaPuani = Math.min(10, eslesen.length * 3);
+          const notaPuani = Math.min(8, eslesen.length * 2);
           score += notaPuani;
-          matchReasons.push(`Sevdiğiniz notalar: ${eslesen.slice(0, 3).join(', ')}`);
+          matchReasons.push(`Sevdiğiniz notalar: ${eslesen.slice(0, 2).join(', ')}`);
         }
       }
 
-      // 1️⃣1️⃣ SEVİLMEYEN NOTALAR CEZA
+      // 1️⃣8️⃣ SEVİLMEYEN NOTALAR CEZA
       if (preferences.sevilmeyenNotalar.length > 0) {
         const tumNotalar = [...parfum.notalar.ust, ...parfum.notalar.orta, ...parfum.notalar.alt];
         const sevilmeyen = preferences.sevilmeyenNotalar.filter(nota => 
@@ -502,11 +556,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // 1️⃣2️⃣ CİLT HASSASİYETİ KONTROLÜ
+      // 1️⃣9️⃣ CİLT HASSASİYETİ KONTROLÜ
       if (preferences.ciltHassasiyeti === 'hassas') {
-        // Baharatlı kokular hassas cilde uygun değil
         if (parfum.tip === 'Baharatlı') {
-          score -= 15;
+          score -= 12;
           uyumKategorileri.push({
             kategori: 'Cilt Hassasiyeti',
             uyum: false,
@@ -515,10 +568,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // 2️⃣0️⃣ ALERJİ KONTROLÜ
+      if (preferences.alerjiDurumu.length > 0 && !preferences.alerjiDurumu.includes('yok')) {
+        if (preferences.alerjiDurumu.includes('cicek') && parfum.tip === 'Çiçeksi') {
+          score -= 20;
+        }
+        if (preferences.alerjiDurumu.includes('baharat') && parfum.tip === 'Baharatlı') {
+          score -= 20;
+        }
+      }
+
+      // 2️⃣1️⃣ KOKU ALMA HASSASİYETİ KONTROLÜ
+      if (preferences.kokuAlmaHassasiyeti === 'cok_yuksek' && parfum.yogunluk === 'yogun') {
+        score -= 8;
+      }
+
       // Uyum yüzdesi hesapla
       const matchPercentage = Math.max(0, Math.min(100, Math.round((score / maxScore) * 100)));
 
-      if (score > 15 && matchReasons.length >= 1) {
+      if (score > 10 && matchReasons.length >= 1) {
         results.push({ 
           parfum, 
           score, 
@@ -531,10 +599,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Skora göre sırala ve en iyi 10'u döndür
+    // Skora göre sırala ve en iyi 15'i döndür
     const sortedResults = results
       .sort((a, b) => b.matchPercentage - a.matchPercentage)
-      .slice(0, 10);
+      .slice(0, 15);
     
     setRecommendations(sortedResults);
     return sortedResults;

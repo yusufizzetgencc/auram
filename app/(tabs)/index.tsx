@@ -1,8 +1,9 @@
 /**
- * AROMIXEN - Modern Parfümler Sayfası
+ * AROMIXEN - Premium Parfümler Sayfası
+ * Elegant design with advanced filtering and sorting
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,53 +12,25 @@ import {
   Pressable,
   Modal,
   Dimensions,
+  Text,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card, Button } from '@/components/ui';
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
+import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, Shadows, ScentTypeColors, ScentTypeIcons } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useApp } from '@/context/AppContext';
 import { Parfum, KokuTipi, Mevsim, KokuYogunlugu } from '@/types';
 
 const { width } = Dimensions.get('window');
 
-const FILTER_TYPES: (KokuTipi | 'Tümü')[] = ['Tümü', 'Çiçeksi', 'Odunsu', 'Ferah', 'Amber', 'Baharatlı', 'Meyvemsi', 'Tatlı', 'Yeşil'];
-
-// Koku tipine göre renk
-const getTypeColor = (tip: string): string => {
-  const colorMap: Record<string, string> = {
-    'Çiçeksi': '#E8A4C9',
-    'Odunsu': '#8B7355',
-    'Ferah': '#7EC8E3',
-    'Amber': '#D4A574',
-    'Baharatlı': '#C75B39',
-    'Meyvemsi': '#FF6B6B',
-    'Tatlı': '#FFB6C1',
-    'Yeşil': '#90EE90',
-  };
-  return colorMap[tip] || '#D4A574';
-};
-
-// Koku tipine göre icon
-const getTypeIcon = (tip: string): keyof typeof Ionicons.glyphMap => {
-  const iconMap: Record<string, keyof typeof Ionicons.glyphMap> = {
-    'Çiçeksi': 'flower-outline',
-    'Odunsu': 'leaf-outline',
-    'Ferah': 'water-outline',
-    'Amber': 'flame-outline',
-    'Baharatlı': 'sparkles-outline',
-    'Meyvemsi': 'nutrition-outline',
-    'Tatlı': 'ice-cream-outline',
-    'Yeşil': 'leaf-outline',
-  };
-  return iconMap[tip] || 'sparkles-outline';
-};
+const FILTER_TYPES: (KokuTipi | 'Tümü')[] = ['Tümü', 'Çiçeksi', 'Odunsu', 'Ferah', 'Amber', 'Baharatlı', 'Meyvemsi', 'Tatlı', 'Yeşil', 'Oryantal', 'Aquatik'];
+const SORT_OPTIONS = ['Önerilen', 'A-Z', 'Z-A', 'Puan', 'Yoğunluk'];
 
 // Yoğunluk göstergesi
 const getYogunlukBars = (yogunluk: KokuYogunlugu) => {
@@ -71,19 +44,23 @@ const getYogunlukBars = (yogunluk: KokuYogunlugu) => {
 export default function AllPerfumesScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { parfumler } = useApp();
+  const shadows = Shadows[colorScheme ?? 'light'];
+  const { parfumler, recommendations } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<KokuTipi | 'Tümü'>('Tümü');
   const [selectedParfum, setSelectedParfum] = useState<Parfum | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [sortBy, setSortBy] = useState('Önerilen');
+  const [showSortModal, setShowSortModal] = useState(false);
 
   const filteredPerfumes = useMemo(() => {
-    return parfumler.filter(parfum => {
+    let result = parfumler.filter(parfum => {
       const query = searchQuery.toLowerCase();
       const matchesSearch =
         parfum.isim.toLowerCase().includes(query) ||
         parfum.tip.toLowerCase().includes(query) ||
+        (parfum.marka?.toLowerCase().includes(query) || false) ||
         parfum.notalar.ust.some(n => n.toLowerCase().includes(query)) ||
         parfum.notalar.orta.some(n => n.toLowerCase().includes(query)) ||
         parfum.notalar.alt.some(n => n.toLowerCase().includes(query)) ||
@@ -92,73 +69,152 @@ export default function AllPerfumesScreen() {
       const matchesType = selectedType === 'Tümü' || parfum.tip === selectedType;
       return matchesSearch && matchesType;
     });
-  }, [parfumler, searchQuery, selectedType]);
+
+    // Sorting
+    switch(sortBy) {
+      case 'A-Z':
+        result.sort((a, b) => a.isim.localeCompare(b.isim));
+        break;
+      case 'Z-A':
+        result.sort((a, b) => b.isim.localeCompare(a.isim));
+        break;
+      case 'Puan':
+        result.sort((a, b) => (b.puan || 0) - (a.puan || 0));
+        break;
+      case 'Yoğunluk':
+        const yogunlukOrder = { 'yogun': 3, 'orta': 2, 'hafif': 1 };
+        result.sort((a, b) => yogunlukOrder[b.yogunluk] - yogunlukOrder[a.yogunluk]);
+        break;
+      default:
+        // Default sorting - keep original order
+        break;
+    }
+
+    return result;
+  }, [parfumler, searchQuery, selectedType, sortBy]);
+
+  // Quick stats
+  const stats = useMemo(() => ({
+    total: parfumler.length,
+    types: [...new Set(parfumler.map(p => p.tip))].length,
+    brands: [...new Set(parfumler.filter(p => p.marka).map(p => p.marka))].length,
+  }), [parfumler]);
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+      {/* Gradient Background */}
+      <LinearGradient
+        colors={colorScheme === 'dark' 
+          ? ['#0D0A14', '#150F20', '#1E1628'] 
+          : ['#FDFBFF', '#F8F4FC', '#F0EAF5']}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* Premium Header */}
         <Animated.View 
           entering={FadeIn.duration(500)}
           style={styles.header}
         >
+          {/* Stats Banner */}
+          <View style={[styles.statsBanner, { backgroundColor: colors.tint + '10' }]}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: colors.tint }]}>{stats.total}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Parfüm</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: colors.tint + '30' }]} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: colors.tint }]}>{stats.types}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Kategori</Text>
+            </View>
+            <View style={[styles.statDivider, { backgroundColor: colors.tint + '30' }]} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: colors.tint }]}>{stats.brands}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Marka</Text>
+            </View>
+          </View>
+
           <View style={styles.headerTop}>
             <View>
-              <ThemedText type="title" style={styles.headerTitle}>Parfümler</ThemedText>
-              <ThemedText type="caption" style={{ marginTop: 2 }}>
-                {filteredPerfumes.length} koku keşfet
-              </ThemedText>
+              <Text style={[styles.headerTitle, { color: colors.text }]}>Keşfet ✨</Text>
+              <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+                {filteredPerfumes.length} koku bulundu
+              </Text>
             </View>
             
-            <View style={styles.viewToggle}>
+            <View style={styles.headerActions}>
+              {/* Sort Button */}
               <Pressable 
-                onPress={() => setViewMode('grid')}
-                style={[
-                  styles.viewButton, 
-                  { backgroundColor: viewMode === 'grid' ? colors.tint + '20' : 'transparent' }
-                ]}
+                onPress={() => setShowSortModal(true)}
+                style={[styles.actionButton, { backgroundColor: colors.card }]}
               >
-                <Ionicons 
-                  name="grid-outline" 
-                  size={16} 
-                  color={viewMode === 'grid' ? colors.tint : colors.textMuted} 
-                />
+                <Ionicons name="swap-vertical-outline" size={18} color={colors.tint} />
               </Pressable>
-              <Pressable 
-                onPress={() => setViewMode('list')}
-                style={[
-                  styles.viewButton, 
-                  { backgroundColor: viewMode === 'list' ? colors.tint + '20' : 'transparent' }
-                ]}
-              >
-                <Ionicons 
-                  name="list-outline" 
-                  size={16} 
-                  color={viewMode === 'list' ? colors.tint : colors.textMuted} 
-                />
-              </Pressable>
+              
+              {/* View Toggle */}
+              <View style={[styles.viewToggle, { backgroundColor: colors.card }]}>
+                <Pressable 
+                  onPress={() => setViewMode('grid')}
+                  style={[
+                    styles.viewButton, 
+                    { backgroundColor: viewMode === 'grid' ? colors.tint + '20' : 'transparent' }
+                  ]}
+                >
+                  <Ionicons 
+                    name="grid-outline" 
+                    size={16} 
+                    color={viewMode === 'grid' ? colors.tint : colors.textMuted} 
+                  />
+                </Pressable>
+                <Pressable 
+                  onPress={() => setViewMode('list')}
+                  style={[
+                    styles.viewButton, 
+                    { backgroundColor: viewMode === 'list' ? colors.tint + '20' : 'transparent' }
+                  ]}
+                >
+                  <Ionicons 
+                    name="list-outline" 
+                    size={16} 
+                    color={viewMode === 'list' ? colors.tint : colors.textMuted} 
+                  />
+                </Pressable>
+              </View>
             </View>
           </View>
 
           {/* Search */}
-          <View style={[styles.searchBox, { backgroundColor: colors.backgroundTertiary }]}>
-            <Ionicons name="search-outline" size={16} color={colors.textMuted} />
+          <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="search-outline" size={18} color={colors.textMuted} />
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Koku, nota veya etiket ara..."
+              placeholder="Koku, nota, marka veya etiket ara..."
               placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
               <Pressable onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
               </Pressable>
             )}
           </View>
+
+          {/* Active Sort Badge */}
+          {sortBy !== 'Önerilen' && (
+            <View style={styles.activeSortBadge}>
+              <Ionicons name="swap-vertical" size={12} color={colors.tint} />
+              <Text style={[styles.activeSortText, { color: colors.tint }]}>
+                Sıralama: {sortBy}
+              </Text>
+              <Pressable onPress={() => setSortBy('Önerilen')}>
+                <Ionicons name="close-circle" size={14} color={colors.tint} />
+              </Pressable>
+            </View>
+          )}
         </Animated.View>
 
-        {/* Compact Filters */}
+        {/* Filters */}
         <View style={styles.filterWrapper}>
           <ScrollView
             horizontal
@@ -167,7 +223,10 @@ export default function AllPerfumesScreen() {
           >
             {FILTER_TYPES.map((type) => {
               const isSelected = selectedType === type;
-              const typeColor = type !== 'Tümü' ? getTypeColor(type) : colors.tint;
+              const typeColor = type !== 'Tümü' ? ScentTypeColors[type] || colors.tint : colors.tint;
+              const count = type === 'Tümü' 
+                ? parfumler.length 
+                : parfumler.filter(p => p.tip === type).length;
               
               return (
                 <Pressable
@@ -176,7 +235,8 @@ export default function AllPerfumesScreen() {
                   style={[
                     styles.filterChip,
                     {
-                      backgroundColor: isSelected ? typeColor : colors.backgroundTertiary,
+                      backgroundColor: isSelected ? typeColor : colors.card,
+                      borderColor: isSelected ? typeColor : colors.border,
                     },
                   ]}
                 >
@@ -186,14 +246,25 @@ export default function AllPerfumesScreen() {
                       { backgroundColor: isSelected ? '#FFFFFF' : typeColor }
                     ]} />
                   )}
-                  <ThemedText
+                  <Text
                     style={[
                       styles.filterText,
                       { color: isSelected ? '#FFFFFF' : colors.textSecondary },
                     ]}
                   >
                     {type}
-                  </ThemedText>
+                  </Text>
+                  <View style={[
+                    styles.filterCount,
+                    { backgroundColor: isSelected ? 'rgba(255,255,255,0.3)' : colors.backgroundTertiary }
+                  ]}>
+                    <Text style={[
+                      styles.filterCountText,
+                      { color: isSelected ? '#FFFFFF' : colors.textMuted }
+                    ]}>
+                      {count}
+                    </Text>
+                  </View>
                 </Pressable>
               );
             })}
@@ -208,10 +279,21 @@ export default function AllPerfumesScreen() {
         >
           {filteredPerfumes.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="search-outline" size={48} color={colors.textMuted} />
-              <ThemedText type="body" center style={{ marginTop: Spacing.md }}>
+              <View style={[styles.emptyIconContainer, { backgroundColor: colors.tint + '15' }]}>
+                <Ionicons name="search" size={40} color={colors.tint} />
+              </View>
+              <ThemedText type="subtitle" center style={{ marginTop: Spacing.lg }}>
                 Sonuç bulunamadı
               </ThemedText>
+              <ThemedText type="body" center style={{ marginTop: Spacing.sm, opacity: 0.7 }}>
+                Farklı anahtar kelimeler deneyin
+              </ThemedText>
+              <Pressable 
+                onPress={() => { setSearchQuery(''); setSelectedType('Tümü'); }}
+                style={[styles.resetButton, { backgroundColor: colors.tint }]}
+              >
+                <Text style={styles.resetButtonText}>Filtreleri Temizle</Text>
+              </Pressable>
             </View>
           ) : viewMode === 'grid' ? (
             <View style={styles.gridContainer}>
@@ -223,7 +305,8 @@ export default function AllPerfumesScreen() {
                 >
                   <PerfumeGridCard 
                     parfum={parfum} 
-                    colors={colors} 
+                    colors={colors}
+                    shadows={shadows}
                     onPress={() => setSelectedParfum(parfum)}
                   />
                 </Animated.View>
@@ -239,13 +322,63 @@ export default function AllPerfumesScreen() {
                   <PerfumeListCard 
                     parfum={parfum} 
                     colors={colors}
+                    shadows={shadows}
                     onPress={() => setSelectedParfum(parfum)}
                   />
                 </Animated.View>
               ))}
             </View>
           )}
+          
+          {/* Bottom spacing for floating tab bar */}
+          <View style={{ height: 100 }} />
         </ScrollView>
+
+        {/* Sort Modal */}
+        <Modal
+          visible={showSortModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowSortModal(false)}
+        >
+          <Pressable 
+            style={styles.modalOverlay}
+            onPress={() => setShowSortModal(false)}
+          >
+            <Animated.View 
+              entering={FadeInUp.duration(200)}
+              style={[styles.sortModal, { backgroundColor: colors.card }]}
+            >
+              <View style={styles.sortModalHeader}>
+                <Text style={[styles.sortModalTitle, { color: colors.text }]}>Sıralama</Text>
+                <Pressable onPress={() => setShowSortModal(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </Pressable>
+              </View>
+              
+              {SORT_OPTIONS.map((option) => (
+                <Pressable
+                  key={option}
+                  style={[
+                    styles.sortOption,
+                    sortBy === option && { backgroundColor: colors.tint + '15' }
+                  ]}
+                  onPress={() => { setSortBy(option); setShowSortModal(false); }}
+                >
+                  <Text style={[
+                    styles.sortOptionText,
+                    { color: sortBy === option ? colors.tint : colors.text }
+                  ]}>
+                    {option}
+                  </Text>
+                  {sortBy === option && (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.tint} />
+                  )}
+                </Pressable>
+              ))}
+            </Animated.View>
+          </Pressable>
+        </Modal>
 
         {/* Parfüm Detay Modal */}
         <ParfumDetailModal
@@ -253,6 +386,7 @@ export default function AllPerfumesScreen() {
           visible={selectedParfum !== null}
           onClose={() => setSelectedParfum(null)}
           colors={colors}
+          shadows={shadows}
           colorScheme={colorScheme}
         />
       </SafeAreaView>
@@ -264,34 +398,46 @@ export default function AllPerfumesScreen() {
 function PerfumeGridCard({
   parfum,
   colors,
+  shadows,
   onPress,
 }: {
   parfum: Parfum;
   colors: typeof Colors.light;
+  shadows: typeof Shadows.light;
   onPress: () => void;
 }) {
-  const typeColor = getTypeColor(parfum.tip);
-  const typeIcon = getTypeIcon(parfum.tip);
+  const typeColor = ScentTypeColors[parfum.tip] || colors.tint;
+  const typeIcon = ScentTypeIcons[parfum.tip] || 'sparkles-outline';
   const bars = getYogunlukBars(parfum.yogunluk);
 
   return (
     <Pressable onPress={onPress}>
-      <Card variant="elevated" padding="md" style={styles.gridCard}>
+      <View style={[styles.gridCard, { backgroundColor: colors.card, borderColor: colors.border }, shadows.sm]}>
         {/* Icon */}
-        <View style={[styles.gridIcon, { backgroundColor: typeColor + '15' }]}>
-          <Ionicons name={typeIcon} size={28} color={typeColor} />
-        </View>
+        <LinearGradient
+          colors={[typeColor + '30', typeColor + '10']}
+          style={styles.gridIcon}
+        >
+          <Ionicons name={typeIcon as any} size={28} color={typeColor} />
+        </LinearGradient>
+
+        {/* Brand */}
+        {parfum.marka && (
+          <Text style={[styles.gridBrand, { color: colors.textMuted }]} numberOfLines={1}>
+            {parfum.marka}
+          </Text>
+        )}
 
         {/* Name */}
-        <ThemedText type="heading" style={styles.gridName} numberOfLines={2}>
+        <Text style={[styles.gridName, { color: colors.text }]} numberOfLines={2}>
           {parfum.isim}
-        </ThemedText>
+        </Text>
 
         {/* Type Badge */}
         <View style={[styles.gridTypeBadge, { backgroundColor: typeColor + '20' }]}>
-          <ThemedText style={[styles.gridTypeText, { color: typeColor }]}>
+          <Text style={[styles.gridTypeText, { color: typeColor }]}>
             {parfum.tip}
-          </ThemedText>
+          </Text>
         </View>
 
         {/* Info Row */}
@@ -302,7 +448,7 @@ function PerfumeGridCard({
                 key={i} 
                 style={[
                   styles.yogunlukBar, 
-                  { backgroundColor: i <= bars ? colors.tint : colors.backgroundTertiary }
+                  { backgroundColor: i <= bars ? typeColor : colors.backgroundTertiary }
                 ]} 
               />
             ))}
@@ -310,20 +456,25 @@ function PerfumeGridCard({
           
           <View style={styles.gridSeasonRow}>
             <Ionicons name="calendar-outline" size={10} color={colors.textMuted} />
-            <ThemedText style={styles.gridSeasonText}>
+            <Text style={[styles.gridSeasonText, { color: colors.textMuted }]}>
               {parfum.mevsim[0]?.substring(0, 3)}
-            </ThemedText>
+            </Text>
           </View>
         </View>
 
         {/* Rating */}
         {parfum.puan && (
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={12} color="#FFD700" />
-            <ThemedText style={styles.ratingText}>{parfum.puan}</ThemedText>
+          <View style={[styles.ratingBadge, { backgroundColor: '#FFD70020' }]}>
+            <Ionicons name="star" size={10} color="#FFD700" />
+            <Text style={[styles.ratingText, { color: '#B8860B' }]}>{parfum.puan}</Text>
           </View>
         )}
-      </Card>
+
+        {/* Favorite Button */}
+        <Pressable style={[styles.favoriteButton, { backgroundColor: colors.backgroundTertiary }]}>
+          <Ionicons name="heart-outline" size={16} color={colors.textMuted} />
+        </Pressable>
+      </View>
     </Pressable>
   );
 }
@@ -332,53 +483,76 @@ function PerfumeGridCard({
 function PerfumeListCard({
   parfum,
   colors,
+  shadows,
   onPress,
 }: {
   parfum: Parfum;
   colors: typeof Colors.light;
+  shadows: typeof Shadows.light;
   onPress: () => void;
 }) {
-  const typeColor = getTypeColor(parfum.tip);
-  const typeIcon = getTypeIcon(parfum.tip);
+  const typeColor = ScentTypeColors[parfum.tip] || colors.tint;
+  const typeIcon = ScentTypeIcons[parfum.tip] || 'sparkles-outline';
+  const bars = getYogunlukBars(parfum.yogunluk);
 
   return (
     <Pressable onPress={onPress}>
-      <Card variant="elevated" padding="md" style={styles.listCard}>
-        <View style={[styles.listIcon, { backgroundColor: typeColor + '15' }]}>
-          <Ionicons name={typeIcon} size={24} color={typeColor} />
-        </View>
+      <View style={[styles.listCard, { backgroundColor: colors.card, borderColor: colors.border }, shadows.sm]}>
+        <LinearGradient
+          colors={[typeColor + '30', typeColor + '10']}
+          style={styles.listIcon}
+        >
+          <Ionicons name={typeIcon as any} size={24} color={typeColor} />
+        </LinearGradient>
         
         <View style={styles.listContent}>
-          <ThemedText type="heading" style={styles.listName} numberOfLines={1}>
-            {parfum.isim}
-          </ThemedText>
-          
-          <ThemedText type="caption" numberOfLines={1} style={{ marginBottom: 4 }}>
-            {parfum.aciklama}
-          </ThemedText>
-          
-          <View style={styles.listTags}>
-            <View style={[styles.listTypeBadge, { backgroundColor: typeColor + '20' }]}>
-              <ThemedText style={[styles.listTypeText, { color: typeColor }]}>
-                {parfum.tip}
-              </ThemedText>
-            </View>
-            
-            <ThemedText type="caption" style={{ marginLeft: 8 }}>
-              {parfum.mevsim[0]}
-            </ThemedText>
-            
+          <View style={styles.listTitleRow}>
+            <Text style={[styles.listName, { color: colors.text }]} numberOfLines={1}>
+              {parfum.isim}
+            </Text>
             {parfum.puan && (
               <View style={styles.listRating}>
                 <Ionicons name="star" size={12} color="#FFD700" />
-                <ThemedText style={styles.listRatingText}>{parfum.puan}</ThemedText>
+                <Text style={[styles.listRatingText, { color: '#B8860B' }]}>{parfum.puan}</Text>
               </View>
             )}
           </View>
+          
+          {parfum.marka && (
+            <Text style={[styles.listBrand, { color: colors.textMuted }]}>
+              {parfum.marka}
+            </Text>
+          )}
+          
+          <View style={styles.listTags}>
+            <View style={[styles.listTypeBadge, { backgroundColor: typeColor + '20' }]}>
+              <Text style={[styles.listTypeText, { color: typeColor }]}>
+                {parfum.tip}
+              </Text>
+            </View>
+            
+            <View style={styles.yogunlukIndicator}>
+              {[1, 2, 3].map(i => (
+                <View 
+                  key={i} 
+                  style={[
+                    styles.yogunlukBarSmall, 
+                    { backgroundColor: i <= bars ? typeColor : colors.backgroundTertiary }
+                  ]} 
+                />
+              ))}
+            </View>
+            
+            <Text style={[styles.listMevsim, { color: colors.textMuted }]}>
+              {parfum.mevsim[0]}
+            </Text>
+          </View>
         </View>
         
-        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-      </Card>
+        <Pressable style={[styles.listFavoriteButton, { borderColor: colors.border }]}>
+          <Ionicons name="heart-outline" size={18} color={colors.textMuted} />
+        </Pressable>
+      </View>
     </Pressable>
   );
 }
@@ -389,18 +563,20 @@ function ParfumDetailModal({
   visible,
   onClose,
   colors,
+  shadows,
   colorScheme,
 }: {
   parfum: Parfum | null;
   visible: boolean;
   onClose: () => void;
   colors: typeof Colors.light;
+  shadows: typeof Shadows.light;
   colorScheme: 'light' | 'dark' | null | undefined;
 }) {
   if (!parfum) return null;
 
-  const typeColor = getTypeColor(parfum.tip);
-  const typeIcon = getTypeIcon(parfum.tip);
+  const typeColor = ScentTypeColors[parfum.tip] || colors.tint;
+  const typeIcon = ScentTypeIcons[parfum.tip] || 'sparkles-outline';
 
   return (
     <Modal
@@ -412,12 +588,14 @@ function ParfumDetailModal({
       <ThemedView style={styles.modalContainer}>
         <SafeAreaView style={{ flex: 1 }}>
           {/* Modal Header */}
-          <View style={styles.modalHeader}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
             <Pressable onPress={onClose} style={styles.modalCloseButton}>
               <Ionicons name="close" size={24} color={colors.text} />
             </Pressable>
-            <ThemedText type="heading">Parfüm Detayı</ThemedText>
-            <View style={{ width: 40 }} />
+            <Text style={[styles.modalHeaderTitle, { color: colors.text }]}>Parfüm Detayı</Text>
+            <Pressable style={styles.modalCloseButton}>
+              <Ionicons name="heart-outline" size={24} color={colors.tint} />
+            </Pressable>
           </View>
 
           <ScrollView 
@@ -426,83 +604,116 @@ function ParfumDetailModal({
             showsVerticalScrollIndicator={false}
           >
             {/* Hero */}
-            <View style={styles.modalHero}>
-              <LinearGradient
-                colors={[typeColor + '30', typeColor + '10']}
-                style={styles.modalHeroGradient}
-              >
-                <View style={[styles.modalIcon, { backgroundColor: typeColor + '30' }]}>
-                  <Ionicons name={typeIcon} size={48} color={typeColor} />
-                </View>
-              </LinearGradient>
-            </View>
+            <LinearGradient
+              colors={[typeColor + '30', typeColor + '10', 'transparent']}
+              style={styles.modalHeroGradient}
+            >
+              <View style={[styles.modalIcon, { backgroundColor: typeColor }]}>
+                <Ionicons name={typeIcon as any} size={48} color="#FFF" />
+              </View>
+            </LinearGradient>
 
             {/* Title */}
-            <ThemedText type="title" center style={styles.modalTitle}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
               {parfum.isim}
-            </ThemedText>
+            </Text>
+            {parfum.marka && (
+              <Text style={[styles.modalMarka, { color: colors.textMuted }]}>
+                by {parfum.marka}
+              </Text>
+            )}
 
             {/* Tags */}
             <View style={styles.modalTagsRow}>
               <View style={[styles.modalTag, { backgroundColor: typeColor + '20' }]}>
-                <ThemedText style={{ color: typeColor, fontWeight: FontWeights.semiBold }}>
+                <Text style={[styles.modalTagText, { color: typeColor }]}>
                   {parfum.tip}
-                </ThemedText>
+                </Text>
               </View>
               
               <View style={[styles.modalTag, { backgroundColor: colors.backgroundTertiary }]}>
                 <Ionicons name="person-outline" size={14} color={colors.textSecondary} />
-                <ThemedText style={{ marginLeft: 4 }}>{parfum.cinsiyet}</ThemedText>
+                <Text style={[styles.modalTagText, { color: colors.textSecondary, marginLeft: 4 }]}>
+                  {parfum.cinsiyet}
+                </Text>
               </View>
               
               {parfum.puan && (
                 <View style={[styles.modalTag, { backgroundColor: '#FFD70020' }]}>
                   <Ionicons name="star" size={14} color="#FFD700" />
-                  <ThemedText style={{ marginLeft: 4, color: '#B8860B' }}>{parfum.puan}</ThemedText>
+                  <Text style={[styles.modalTagText, { color: '#B8860B', marginLeft: 4 }]}>
+                    {parfum.puan}
+                  </Text>
+                </View>
+              )}
+
+              {parfum.fiyatAraligi && (
+                <View style={[styles.modalTag, { backgroundColor: colors.backgroundTertiary }]}>
+                  <Ionicons name="pricetag-outline" size={14} color={colors.textSecondary} />
+                  <Text style={[styles.modalTagText, { color: colors.textSecondary, marginLeft: 4 }]}>
+                    {parfum.fiyatAraligi}
+                  </Text>
                 </View>
               )}
             </View>
 
             {/* Description */}
-            <ThemedText type="body" center style={styles.modalDescription}>
+            <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
               {parfum.aciklama}
-            </ThemedText>
+            </Text>
 
             {/* Info Grid */}
             <View style={styles.infoGrid}>
-              <InfoItem 
-                icon="time-outline" 
-                label="Kalıcılık" 
-                value={parfum.kalicilik} 
-                colors={colors} 
-              />
-              <InfoItem 
-                icon="speedometer-outline" 
-                label="Yoğunluk" 
-                value={parfum.yogunluk} 
-                colors={colors} 
-              />
-              <InfoItem 
-                icon="calendar-outline" 
-                label="Mevsim" 
-                value={parfum.mevsim.join(', ')} 
-                colors={colors} 
-              />
+              <InfoItem icon="time-outline" label="Kalıcılık" value={parfum.kalicilik} colors={colors} accent={typeColor} />
+              <InfoItem icon="speedometer-outline" label="Yoğunluk" value={parfum.yogunluk} colors={colors} accent={typeColor} />
+              <InfoItem icon="calendar-outline" label="Mevsim" value={parfum.mevsim.join(', ')} colors={colors} accent={typeColor} />
               <InfoItem 
                 icon="location-outline" 
                 label="Ortam" 
                 value={parfum.ortam === 'her_ikisi' ? 'Her İkisi' : parfum.ortam === 'kapali' ? 'Kapalı' : 'Açık'} 
                 colors={colors} 
+                accent={typeColor}
               />
             </View>
 
+            {/* pH Info */}
+            {parfum.phUyumu && (
+              <View style={styles.modalSection}>
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🧪 pH UYUMU</Text>
+                <View style={[styles.phInfoCard, { backgroundColor: colors.backgroundTertiary }]}>
+                  <View style={styles.phRow}>
+                    <View style={styles.phItem}>
+                      <Text style={[styles.phLabel, { color: colors.textMuted }]}>Min pH</Text>
+                      <Text style={[styles.phValue, { color: colors.text }]}>{parfum.phUyumu.minPH}</Text>
+                    </View>
+                    <View style={styles.phItem}>
+                      <Text style={[styles.phLabel, { color: colors.textMuted }]}>İdeal pH</Text>
+                      <Text style={[styles.phValue, { color: typeColor }]}>{parfum.phUyumu.idealPH}</Text>
+                    </View>
+                    <View style={styles.phItem}>
+                      <Text style={[styles.phLabel, { color: colors.textMuted }]}>Max pH</Text>
+                      <Text style={[styles.phValue, { color: colors.text }]}>{parfum.phUyumu.maxPH}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.phEffects}>
+                    <Text style={[styles.phEffectText, { color: colors.textSecondary }]}>
+                      <Text style={{ fontWeight: '600' }}>Asidik: </Text>{parfum.phUyumu.asidikEtki}
+                    </Text>
+                    <Text style={[styles.phEffectText, { color: colors.textSecondary }]}>
+                      <Text style={{ fontWeight: '600' }}>Bazik: </Text>{parfum.phUyumu.bazikEtki}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
             {/* Notes Pyramid */}
             <View style={styles.modalSection}>
-              <ThemedText type="label" style={styles.sectionTitle}>NOTA PİRAMİDİ</ThemedText>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>🎭 NOTA PİRAMİDİ</Text>
               
               <View style={styles.notesPyramid}>
                 <NoteLevel 
-                  label="🔝 Üst Notalar" 
+                  label="✨ Üst Notalar" 
                   notes={parfum.notalar.ust} 
                   color="#FFE66D"
                   colors={colors}
@@ -514,48 +725,29 @@ function ParfumDetailModal({
                   colors={colors}
                 />
                 <NoteLevel 
-                  label="🌳 Alt Notalar" 
+                  label="🌲 Alt Notalar" 
                   notes={parfum.notalar.alt} 
-                  color="#8B7355"
+                  color="#8B5A2B"
                   colors={colors}
                 />
-              </View>
-            </View>
-
-            {/* Usage */}
-            <View style={styles.modalSection}>
-              <ThemedText type="label" style={styles.sectionTitle}>KULLANIM</ThemedText>
-              
-              <View style={styles.usageGrid}>
-                {parfum.kullanimAmaci.map(amac => (
-                  <View key={amac} style={[styles.usageItem, { backgroundColor: colors.backgroundTertiary }]}>
-                    <Ionicons 
-                      name={getAmacIcon(amac)} 
-                      size={18} 
-                      color={colors.tint} 
-                    />
-                    <ThemedText type="caption" style={{ marginTop: 4 }}>
-                      {getAmacLabel(amac)}
-                    </ThemedText>
-                  </View>
-                ))}
               </View>
             </View>
 
             {/* Tags */}
             {parfum.etiketler && parfum.etiketler.length > 0 && (
               <View style={styles.modalSection}>
-                <ThemedText type="label" style={styles.sectionTitle}>ETİKETLER</ThemedText>
-                
+                <Text style={[styles.sectionTitle, { color: colors.text }]}>🏷️ ETİKETLER</Text>
                 <View style={styles.tagsContainer}>
                   {parfum.etiketler.map((etiket, index) => (
                     <View key={index} style={[styles.etiketBadge, { backgroundColor: colors.backgroundTertiary }]}>
-                      <ThemedText style={styles.etiketText}>#{etiket}</ThemedText>
+                      <Text style={[styles.etiketText, { color: colors.textSecondary }]}>#{etiket}</Text>
                     </View>
                   ))}
                 </View>
               </View>
             )}
+
+            <View style={{ height: 40 }} />
           </ScrollView>
         </SafeAreaView>
       </ThemedView>
@@ -563,17 +755,18 @@ function ParfumDetailModal({
   );
 }
 
-function InfoItem({ icon, label, value, colors }: {
+function InfoItem({ icon, label, value, colors, accent }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
   colors: typeof Colors.light;
+  accent?: string;
 }) {
   return (
     <View style={[styles.infoItem, { backgroundColor: colors.backgroundTertiary }]}>
-      <Ionicons name={icon} size={20} color={colors.tint} />
-      <ThemedText type="caption" style={{ marginTop: 4, opacity: 0.7 }}>{label}</ThemedText>
-      <ThemedText style={styles.infoValue}>{value}</ThemedText>
+      <Ionicons name={icon} size={20} color={accent || colors.tint} />
+      <Text style={[styles.infoLabel, { color: colors.textMuted }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: colors.text }]}>{value}</Text>
     </View>
   );
 }
@@ -586,36 +779,16 @@ function NoteLevel({ label, notes, color, colors }: {
 }) {
   return (
     <View style={[styles.noteLevel, { backgroundColor: color + '15' }]}>
-      <ThemedText style={styles.noteLevelLabel}>{label}</ThemedText>
+      <Text style={styles.noteLevelLabel}>{label}</Text>
       <View style={styles.noteLevelNotes}>
         {notes.map((nota, index) => (
-          <View key={index} style={[styles.notaBadge, { backgroundColor: colors.background }]}>
-            <ThemedText type="caption">{nota}</ThemedText>
+          <View key={index} style={[styles.notaBadge, { backgroundColor: colors.card }]}>
+            <Text style={[styles.notaText, { color: colors.text }]}>{nota}</Text>
           </View>
         ))}
       </View>
     </View>
   );
-}
-
-function getAmacIcon(amac: string): keyof typeof Ionicons.glyphMap {
-  const map: Record<string, keyof typeof Ionicons.glyphMap> = {
-    'gunluk': 'today-outline',
-    'is': 'briefcase-outline',
-    'aksam': 'moon-outline',
-    'ozel': 'star-outline',
-  };
-  return map[amac] || 'ellipse-outline';
-}
-
-function getAmacLabel(amac: string): string {
-  const map: Record<string, string> = {
-    'gunluk': 'Günlük',
-    'is': 'İş',
-    'aksam': 'Akşam',
-    'ozel': 'Özel Gün',
-  };
-  return map[amac] || amac;
 }
 
 const styles = StyleSheet.create({
@@ -627,24 +800,65 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
+    paddingTop: Spacing.sm,
     paddingBottom: Spacing.xs,
+  },
+  statsBanner: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.md,
+  },
+  statItem: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+  },
+  statValue: {
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+  },
+  statLabel: {
+    fontSize: FontSizes.xs,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   headerTitle: {
-    fontSize: FontSizes.xl,
+    fontSize: FontSizes['2xl'],
+    fontWeight: FontWeights.bold,
+  },
+  headerSubtitle: {
+    fontSize: FontSizes.sm,
+    marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   viewToggle: {
     flexDirection: 'row',
-    gap: 4,
+    padding: 4,
+    borderRadius: BorderRadius.lg,
   },
   viewButton: {
-    padding: 6,
+    padding: 8,
     borderRadius: 8,
   },
   searchBox: {
@@ -653,48 +867,95 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.lg,
-    gap: Spacing.xs,
+    borderWidth: 1,
+    gap: Spacing.sm,
   },
   searchInput: {
     flex: 1,
     fontSize: FontSizes.sm,
     paddingVertical: 2,
   },
+  activeSortBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(157, 78, 221, 0.1)',
+    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  activeSortText: {
+    fontSize: FontSizes.xs,
+    fontWeight: FontWeights.medium,
+  },
   filterWrapper: {
-    paddingBottom: Spacing.sm,
+    paddingVertical: Spacing.sm,
   },
   filterContainer: {
     paddingHorizontal: Spacing.lg,
-    gap: 6,
+    gap: 8,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    marginRight: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    marginRight: 4,
   },
   filterDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginRight: 4,
+    marginRight: 6,
   },
   filterText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  filterCount: {
+    marginLeft: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  filterCountText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing['2xl'],
+    paddingBottom: Spacing['3xl'],
   },
   emptyContainer: {
     alignItems: 'center',
     paddingTop: Spacing['4xl'],
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: BorderRadius['2xl'],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resetButton: {
+    marginTop: Spacing.xl,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.lg,
+  },
+  resetButtonText: {
+    color: '#FFFFFF',
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.semiBold,
   },
   gridContainer: {
     flexDirection: 'row',
@@ -707,7 +968,11 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     alignItems: 'center',
-    minHeight: 180,
+    minHeight: 195,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    position: 'relative',
   },
   gridIcon: {
     width: 56,
@@ -715,13 +980,19 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.xl,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  gridBrand: {
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   gridName: {
-    fontSize: FontSizes.base,
+    fontSize: FontSizes.sm,
+    fontWeight: FontWeights.bold,
     textAlign: 'center',
     marginBottom: Spacing.xs,
-    minHeight: 40,
+    minHeight: 36,
   },
   gridTypeBadge: {
     paddingHorizontal: Spacing.sm,
@@ -731,7 +1002,7 @@ const styles = StyleSheet.create({
   },
   gridTypeText: {
     fontSize: FontSizes.xs,
-    fontWeight: FontWeights.semiBold,
+    fontWeight: '700',
   },
   gridInfoRow: {
     flexDirection: 'row',
@@ -749,6 +1020,11 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
   },
+  yogunlukBarSmall: {
+    width: 12,
+    height: 3,
+    borderRadius: 2,
+  },
   gridSeasonRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -756,19 +1032,31 @@ const styles = StyleSheet.create({
   },
   gridSeasonText: {
     fontSize: 10,
-    opacity: 0.7,
   },
-  ratingRow: {
+  ratingBadge: {
     position: 'absolute',
     top: Spacing.sm,
-    right: Spacing.sm,
+    left: Spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
     gap: 2,
   },
   ratingText: {
-    fontSize: FontSizes.xs,
-    fontWeight: FontWeights.semiBold,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    width: 28,
+    height: 28,
+    borderRadius: BorderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   listContainer: {
     gap: Spacing.md,
@@ -776,45 +1064,108 @@ const styles = StyleSheet.create({
   listCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
   },
   listIcon: {
-    width: 48,
-    height: 48,
+    width: 52,
+    height: 52,
     borderRadius: BorderRadius.lg,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.base,
+    marginRight: Spacing.md,
   },
   listContent: {
     flex: 1,
   },
+  listTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   listName: {
     fontSize: FontSizes.base,
-    marginBottom: 2,
+    fontWeight: FontWeights.bold,
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  listBrand: {
+    fontSize: FontSizes.xs,
+    marginBottom: Spacing.xs,
   },
   listTags: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   listTypeBadge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 1,
+    paddingVertical: 2,
     borderRadius: BorderRadius.full,
   },
   listTypeText: {
     fontSize: 10,
-    fontWeight: FontWeights.semiBold,
+    fontWeight: '700',
+  },
+  listMevsim: {
+    fontSize: 11,
   },
   listRating: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 'auto',
     gap: 2,
   },
   listRatingText: {
     fontSize: FontSizes.xs,
+    fontWeight: FontWeights.bold,
   },
-  // Modal Styles
+  listFavoriteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: Spacing.sm,
+  },
+  // Sort Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  sortModal: {
+    borderTopLeftRadius: BorderRadius['2xl'],
+    borderTopRightRadius: BorderRadius['2xl'],
+    padding: Spacing.xl,
+    paddingBottom: Spacing['3xl'],
+  },
+  sortModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  sortModalTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+  },
+  sortOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.xs,
+  },
+  sortOptionText: {
+    fontSize: FontSizes.base,
+    fontWeight: FontWeights.medium,
+  },
+  // Detail Modal Styles
   modalContainer: {
     flex: 1,
   },
@@ -825,19 +1176,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
   modalCloseButton: {
     padding: Spacing.sm,
+  },
+  modalHeaderTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: '700',
   },
   modalScroll: {
     flex: 1,
   },
   modalContent: {
     paddingBottom: Spacing['3xl'],
-  },
-  modalHero: {
-    marginBottom: Spacing.lg,
   },
   modalHeroGradient: {
     height: 160,
@@ -852,14 +1203,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalTitle: {
-    marginBottom: Spacing.md,
+    fontSize: FontSizes['2xl'],
+    fontWeight: '800',
+    textAlign: 'center',
+    marginTop: Spacing.md,
     paddingHorizontal: Spacing.xl,
+  },
+  modalMarka: {
+    fontSize: FontSizes.sm,
+    textAlign: 'center',
+    marginTop: 4,
   },
   modalTagsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: Spacing.sm,
+    marginTop: Spacing.md,
     marginBottom: Spacing.lg,
+    flexWrap: 'wrap',
+    paddingHorizontal: Spacing.lg,
   },
   modalTag: {
     flexDirection: 'row',
@@ -868,10 +1230,16 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
   },
+  modalTagText: {
+    fontSize: FontSizes.sm,
+    fontWeight: '600',
+  },
   modalDescription: {
+    fontSize: FontSizes.base,
+    lineHeight: 24,
+    textAlign: 'center',
     paddingHorizontal: Spacing['2xl'],
     marginBottom: Spacing['2xl'],
-    lineHeight: 24,
   },
   infoGrid: {
     flexDirection: 'row',
@@ -886,9 +1254,14 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     alignItems: 'center',
   },
-  infoValue: {
+  infoLabel: {
+    fontSize: FontSizes.xs,
     marginTop: 4,
-    fontWeight: FontWeights.semiBold,
+  },
+  infoValue: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    marginTop: 4,
     textTransform: 'capitalize',
   },
   modalSection: {
@@ -896,18 +1269,48 @@ const styles = StyleSheet.create({
     marginBottom: Spacing['2xl'],
   },
   sectionTitle: {
+    fontSize: FontSizes.sm,
+    fontWeight: '700',
+    letterSpacing: 1,
     marginBottom: Spacing.md,
+  },
+  phInfoCard: {
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+  },
+  phRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: Spacing.lg,
+  },
+  phItem: {
+    alignItems: 'center',
+  },
+  phLabel: {
+    fontSize: FontSizes.xs,
+    marginBottom: 4,
+  },
+  phValue: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+  },
+  phEffects: {
+    gap: Spacing.sm,
+  },
+  phEffectText: {
+    fontSize: FontSizes.sm,
+    lineHeight: 20,
   },
   notesPyramid: {
     gap: Spacing.sm,
   },
   noteLevel: {
-    padding: Spacing.base,
+    padding: Spacing.md,
     borderRadius: BorderRadius.lg,
   },
   noteLevelLabel: {
     fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semiBold,
+    fontWeight: '700',
     marginBottom: Spacing.sm,
   },
   noteLevelNotes: {
@@ -920,16 +1323,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: BorderRadius.full,
   },
-  usageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  usageItem: {
-    alignItems: 'center',
-    padding: Spacing.base,
-    borderRadius: BorderRadius.lg,
-    minWidth: 80,
+  notaText: {
+    fontSize: FontSizes.xs,
+    fontWeight: '500',
   },
   tagsContainer: {
     flexDirection: 'row',
@@ -943,6 +1339,5 @@ const styles = StyleSheet.create({
   },
   etiketText: {
     fontSize: FontSizes.sm,
-    opacity: 0.8,
   },
 });

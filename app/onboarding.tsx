@@ -1,37 +1,146 @@
 /**
- * AROMIXEN - Onboarding Screen
- * pH Hesaplama + Kişiselleştirilmiş Sorular
+ * AROMIXEN - Premium Onboarding Screen
+ * Kapsamlı Kişiselleştirme + pH Hesaplama
+ * Elegant Mor/Fuşya Teması
  */
 
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-  TextInput,
-  Animated,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { BorderRadius, Colors, Shadows, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
-import { 
-  OnboardingStep, 
-  KokuTipi, 
-  PHBilgiDurumu,
-  UserPreferences,
+import {
+    OnboardingStep,
+    PHBilgiDurumu,
+    UserPreferences
 } from '@/types';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    Animated,
+    Dimensions,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-// Onboarding Adımları
+// ============ KAPSAMLI ONBOARDING ADIMLARI ============
 const onboardingSteps: OnboardingStep[] = [
-  // 0️⃣ pH DURUMU
+  // ========== BÖLÜM 1: KİŞİSEL BİLGİLER ==========
+  {
+    id: 'yas_grubu',
+    kategori: 'Kişisel Bilgiler',
+    title: 'Yaş Grubunuz Nedir?',
+    subtitle: 'Yaşınıza uygun koku profilleri önerilir',
+    type: 'single',
+    field: 'yasGrubu',
+    options: [
+      { id: '18-24', title: '18-24', subtitle: 'Genç ve dinamik', icon: 'sparkles-outline', color: '#FF6B9D', emoji: '✨' },
+      { id: '25-34', title: '25-34', subtitle: 'Enerjik ve modern', icon: 'flash-outline', color: '#00D4AA', emoji: '⚡' },
+      { id: '35-44', title: '35-44', subtitle: 'Olgun ve sofistike', icon: 'diamond-outline', color: '#9D4EDD', emoji: '💎' },
+      { id: '45-54', title: '45-54', subtitle: 'Deneyimli ve zarif', icon: 'star-outline', color: '#FF8C42', emoji: '⭐' },
+      { id: '55+', title: '55+', subtitle: 'Klasik ve zamansız', icon: 'ribbon-outline', color: '#C9A227', emoji: '👑' },
+    ],
+  },
+  {
+    id: 'kisilik_tipi',
+    kategori: 'Kişisel Bilgiler',
+    title: 'Kendinizi Nasıl Tanımlarsınız?',
+    subtitle: 'Kişiliğinize uygun kokular önerilir',
+    type: 'single',
+    field: 'kisilikTipi',
+    options: [
+      { id: 'romantik', title: 'Romantik', subtitle: 'Duygusal ve hassas', icon: 'heart-outline', color: '#FF6B9D', emoji: '💕' },
+      { id: 'dinamik', title: 'Dinamik', subtitle: 'Enerjik ve aktif', icon: 'flash-outline', color: '#00D4AA', emoji: '🚀' },
+      { id: 'sofistike', title: 'Sofistike', subtitle: 'Zarif ve seçici', icon: 'diamond-outline', color: '#9D4EDD', emoji: '💎' },
+      { id: 'dogal', title: 'Doğal', subtitle: 'Sade ve samimi', icon: 'leaf-outline', color: '#2ECC71', emoji: '🌿' },
+      { id: 'cesur', title: 'Cesur', subtitle: 'Göze çarpan ve güçlü', icon: 'flame-outline', color: '#E63946', emoji: '🔥' },
+      { id: 'mistik', title: 'Mistik', subtitle: 'Gizemli ve derin', icon: 'moon-outline', color: '#5A189A', emoji: '🌙' },
+    ],
+  },
+
+  // ========== BÖLÜM 2: PARFÜM DENEYİMİ ==========
+  {
+    id: 'deneyim_seviyesi',
+    kategori: 'Parfüm Deneyimi',
+    title: 'Parfüm Deneyiminiz Ne Düzeyde?',
+    subtitle: 'Size uygun karmaşıklıkta kokular önerilir',
+    type: 'single',
+    field: 'deneyimSeviyesi',
+    options: [
+      { id: 'yeni_baslayan', title: 'Yeni Başlayan', subtitle: 'Parfüm dünyasını keşfediyorum', icon: 'bulb-outline', color: '#00D4AA', emoji: '🌱' },
+      { id: 'orta', title: 'Orta Seviye', subtitle: 'Birkaç parfüm denedim', icon: 'trending-up-outline', color: '#FF8C42', emoji: '📈' },
+      { id: 'uzman', title: 'Uzman', subtitle: 'Notaları ayırt edebiliyorum', icon: 'eye-outline', color: '#9D4EDD', emoji: '👁️' },
+      { id: 'koleksiyoner', title: 'Koleksiyoner', subtitle: 'Geniş bir koleksiyonum var', icon: 'library-outline', color: '#C9A227', emoji: '📚' },
+    ],
+  },
+  {
+    id: 'kullanim_sikligi',
+    kategori: 'Parfüm Deneyimi',
+    title: 'Ne Sıklıkla Parfüm Kullanırsınız?',
+    subtitle: 'Kullanım alışkanlığınıza göre öneriler',
+    type: 'single',
+    field: 'kullanimSikligi',
+    options: [
+      { id: 'nadir', title: 'Nadir', subtitle: 'Sadece özel günlerde', icon: 'calendar-outline', color: '#8A7A9C', emoji: '📅' },
+      { id: 'haftada_1_2', title: 'Haftada 1-2', subtitle: 'Belirli günlerde', icon: 'time-outline', color: '#00D4AA', emoji: '⏰' },
+      { id: 'gunluk', title: 'Her Gün', subtitle: 'Günlük ritüelim', icon: 'sunny-outline', color: '#FF8C42', emoji: '☀️' },
+      { id: 'gunde_birden_fazla', title: 'Günde Birden Fazla', subtitle: 'Farklı anlar için farklı kokular', icon: 'layers-outline', color: '#9D4EDD', emoji: '✨' },
+    ],
+  },
+
+  // ========== BÖLÜM 3: BÜTÇE VE TERCİHLER ==========
+  {
+    id: 'butce',
+    kategori: 'Bütçe & Tercihler',
+    title: 'Parfüm Bütçeniz Nedir?',
+    subtitle: 'Fiyat aralığınıza uygun öneriler',
+    type: 'single',
+    field: 'butce',
+    options: [
+      { id: 'ekonomik', title: 'Ekonomik', subtitle: '₺500 altı', icon: 'wallet-outline', color: '#2ECC71', emoji: '💰' },
+      { id: 'orta', title: 'Orta Segment', subtitle: '₺500 - ₺1500', icon: 'cash-outline', color: '#00D4AA', emoji: '💵' },
+      { id: 'premium', title: 'Premium', subtitle: '₺1500 - ₺4000', icon: 'diamond-outline', color: '#9D4EDD', emoji: '💎' },
+      { id: 'luks', title: 'Lüks', subtitle: '₺4000 üzeri', icon: 'trophy-outline', color: '#C9A227', emoji: '👑' },
+    ],
+  },
+  {
+    id: 'marka_tercihi',
+    kategori: 'Bütçe & Tercihler',
+    title: 'Marka Tercihiniz Var mı?',
+    subtitle: 'Niche vs Designer parfümler',
+    type: 'single',
+    field: 'markaTercihi',
+    options: [
+      { id: 'niche', title: 'Niche/Butik', subtitle: 'Özel, az bilinen markalar', icon: 'sparkles-outline', color: '#9D4EDD', emoji: '✨' },
+      { id: 'designer', title: 'Designer', subtitle: 'Tanınmış moda markaları', icon: 'shirt-outline', color: '#FF6B9D', emoji: '👔' },
+      { id: 'farketmez', title: 'Farketmez', subtitle: 'Koku önemli, marka değil', icon: 'infinite-outline', color: '#00D4AA', emoji: '♾️' },
+    ],
+  },
+  {
+    id: 'konsantrasyon',
+    kategori: 'Bütçe & Tercihler',
+    title: 'Parfüm Konsantrasyonu Tercihiniz?',
+    subtitle: 'Kalıcılık ve yoğunluğu etkiler',
+    type: 'single',
+    field: 'konsantrasyonTercihi',
+    helpText: 'Konsantrasyon arttıkça kalıcılık ve yoğunluk artar',
+    options: [
+      { id: 'eau_fraiche', title: 'Eau Fraîche', subtitle: '1-3% yağ, 1-2 saat', icon: 'water-outline', color: '#00B4D8', emoji: '💧' },
+      { id: 'eau_de_cologne', title: 'Eau de Cologne', subtitle: '2-4% yağ, 2-3 saat', icon: 'rainy-outline', color: '#00D4AA', emoji: '🌊' },
+      { id: 'eau_de_toilette', title: 'Eau de Toilette', subtitle: '5-15% yağ, 3-4 saat', icon: 'flower-outline', color: '#FF6B9D', emoji: '🌸' },
+      { id: 'eau_de_parfum', title: 'Eau de Parfum', subtitle: '15-20% yağ, 5-8 saat', icon: 'sparkles-outline', color: '#9D4EDD', emoji: '✨' },
+      { id: 'parfum', title: 'Extrait/Parfum', subtitle: '20-40% yağ, 8+ saat', icon: 'diamond-outline', color: '#C9A227', emoji: '💎' },
+    ],
+  },
+
+  // ========== BÖLÜM 4: CİLT PH ==========
   {
     id: 'ph_bilgi',
     kategori: 'Cilt pH',
@@ -40,11 +149,10 @@ const onboardingSteps: OnboardingStep[] = [
     type: 'single',
     field: 'phInfo',
     options: [
-      { id: 'biliyorum', title: 'Evet, Biliyorum', subtitle: 'pH değerimi gireceğim', icon: 'checkmark-circle-outline', color: '#4CAF50' },
-      { id: 'bilmiyorum', title: 'Hayır, Bilmiyorum', subtitle: 'Benim için hesaplayın', icon: 'calculator-outline', color: '#2196F3' },
+      { id: 'biliyorum', title: 'Evet, Biliyorum', subtitle: 'pH değerimi gireceğim', icon: 'checkmark-circle-outline', color: '#2ECC71', emoji: '✅' },
+      { id: 'bilmiyorum', title: 'Hayır, Bilmiyorum', subtitle: 'Benim için hesaplayın', icon: 'calculator-outline', color: '#9D4EDD', emoji: '🧮' },
     ],
   },
-  // 1️⃣ pH DEĞERİ GİRİŞİ (Sadece biliyorsa gösterilir)
   {
     id: 'ph_deger',
     kategori: 'Cilt pH',
@@ -53,21 +161,22 @@ const onboardingSteps: OnboardingStep[] = [
     type: 'ph-input',
     field: 'phDeger',
   },
-  // 2️⃣ CİLT TİPİ
+
+  // ========== BÖLÜM 5: FİZİKSEL ÖZELLİKLER ==========
   {
     id: 'cilt_tipi',
     kategori: 'Fiziksel Özellikler',
     title: 'Cilt Tipiniz Nedir?',
-    subtitle: 'Cilt tipiniz parfümün kalıcılığını etkiler',
+    subtitle: 'Cilt tipiniz parfümün kalıcılığını doğrudan etkiler',
     type: 'single',
     field: 'ciltTipi',
     options: [
-      { id: 'normal', title: 'Normal', subtitle: 'Dengeli nem, koku iyi kalır', icon: 'hand-left-outline', color: '#A8D5BA' },
-      { id: 'kuru', title: 'Kuru', subtitle: 'Koku hızlı uçabilir', icon: 'water-outline', color: '#FFD6A5' },
-      { id: 'yagli', title: 'Yağlı', subtitle: 'Koku çok uzun kalır', icon: 'water', color: '#BDE0FE' },
+      { id: 'normal', title: 'Normal', subtitle: 'Dengeli nem, koku iyi kalır', icon: 'hand-left-outline', color: '#2ECC71', emoji: '✋' },
+      { id: 'kuru', title: 'Kuru', subtitle: 'Koku hızlı uçabilir, nemlendirici kullanın', icon: 'water-outline', color: '#FF8C42', emoji: '🏜️' },
+      { id: 'yagli', title: 'Yağlı', subtitle: 'Koku çok uzun kalır', icon: 'water', color: '#00D4AA', emoji: '💧' },
+      { id: 'karma', title: 'Karma', subtitle: 'Bölgesel farklılıklar var', icon: 'git-merge-outline', color: '#9D4EDD', emoji: '🔀' },
     ],
   },
-  // 3️⃣ TERLEME ORANI
   {
     id: 'terleme',
     kategori: 'Fiziksel Özellikler',
@@ -76,12 +185,11 @@ const onboardingSteps: OnboardingStep[] = [
     type: 'single',
     field: 'terlemeOrani',
     options: [
-      { id: 'az', title: 'Az', subtitle: 'Nadiren terlerim', icon: 'sunny-outline', color: '#FFFACD' },
-      { id: 'normal', title: 'Normal', subtitle: 'Ortalama terleme', icon: 'partly-sunny-outline', color: '#FFECD2' },
-      { id: 'cok', title: 'Çok', subtitle: 'Sık terlerim', icon: 'rainy-outline', color: '#C9E4DE' },
+      { id: 'az', title: 'Az', subtitle: 'Nadiren terlerim', icon: 'sunny-outline', color: '#FFE66D', emoji: '☀️' },
+      { id: 'normal', title: 'Normal', subtitle: 'Ortalama terleme', icon: 'partly-sunny-outline', color: '#FF8C42', emoji: '⛅' },
+      { id: 'cok', title: 'Çok', subtitle: 'Sık terlerim', icon: 'rainy-outline', color: '#00B4D8', emoji: '💦' },
     ],
   },
-  // 4️⃣ CİLT HASSASİYETİ
   {
     id: 'hassasiyet',
     kategori: 'Fiziksel Özellikler',
@@ -90,119 +198,185 @@ const onboardingSteps: OnboardingStep[] = [
     type: 'single',
     field: 'ciltHassasiyeti',
     options: [
-      { id: 'hassas', title: 'Hassas', subtitle: 'Kolayca tahriş olur', icon: 'alert-circle-outline', color: '#FFADAD' },
-      { id: 'normal', title: 'Normal', subtitle: 'Genelde sorun yok', icon: 'checkmark-circle-outline', color: '#A8E6CF' },
-      { id: 'dayanikli', title: 'Dayanıklı', subtitle: 'Hiçbir şey etkilemez', icon: 'shield-checkmark-outline', color: '#D0E8F2' },
+      { id: 'hassas', title: 'Hassas', subtitle: 'Kolayca tahriş olur', icon: 'alert-circle-outline', color: '#E63946', emoji: '⚠️' },
+      { id: 'normal', title: 'Normal', subtitle: 'Genelde sorun yok', icon: 'checkmark-circle-outline', color: '#2ECC71', emoji: '✅' },
+      { id: 'dayanikli', title: 'Dayanıklı', subtitle: 'Hiçbir şey etkilemez', icon: 'shield-checkmark-outline', color: '#00D4AA', emoji: '🛡️' },
     ],
   },
-  // 5️⃣ KOKU TİPLERİ
+  {
+    id: 'koku_alma',
+    kategori: 'Fiziksel Özellikler',
+    title: 'Koku Alma Hassasiyetiniz?',
+    subtitle: 'Çok hassas burunlar yoğun kokulardan rahatsız olabilir',
+    type: 'single',
+    field: 'kokuAlmaHassasiyeti',
+    options: [
+      { id: 'dusuk', title: 'Düşük', subtitle: 'Kokuları zor algılarım', icon: 'remove-circle-outline', color: '#8A7A9C', emoji: '👃' },
+      { id: 'normal', title: 'Normal', subtitle: 'Standart koku algısı', icon: 'checkmark-circle-outline', color: '#2ECC71', emoji: '✅' },
+      { id: 'yuksek', title: 'Yüksek', subtitle: 'İnce nüansları fark ederim', icon: 'eye-outline', color: '#9D4EDD', emoji: '👁️' },
+      { id: 'cok_yuksek', title: 'Çok Yüksek', subtitle: 'Aşırı hassasım', icon: 'alert-outline', color: '#E63946', emoji: '🔴' },
+    ],
+  },
+  {
+    id: 'alerji',
+    kategori: 'Fiziksel Özellikler',
+    title: 'Bilinen Alerji veya Hassasiyetiniz Var mı?',
+    subtitle: 'Birden fazla seçebilirsiniz',
+    type: 'multi-select',
+    field: 'alerjiDurumu',
+    options: [
+      { id: 'yok', title: 'Alerjim Yok', subtitle: 'Her türlü nota uygundur', icon: 'checkmark-circle-outline', color: '#2ECC71', emoji: '✅' },
+      { id: 'alkol', title: 'Alkol', subtitle: 'Alkol bazlı parfümler', icon: 'wine-outline', color: '#E63946', emoji: '🍷' },
+      { id: 'cicek', title: 'Çiçek', subtitle: 'Yoğun çiçek notaları', icon: 'flower-outline', color: '#FF6B9D', emoji: '🌸' },
+      { id: 'baharat', title: 'Baharat', subtitle: 'Tarçın, karanfil vb.', icon: 'flame-outline', color: '#FF8C42', emoji: '🌶️' },
+      { id: 'diger', title: 'Diğer', subtitle: 'Farklı bir hassasiyet', icon: 'help-circle-outline', color: '#8A7A9C', emoji: '❓' },
+    ],
+  },
+
+  // ========== BÖLÜM 6: KOKU TERCİHLERİ ==========
   {
     id: 'koku_tipleri',
-    kategori: 'Kişisel Tercihler',
+    kategori: 'Koku Tercihleri',
     title: 'Hangi Koku Tiplerini Seviyorsunuz?',
-    subtitle: 'Birden fazla seçebilirsiniz',
+    subtitle: 'Birden fazla seçebilirsiniz (en az 1)',
     type: 'multiple',
     field: 'kokuTipleri',
+    required: true,
     options: [
-      { id: 'Çiçeksi', title: 'Çiçeksi', subtitle: 'Gül, yasemin, lavanta', icon: 'flower-outline', color: '#E8A4C9' },
-      { id: 'Odunsu', title: 'Odunsu', subtitle: 'Sandal, sedir, paçuli', icon: 'leaf-outline', color: '#8B7355' },
-      { id: 'Ferah', title: 'Ferah', subtitle: 'Narenciye, deniz, nane', icon: 'water-outline', color: '#7EC8E3' },
-      { id: 'Amber', title: 'Amber', subtitle: 'Vanilya, amber, reçine', icon: 'flame-outline', color: '#D4A574' },
-      { id: 'Baharatlı', title: 'Baharatlı', subtitle: 'Tarçın, karanfil, biber', icon: 'sparkles-outline', color: '#C75B39' },
-      { id: 'Meyvemsi', title: 'Meyvemsi', subtitle: 'Şeftali, elma, mango', icon: 'nutrition-outline', color: '#FF6B6B' },
-      { id: 'Tatlı', title: 'Tatlı', subtitle: 'Karamel, çikolata, vanilya', icon: 'ice-cream-outline', color: '#FFB6C1' },
-      { id: 'Yeşil', title: 'Yeşil', subtitle: 'Yeşil çay, bambu, ot', icon: 'leaf-outline', color: '#90EE90' },
+      { id: 'Çiçeksi', title: 'Çiçeksi', subtitle: 'Gül, yasemin, lavanta', icon: 'flower-outline', color: '#FF6B9D', emoji: '🌸' },
+      { id: 'Odunsu', title: 'Odunsu', subtitle: 'Sandal, sedir, paçuli', icon: 'leaf-outline', color: '#8B5A2B', emoji: '🌲' },
+      { id: 'Ferah', title: 'Ferah', subtitle: 'Narenciye, deniz, nane', icon: 'water-outline', color: '#00D4AA', emoji: '🌊' },
+      { id: 'Amber', title: 'Amber', subtitle: 'Vanilya, amber, reçine', icon: 'flame-outline', color: '#FF8C42', emoji: '🔥' },
+      { id: 'Baharatlı', title: 'Baharatlı', subtitle: 'Tarçın, karanfil, biber', icon: 'sparkles-outline', color: '#E63946', emoji: '🌶️' },
+      { id: 'Meyvemsi', title: 'Meyvemsi', subtitle: 'Şeftali, elma, mango', icon: 'nutrition-outline', color: '#FF69B4', emoji: '🍑' },
+      { id: 'Tatlı', title: 'Tatlı', subtitle: 'Karamel, çikolata', icon: 'ice-cream-outline', color: '#FFB4D1', emoji: '🍫' },
+      { id: 'Yeşil', title: 'Yeşil', subtitle: 'Yeşil çay, bambu, ot', icon: 'leaf-outline', color: '#2ECC71', emoji: '🌿' },
+      { id: 'Oryantal', title: 'Oryantal', subtitle: 'Oud, safran, baharat', icon: 'moon-outline', color: '#C9A227', emoji: '🌙' },
+      { id: 'Aquatik', title: 'Aquatik', subtitle: 'Okyanus, yağmur', icon: 'boat-outline', color: '#00B4D8', emoji: '🌊' },
     ],
   },
-  // 6️⃣ CİNSİYET
+  {
+    id: 'yogunluk',
+    kategori: 'Koku Tercihleri',
+    title: 'Hangi Yoğunlukta Kokular Tercih Edersiniz?',
+    subtitle: 'Parfümün güç seviyesi',
+    type: 'single',
+    field: 'yogunluk',
+    options: [
+      { id: 'hafif', title: 'Hafif', subtitle: 'Yakın mesafede hissedilir', icon: 'remove-outline', color: '#00D4AA', emoji: '🌬️' },
+      { id: 'orta', title: 'Orta', subtitle: 'Dengeli yoğunluk', icon: 'reorder-two-outline', color: '#9D4EDD', emoji: '⚖️' },
+      { id: 'yogun', title: 'Yoğun', subtitle: 'Uzaktan bile hissedilir', icon: 'reorder-four-outline', color: '#E63946', emoji: '💪' },
+    ],
+  },
+  {
+    id: 'izlenim',
+    kategori: 'Koku Tercihleri',
+    title: 'Nasıl Bir İzlenim Bırakmak İstersiniz?',
+    subtitle: 'Kokunuzun yansıtmasını istediğiniz his',
+    type: 'single',
+    field: 'izlenimHedefi',
+    options: [
+      { id: 'cekici', title: 'Çekici', subtitle: 'Etkileyici ve baştan çıkarıcı', icon: 'heart-outline', color: '#E63946', emoji: '💋' },
+      { id: 'profesyonel', title: 'Profesyonel', subtitle: 'Ciddi ve güvenilir', icon: 'briefcase-outline', color: '#5A189A', emoji: '💼' },
+      { id: 'taze', title: 'Taze', subtitle: 'Temiz ve bakımlı', icon: 'sparkles-outline', color: '#00D4AA', emoji: '✨' },
+      { id: 'gizemli', title: 'Gizemli', subtitle: 'Merak uyandıran', icon: 'moon-outline', color: '#240046', emoji: '🌙' },
+      { id: 'sicak', title: 'Sıcak', subtitle: 'Samimi ve davetkar', icon: 'flame-outline', color: '#FF8C42', emoji: '🔥' },
+      { id: 'enerjik', title: 'Enerjik', subtitle: 'Dinamik ve canlı', icon: 'flash-outline', color: '#FFE66D', emoji: '⚡' },
+    ],
+  },
+
+  // ========== BÖLÜM 7: KULLANIM DETAYLARI ==========
   {
     id: 'cinsiyet',
-    kategori: 'Kişisel Tercihler',
+    kategori: 'Kullanım Detayları',
     title: 'Parfüm Tercihiniz',
     subtitle: 'Size uygun parfüm yönlendirmesi',
     type: 'single',
     field: 'cinsiyet',
     options: [
-      { id: 'erkek', title: 'Erkek', subtitle: 'Maskülen kokular', icon: 'man-outline', color: '#6495ED' },
-      { id: 'kadın', title: 'Kadın', subtitle: 'Feminen kokular', icon: 'woman-outline', color: '#FF69B4' },
-      { id: 'unisex', title: 'Unisex', subtitle: 'Cinsiyetsiz kokular', icon: 'people-outline', color: '#9370DB' },
+      { id: 'erkek', title: 'Erkek', subtitle: 'Maskülen kokular', icon: 'man-outline', color: '#00B4D8', emoji: '👔' },
+      { id: 'kadın', title: 'Kadın', subtitle: 'Feminen kokular', icon: 'woman-outline', color: '#FF6B9D', emoji: '👗' },
+      { id: 'unisex', title: 'Unisex', subtitle: 'Cinsiyetsiz kokular', icon: 'people-outline', color: '#9D4EDD', emoji: '⚧️' },
     ],
   },
-  // 7️⃣ YOĞUNLUK
-  {
-    id: 'yogunluk',
-    kategori: 'Kişisel Tercihler',
-    title: 'Hangi Yoğunlukta Kokular?',
-    subtitle: 'Parfümün güç seviyesi',
-    type: 'single',
-    field: 'yogunluk',
-    options: [
-      { id: 'hafif', title: 'Hafif', subtitle: 'Yakın mesafede hissedilir', icon: 'remove-outline', color: '#E0E0E0' },
-      { id: 'orta', title: 'Orta', subtitle: 'Dengeli yoğunluk', icon: 'reorder-two-outline', color: '#BDBDBD' },
-      { id: 'yogun', title: 'Yoğun', subtitle: 'Uzaktan bile hissedilir', icon: 'reorder-four-outline', color: '#9E9E9E' },
-    ],
-  },
-  // 8️⃣ KULLANIM AMACI
   {
     id: 'kullanim',
-    kategori: 'Kişisel Tercihler',
+    kategori: 'Kullanım Detayları',
     title: 'Ne Amaçla Kullanacaksınız?',
     subtitle: 'Parfümü hangi ortamlarda kullanacaksınız',
     type: 'single',
     field: 'kullanimAmaci',
     options: [
-      { id: 'gunluk', title: 'Günlük', subtitle: 'Her gün kullanım', icon: 'today-outline', color: '#81D4FA' },
-      { id: 'is', title: 'İş', subtitle: 'Ofis ve profesyonel', icon: 'briefcase-outline', color: '#90A4AE' },
-      { id: 'aksam', title: 'Akşam/Gece', subtitle: 'Dışarı çıkma', icon: 'moon-outline', color: '#7986CB' },
-      { id: 'ozel', title: 'Özel Gün', subtitle: 'Özel anlar', icon: 'star-outline', color: '#FFD54F' },
+      { id: 'gunluk', title: 'Günlük', subtitle: 'Her gün kullanım', icon: 'today-outline', color: '#00D4AA', emoji: '📅' },
+      { id: 'is', title: 'İş', subtitle: 'Ofis ve profesyonel', icon: 'briefcase-outline', color: '#5A189A', emoji: '💼' },
+      { id: 'aksam', title: 'Akşam/Gece', subtitle: 'Dışarı çıkma', icon: 'moon-outline', color: '#240046', emoji: '🌃' },
+      { id: 'ozel', title: 'Özel Gün', subtitle: 'Kutlamalar', icon: 'star-outline', color: '#C9A227', emoji: '🎉' },
+      { id: 'romantik', title: 'Romantik', subtitle: 'Sevgiliyle buluşma', icon: 'heart-outline', color: '#E63946', emoji: '❤️' },
+      { id: 'spor', title: 'Spor Sonrası', subtitle: 'Aktif yaşam', icon: 'fitness-outline', color: '#2ECC71', emoji: '🏃' },
     ],
   },
-  // 9️⃣ MEVSİM
+  {
+    id: 'gunun_saati',
+    kategori: 'Kullanım Detayları',
+    title: 'Günün Hangi Saatlerinde Kullanacaksınız?',
+    subtitle: 'Zamana göre nota açılımları farklılık gösterir',
+    type: 'single',
+    field: 'gununSaati',
+    options: [
+      { id: 'sabah', title: 'Sabah', subtitle: '06:00 - 12:00', icon: 'sunny-outline', color: '#FFE66D', emoji: '🌅' },
+      { id: 'oglen', title: 'Öğlen', subtitle: '12:00 - 17:00', icon: 'partly-sunny-outline', color: '#FF8C42', emoji: '☀️' },
+      { id: 'aksam', title: 'Akşam', subtitle: '17:00 - 21:00', icon: 'moon-outline', color: '#9D4EDD', emoji: '🌆' },
+      { id: 'gece', title: 'Gece', subtitle: '21:00 - 06:00', icon: 'moon', color: '#240046', emoji: '🌙' },
+      { id: 'tum_gun', title: 'Tüm Gün', subtitle: 'Her saat', icon: 'time-outline', color: '#00D4AA', emoji: '⏰' },
+    ],
+  },
+
+  // ========== BÖLÜM 8: ÇEVRE FAKTÖRLERİ ==========
   {
     id: 'mevsim',
-    kategori: 'Hava ve Mekan',
+    kategori: 'Çevre Faktörleri',
     title: 'Hangi Mevsimde Kullanacaksınız?',
     subtitle: 'Mevsime uygun notalar önerilir',
     type: 'single',
     field: 'mevsim',
     options: [
-      { id: 'İlkbahar', title: 'İlkbahar', subtitle: 'Hafif, çiçeksi', icon: 'flower-outline', color: '#A8E6CF' },
-      { id: 'Yaz', title: 'Yaz', subtitle: 'Ferah, narenciye', icon: 'sunny-outline', color: '#FFE66D' },
-      { id: 'Sonbahar', title: 'Sonbahar', subtitle: 'Sıcak, baharatlı', icon: 'leaf-outline', color: '#FF8C42' },
-      { id: 'Kış', title: 'Kış', subtitle: 'Yoğun, odunsu', icon: 'snow-outline', color: '#95C8F4' },
-      { id: 'Tüm Mevsimler', title: 'Tüm Mevsimler', subtitle: 'Her zaman', icon: 'infinite-outline', color: '#B8B8C8' },
+      { id: 'İlkbahar', title: 'İlkbahar', subtitle: 'Hafif, çiçeksi', icon: 'flower-outline', color: '#C8E6C9', emoji: '🌷' },
+      { id: 'Yaz', title: 'Yaz', subtitle: 'Ferah, narenciye', icon: 'sunny-outline', color: '#FFE66D', emoji: '☀️' },
+      { id: 'Sonbahar', title: 'Sonbahar', subtitle: 'Sıcak, baharatlı', icon: 'leaf-outline', color: '#FF8C42', emoji: '🍂' },
+      { id: 'Kış', title: 'Kış', subtitle: 'Yoğun, odunsu', icon: 'snow-outline', color: '#B3E5FC', emoji: '❄️' },
+      { id: 'Tüm Mevsimler', title: 'Tüm Mevsimler', subtitle: 'Her zaman', icon: 'infinite-outline', color: '#9D4EDD', emoji: '♾️' },
     ],
   },
-  // 🔟 İKLİM
   {
     id: 'iklim',
-    kategori: 'Hava ve Mekan',
+    kategori: 'Çevre Faktörleri',
     title: 'Bulunduğunuz İklim Nasıl?',
     subtitle: 'İklim koşullarına uygun koku',
     type: 'single',
     field: 'iklim',
     options: [
-      { id: 'sicak', title: 'Sıcak', subtitle: '25°C üzeri', icon: 'sunny', color: '#FF7043' },
-      { id: 'soguk', title: 'Soğuk', subtitle: '15°C altı', icon: 'snow', color: '#4FC3F7' },
-      { id: 'nemli', title: 'Nemli', subtitle: 'Yüksek nem', icon: 'water', color: '#4DD0E1' },
-      { id: 'kuru', title: 'Kuru', subtitle: 'Düşük nem', icon: 'partly-sunny', color: '#FFB74D' },
+      { id: 'sicak', title: 'Sıcak', subtitle: '25°C üzeri', icon: 'sunny', color: '#E63946', emoji: '🔥' },
+      { id: 'soguk', title: 'Soğuk', subtitle: '15°C altı', icon: 'snow', color: '#00B4D8', emoji: '❄️' },
+      { id: 'nemli', title: 'Nemli', subtitle: 'Yüksek nem', icon: 'water', color: '#00D4AA', emoji: '💧' },
+      { id: 'kuru', title: 'Kuru', subtitle: 'Düşük nem', icon: 'partly-sunny', color: '#FF8C42', emoji: '🏜️' },
+      { id: 'iliman', title: 'Ilıman', subtitle: 'Orta sıcaklık', icon: 'cloudy-outline', color: '#9D4EDD', emoji: '🌤️' },
     ],
   },
-  // 1️⃣1️⃣ ORTAM
   {
     id: 'ortam',
-    kategori: 'Hava ve Mekan',
+    kategori: 'Çevre Faktörleri',
     title: 'Genellikle Nerede Kullanırsınız?',
     subtitle: 'Kullanım alanınıza uygun parfüm',
     type: 'single',
     field: 'ortam',
     options: [
-      { id: 'kapali', title: 'Kapalı Alan', subtitle: 'Ofis, ev, restoran', icon: 'home-outline', color: '#A1887F' },
-      { id: 'acik', title: 'Açık Alan', subtitle: 'Park, bahçe, dışarı', icon: 'leaf-outline', color: '#81C784' },
-      { id: 'her_ikisi', title: 'Her İkisi', subtitle: 'Hem kapalı hem açık', icon: 'globe-outline', color: '#64B5F6' },
+      { id: 'kapali', title: 'Kapalı Alan', subtitle: 'Ofis, ev, restoran', icon: 'home-outline', color: '#8B5A2B', emoji: '🏠' },
+      { id: 'acik', title: 'Açık Alan', subtitle: 'Park, bahçe, dışarı', icon: 'leaf-outline', color: '#2ECC71', emoji: '🌳' },
+      { id: 'her_ikisi', title: 'Her İkisi', subtitle: 'Hem kapalı hem açık', icon: 'globe-outline', color: '#00D4AA', emoji: '🌍' },
     ],
   },
-  // 1️⃣2️⃣ KIYAFET STİLİ
+
+  // ========== BÖLÜM 9: YAŞAM TARZI ==========
   {
     id: 'kiyafet',
     kategori: 'Yaşam Tarzı',
@@ -211,29 +385,32 @@ const onboardingSteps: OnboardingStep[] = [
     type: 'single',
     field: 'kiyafetStili',
     options: [
-      { id: 'casual', title: 'Casual', subtitle: 'Günlük rahat', icon: 'shirt-outline', color: '#90CAF9' },
-      { id: 'formal', title: 'Formal', subtitle: 'Resmi ve şık', icon: 'briefcase-outline', color: '#78909C' },
-      { id: 'sportif', title: 'Sportif', subtitle: 'Aktif ve dinamik', icon: 'fitness-outline', color: '#66BB6A' },
-      { id: 'trendy', title: 'Trendy', subtitle: 'Moda takipçisi', icon: 'sparkles-outline', color: '#CE93D8' },
-      { id: 'gece', title: 'Gece/Özel', subtitle: 'Özel geceler için', icon: 'moon-outline', color: '#5C6BC0' },
+      { id: 'casual', title: 'Casual', subtitle: 'Günlük rahat', icon: 'shirt-outline', color: '#00D4AA', emoji: '👕' },
+      { id: 'formal', title: 'Formal', subtitle: 'Resmi ve şık', icon: 'briefcase-outline', color: '#5A189A', emoji: '👔' },
+      { id: 'sportif', title: 'Sportif', subtitle: 'Aktif ve dinamik', icon: 'fitness-outline', color: '#2ECC71', emoji: '🏃' },
+      { id: 'trendy', title: 'Trendy', subtitle: 'Moda takipçisi', icon: 'sparkles-outline', color: '#FF6B9D', emoji: '✨' },
+      { id: 'gece', title: 'Gece/Özel', subtitle: 'Özel geceler için', icon: 'moon-outline', color: '#240046', emoji: '🌙' },
+      { id: 'bohem', title: 'Bohem', subtitle: 'Özgür ve yaratıcı', icon: 'color-palette-outline', color: '#FF8C42', emoji: '🎨' },
+      { id: 'minimalist', title: 'Minimalist', subtitle: 'Sade ve zarif', icon: 'remove-outline', color: '#8A7A9C', emoji: '⚪' },
     ],
   },
-  // 1️⃣3️⃣ AKTİVİTE
   {
     id: 'aktivite',
     kategori: 'Yaşam Tarzı',
-    title: 'Aktivite Yoğunluğunuz?',
-    subtitle: 'Günlük rutininize uygun koku',
+    title: 'Günlük Aktivite Yoğunluğunuz?',
+    subtitle: 'Rutininize uygun koku',
     type: 'single',
     field: 'aktivite',
     options: [
-      { id: 'spor', title: 'Spor', subtitle: 'Aktif spor', icon: 'fitness-outline', color: '#4CAF50' },
-      { id: 'ofis', title: 'Ofis', subtitle: 'Masa başı çalışma', icon: 'desktop-outline', color: '#607D8B' },
-      { id: 'ev', title: 'Ev', subtitle: 'Ev aktiviteleri', icon: 'home-outline', color: '#8D6E63' },
-      { id: 'sosyal', title: 'Sosyal', subtitle: 'Sosyal etkinlikler', icon: 'people-outline', color: '#AB47BC' },
+      { id: 'spor', title: 'Spor', subtitle: 'Aktif spor', icon: 'fitness-outline', color: '#2ECC71', emoji: '🏋️' },
+      { id: 'ofis', title: 'Ofis', subtitle: 'Masa başı çalışma', icon: 'desktop-outline', color: '#5A189A', emoji: '💻' },
+      { id: 'ev', title: 'Ev', subtitle: 'Ev aktiviteleri', icon: 'home-outline', color: '#8B5A2B', emoji: '🏠' },
+      { id: 'sosyal', title: 'Sosyal', subtitle: 'Sosyal etkinlikler', icon: 'people-outline', color: '#FF6B9D', emoji: '👥' },
+      { id: 'seyahat', title: 'Seyahat', subtitle: 'Sürekli hareket', icon: 'airplane-outline', color: '#00B4D8', emoji: '✈️' },
     ],
   },
-  // 1️⃣4️⃣ KALICILIK TERCİHİ
+
+  // ========== BÖLÜM 10: KALICILIK VE NOTALAR ==========
   {
     id: 'kalicilik',
     kategori: 'Koku Alışkanlıkları',
@@ -242,12 +419,11 @@ const onboardingSteps: OnboardingStep[] = [
     type: 'single',
     field: 'kalicilikTercihi',
     options: [
-      { id: 'kisa', title: 'Kısa (2-4 saat)', subtitle: 'Hafif ve uçucu', icon: 'time-outline', color: '#B2EBF2' },
-      { id: 'orta', title: 'Orta (4-6 saat)', subtitle: 'Dengeli', icon: 'hourglass-outline', color: '#80DEEA' },
-      { id: 'uzun', title: 'Uzun (6+ saat)', subtitle: 'Güçlü kalıcılık', icon: 'infinite-outline', color: '#4DD0E1' },
+      { id: 'kisa', title: 'Kısa (2-4 saat)', subtitle: 'Hafif ve uçucu', icon: 'time-outline', color: '#00D4AA', emoji: '⏱️' },
+      { id: 'orta', title: 'Orta (4-6 saat)', subtitle: 'Dengeli', icon: 'hourglass-outline', color: '#9D4EDD', emoji: '⏳' },
+      { id: 'uzun', title: 'Uzun (6+ saat)', subtitle: 'Güçlü kalıcılık', icon: 'infinite-outline', color: '#E63946', emoji: '♾️' },
     ],
   },
-  // 1️⃣5️⃣ SEVİLEN NOTALAR
   {
     id: 'sevilen',
     kategori: 'Koku Alışkanlıkları',
@@ -258,10 +434,11 @@ const onboardingSteps: OnboardingStep[] = [
     noteOptions: [
       'gül', 'yasemin', 'lavanta', 'vanilya', 'amber', 'sandal ağacı',
       'bergamot', 'limon', 'portakal', 'misk', 'paçuli', 'tarçın',
-      'kakao', 'kahve', 'karamel', 'nane', 'deniz notası'
+      'kakao', 'kahve', 'karamel', 'nane', 'deniz notası', 'oud',
+      'deri', 'tütün', 'vetiver', 'iris', 'şakayık', 'mandalina',
+      'hindistan cevizi', 'bal', 'bademn', 'elma', 'armut', 'şeftali'
     ],
   },
-  // 1️⃣6️⃣ SEVİLMEYEN NOTALAR
   {
     id: 'sevilmeyen',
     kategori: 'Koku Alışkanlıkları',
@@ -272,7 +449,8 @@ const onboardingSteps: OnboardingStep[] = [
     noteOptions: [
       'gül', 'yasemin', 'lavanta', 'vanilya', 'amber', 'sandal ağacı',
       'bergamot', 'limon', 'portakal', 'misk', 'paçuli', 'tarçın',
-      'oud', 'deri', 'tütün', 'biber', 'karanfil'
+      'oud', 'deri', 'tütün', 'biber', 'karanfil', 'kümin',
+      'hayvansal notalar', 'yosun', 'toprak'
     ],
   },
 ];
@@ -298,15 +476,15 @@ export default function OnboardingScreen() {
   } = useApp();
 
   const [phInput, setPHInput] = useState('');
-  const [fadeAnim] = useState(new Animated.Value(1));
-  const [slideAnim] = useState(new Animated.Value(0));
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   // pH bilgisine göre adımları filtrele
   const getVisibleSteps = () => {
     if (preferences.phInfo.biliyorMu === 'biliyorum') {
-      return onboardingSteps; // pH giriş adımı dahil
+      return onboardingSteps;
     } else {
-      // pH giriş adımını atla
       return onboardingSteps.filter(step => step.id !== 'ph_deger');
     }
   };
@@ -315,7 +493,16 @@ export default function OnboardingScreen() {
   const currentStepData = visibleSteps[currentStep];
   const progress = ((currentStep + 1) / visibleSteps.length) * 100;
 
-  // Animasyon efekti
+  // Progress bar animasyonu
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: progress,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [progress]);
+
+  // Adım değişim animasyonu
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -364,7 +551,6 @@ export default function OnboardingScreen() {
   };
 
   const handlePHInput = (text: string) => {
-    // Sadece sayı ve nokta kabul et
     const cleanText = text.replace(/[^0-9.]/g, '');
     setPHInput(cleanText);
     
@@ -379,13 +565,9 @@ export default function OnboardingScreen() {
     if (currentStep < visibleSteps.length - 1) {
       animateTransition(1, () => setCurrentStep(currentStep + 1));
     } else {
-      // Onboarding tamamlandı
-      // pH bilmiyorsa hesapla
       if (preferences.phInfo.biliyorMu === 'bilmiyorum') {
         hesaplaPH();
       }
-      
-      // Önerileri getir
       getRecommendations();
       setIsOnboardingComplete(true);
       router.replace('/results');
@@ -402,6 +584,7 @@ export default function OnboardingScreen() {
   // Atlama kontrolü
   const canSkip = () => {
     if (currentStepData.type === 'multi-select-notes') return true;
+    if (currentStepData.type === 'multi-select' && currentStepData.id === 'alerji') return true;
     return false;
   };
 
@@ -420,7 +603,8 @@ export default function OnboardingScreen() {
         const ph = parseFloat(phInput);
         return !isNaN(ph) && ph >= 3.0 && ph <= 8.0;
       case 'multi-select-notes':
-        return true; // Opsiyonel
+      case 'multi-select':
+        return true;
       default:
         return true;
     }
@@ -440,9 +624,9 @@ export default function OnboardingScreen() {
   };
 
   // Seçenek kartı renderı
-  const renderOption = (option: OnboardingStep['options'][0]) => {
+  const renderOption = (option: OnboardingStep['options'][0], index: number) => {
     const selected = isSelected(option.id);
-    const isMultiple = currentStepData.type === 'multiple';
+    const isMultiple = currentStepData.type === 'multiple' || currentStepData.type === 'multi-select';
 
     return (
       <TouchableOpacity
@@ -451,17 +635,21 @@ export default function OnboardingScreen() {
           styles.optionCard,
           { backgroundColor: colors.card, borderColor: colors.border },
           shadows.sm,
-          selected && { borderColor: option.color, borderWidth: 2, backgroundColor: `${option.color}15` },
+          selected && { 
+            borderColor: option.color, 
+            borderWidth: 2, 
+            backgroundColor: `${option.color}15` 
+          },
         ]}
         onPress={() => isMultiple ? handleMultiSelect(option.id) : handleSingleSelect(option.id)}
         activeOpacity={0.7}
       >
         <View style={[styles.optionIcon, { backgroundColor: option.color }]}>
-          <Ionicons 
-            name={option.icon as any} 
-            size={24} 
-            color="#FFF" 
-          />
+          {option.emoji ? (
+            <Text style={styles.optionEmoji}>{option.emoji}</Text>
+          ) : (
+            <Ionicons name={option.icon as any} size={24} color="#FFF" />
+          )}
         </View>
         <View style={styles.optionContent}>
           <Text style={[styles.optionTitle, { color: colors.text }]}>{option.title}</Text>
@@ -470,7 +658,9 @@ export default function OnboardingScreen() {
           )}
         </View>
         {selected && (
-          <Ionicons name="checkmark-circle" size={24} color={option.color} />
+          <View style={[styles.checkmark, { backgroundColor: option.color }]}>
+            <Ionicons name="checkmark" size={16} color="#FFF" />
+          </View>
         )}
       </TouchableOpacity>
     );
@@ -492,7 +682,11 @@ export default function OnboardingScreen() {
         onPress={() => handleMultiSelect(nota)}
         activeOpacity={0.7}
       >
-        <Text style={[styles.noteChipText, { color: colors.textSecondary }, selected && styles.noteChipTextSelected]}>
+        <Text style={[
+          styles.noteChipText, 
+          { color: colors.textSecondary }, 
+          selected && styles.noteChipTextSelected
+        ]}>
           {nota}
         </Text>
       </TouchableOpacity>
@@ -510,13 +704,13 @@ export default function OnboardingScreen() {
     if (isValid) {
       if (phValue < 5.0) {
         phCategory = 'Asidik - Narenciye notaları sizde parlak açılır';
-        phColor = '#FF9800';
+        phColor = '#FF8C42';
       } else if (phValue > 6.0) {
         phCategory = 'Bazik - Alt notalar sizde baskın olur';
-        phColor = '#9C27B0';
+        phColor = '#9D4EDD';
       } else {
         phCategory = 'Normal - Dengeli koku performansı';
-        phColor = '#4CAF50';
+        phColor = '#2ECC71';
       }
     }
 
@@ -551,33 +745,72 @@ export default function OnboardingScreen() {
         <View style={styles.phScale}>
           <Text style={[styles.phScaleLabel, { color: colors.textSecondary }]}>3.0</Text>
           <View style={styles.phScaleBar}>
-            <View style={[styles.phScaleSection, { backgroundColor: '#FF9800', flex: 2 }]} />
-            <View style={[styles.phScaleSection, { backgroundColor: '#4CAF50', flex: 1 }]} />
-            <View style={[styles.phScaleSection, { backgroundColor: '#9C27B0', flex: 2 }]} />
+            <View style={[styles.phScaleSection, { backgroundColor: '#FF8C42', flex: 2 }]} />
+            <View style={[styles.phScaleSection, { backgroundColor: '#2ECC71', flex: 1 }]} />
+            <View style={[styles.phScaleSection, { backgroundColor: '#9D4EDD', flex: 2 }]} />
           </View>
           <Text style={[styles.phScaleLabel, { color: colors.textSecondary }]}>8.0</Text>
         </View>
         <View style={styles.phScaleLegend}>
-          <Text style={[styles.phScaleLegendText, { color: '#FF9800' }]}>Asidik</Text>
-          <Text style={[styles.phScaleLegendText, { color: '#4CAF50' }]}>Normal</Text>
-          <Text style={[styles.phScaleLegendText, { color: '#9C27B0' }]}>Bazik</Text>
+          <Text style={[styles.phScaleLegendText, { color: '#FF8C42' }]}>Asidik</Text>
+          <Text style={[styles.phScaleLegendText, { color: '#2ECC71' }]}>Normal</Text>
+          <Text style={[styles.phScaleLegendText, { color: '#9D4EDD' }]}>Bazik</Text>
         </View>
       </View>
     );
   };
 
+  // Kategori badge rengi
+  const getCategoryColor = (kategori: string) => {
+    const categoryColors: Record<string, string> = {
+      'Kişisel Bilgiler': '#9D4EDD',
+      'Parfüm Deneyimi': '#FF6B9D',
+      'Bütçe & Tercihler': '#C9A227',
+      'Cilt pH': '#00D4AA',
+      'Fiziksel Özellikler': '#FF8C42',
+      'Koku Tercihleri': '#E63946',
+      'Kullanım Detayları': '#00B4D8',
+      'Çevre Faktörleri': '#2ECC71',
+      'Yaşam Tarzı': '#5A189A',
+      'Koku Alışkanlıkları': '#FF69B4',
+    };
+    return categoryColors[kategori] || colors.tint;
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Gradient Background */}
+      <LinearGradient
+        colors={colorScheme === 'dark' 
+          ? ['#0D0A14', '#150F20', '#1E1628'] 
+          : ['#FDFBFF', '#F8F4FC', '#F0EAF5']}
+        style={StyleSheet.absoluteFill}
+      />
+
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
         {currentStep > 0 && (
-          <TouchableOpacity onPress={handleBack} style={[styles.backButton, { backgroundColor: colors.card }, shadows.sm]}>
-            <Ionicons name="chevron-back" size={28} color={colors.tint} />
+          <TouchableOpacity 
+            onPress={handleBack} 
+            style={[styles.backButton, { backgroundColor: colors.card }, shadows.sm]}
+          >
+            <Ionicons name="chevron-back" size={24} color={colors.tint} />
           </TouchableOpacity>
         )}
         <View style={styles.progressContainer}>
           <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-            <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: colors.tint }]} />
+            <Animated.View 
+              style={[
+                styles.progressFill, 
+                { 
+                  backgroundColor: colors.tint,
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 100],
+                    outputRange: ['0%', '100%'],
+                  }),
+                }
+              ]} 
+            />
           </View>
           <Text style={[styles.progressText, { color: colors.textSecondary }]}>
             {currentStep + 1} / {visibleSteps.length}
@@ -596,13 +829,23 @@ export default function OnboardingScreen() {
         ]}
       >
         {/* Kategori Badge */}
-        <View style={[styles.categoryBadge, { backgroundColor: colors.tint + '20' }]}>
-          <Text style={[styles.categoryText, { color: colors.tint }]}>{currentStepData.kategori}</Text>
+        <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(currentStepData.kategori) + '20' }]}>
+          <Text style={[styles.categoryText, { color: getCategoryColor(currentStepData.kategori) }]}>
+            {currentStepData.kategori}
+          </Text>
         </View>
 
         {/* Title */}
         <Text style={[styles.title, { color: colors.text }]}>{currentStepData.title}</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{currentStepData.subtitle}</Text>
+
+        {/* Help Text */}
+        {currentStepData.helpText && (
+          <View style={[styles.helpBox, { backgroundColor: colors.tint + '10' }]}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.tint} />
+            <Text style={[styles.helpText, { color: colors.tint }]}>{currentStepData.helpText}</Text>
+          </View>
+        )}
 
         {/* Options */}
         <ScrollView 
@@ -617,13 +860,13 @@ export default function OnboardingScreen() {
               {currentStepData.noteOptions?.map(renderNoteOption)}
             </View>
           ) : (
-            currentStepData.options?.map(renderOption)
+            currentStepData.options?.map((option, index) => renderOption(option, index))
           )}
         </ScrollView>
       </Animated.View>
 
       {/* Footer */}
-      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.md, borderTopColor: colors.border, backgroundColor: colors.card }]}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.md, backgroundColor: colors.card, borderTopColor: colors.border }]}>
         {canSkip() && (
           <TouchableOpacity onPress={handleNext} style={styles.skipButton}>
             <Text style={[styles.skipText, { color: colors.textSecondary }]}>Atla</Text>
@@ -633,17 +876,23 @@ export default function OnboardingScreen() {
         <TouchableOpacity
           style={[
             styles.nextButton,
-            { backgroundColor: colors.tint },
             shadows.md,
-            !canProceed() && { backgroundColor: colors.border },
+            !canProceed() && { opacity: 0.5 },
           ]}
           onPress={handleNext}
           disabled={!canProceed()}
         >
-          <Text style={styles.nextButtonText}>
-            {currentStep === visibleSteps.length - 1 ? 'Önerileri Gör' : 'Devam'}
-          </Text>
-          <Ionicons name="arrow-forward" size={20} color="#FFF" />
+          <LinearGradient
+            colors={canProceed() ? ['#9D4EDD', '#7B2CBF'] : [colors.border, colors.border]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.nextButtonGradient}
+          >
+            <Text style={styles.nextButtonText}>
+              {currentStep === visibleSteps.length - 1 ? 'Önerileri Gör' : 'Devam'}
+            </Text>
+            <Ionicons name="arrow-forward" size={20} color="#FFF" />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </View>
@@ -683,7 +932,7 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
     textAlign: 'right',
   },
   content: {
@@ -699,19 +948,33 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   title: {
     fontSize: 26,
-    fontWeight: '700',
+    fontWeight: '800',
     marginBottom: Spacing.sm,
+    lineHeight: 32,
   },
   subtitle: {
     fontSize: 16,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
     lineHeight: 22,
+  },
+  helpBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  helpText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
   optionsContainer: {
     flex: 1,
@@ -735,16 +998,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  optionEmoji: {
+    fontSize: 24,
+  },
   optionContent: {
     flex: 1,
   },
   optionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 2,
   },
   optionSubtitle: {
     fontSize: 13,
+    lineHeight: 18,
+  },
+  checkmark: {
+    width: 24,
+    height: 24,
+    borderRadius: BorderRadius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   notesContainer: {
     flexDirection: 'row',
@@ -798,7 +1072,7 @@ const styles = StyleSheet.create({
   },
   phCategory: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   phError: {
     fontSize: 14,
@@ -812,7 +1086,7 @@ const styles = StyleSheet.create({
   },
   phScaleLabel: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
     width: 30,
     textAlign: 'center',
   },
@@ -833,7 +1107,7 @@ const styles = StyleSheet.create({
   },
   phScaleLegendText: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
@@ -850,19 +1124,22 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   nextButton: {
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
+  },
+  nextButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
-    borderRadius: BorderRadius.full,
   },
   nextButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#FFF',
   },
 });
