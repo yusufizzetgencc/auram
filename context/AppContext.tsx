@@ -777,10 +777,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // 1️⃣7️⃣ SEVİLEN NOTALAR
       maxScore += 8;
-      if (preferences.sevilenNotalar.length > 0) {
-        const tumNotalar = [...parfum.notalar.ust, ...parfum.notalar.orta, ...parfum.notalar.alt];
+      if (preferences.sevilenNotalar.length > 0 && parfum.notalar) {
+        const ustNotalar = parfum.notalar.ust || [];
+        const ortaNotalar = parfum.notalar.orta || [];
+        const altNotalar = parfum.notalar.alt || [];
+        const tumNotalar = [...ustNotalar, ...ortaNotalar, ...altNotalar];
         const eslesen = preferences.sevilenNotalar.filter(nota => 
-          tumNotalar.some(n => n.toLowerCase().includes(nota.toLowerCase()))
+          tumNotalar.some(n => n && n.toLowerCase().includes(nota.toLowerCase()))
         );
         if (eslesen.length > 0) {
           const notaPuani = Math.min(8, eslesen.length * 2);
@@ -790,10 +793,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       // 1️⃣8️⃣ SEVİLMEYEN NOTALAR
-      if (preferences.sevilmeyenNotalar.length > 0) {
-        const tumNotalar = [...parfum.notalar.ust, ...parfum.notalar.orta, ...parfum.notalar.alt];
+      if (preferences.sevilmeyenNotalar.length > 0 && parfum.notalar) {
+        const ustNotalar = parfum.notalar.ust || [];
+        const ortaNotalar = parfum.notalar.orta || [];
+        const altNotalar = parfum.notalar.alt || [];
+        const tumNotalar = [...ustNotalar, ...ortaNotalar, ...altNotalar];
         const sevilmeyen = preferences.sevilmeyenNotalar.filter(nota => 
-          tumNotalar.some(n => n.toLowerCase().includes(nota.toLowerCase()))
+          tumNotalar.some(n => n && n.toLowerCase().includes(nota.toLowerCase()))
         );
         if (sevilmeyen.length > 0) {
           score -= sevilmeyen.length * 8;
