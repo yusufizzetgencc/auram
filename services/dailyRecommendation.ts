@@ -92,7 +92,16 @@ export function getDailyRecommendation(
   favorites: string[],
   weather?: WeatherData | null
 ): DailyRecommendation | null {
-  if (parfumler.length === 0) return null;
+  if (!parfumler || parfumler.length === 0) return null;
+  if (!preferences) return null;
+  
+  // Varsayılan değerler
+  const safePreferences = {
+    ...preferences,
+    kokuTipleri: preferences.kokuTipleri || [],
+    phInfo: preferences.phInfo || { tahminiDeger: null },
+  };
+  const safeFavorites = favorites || [];
 
   // Bugünün tarihi ile rotasyon sağla
   const today = new Date();
@@ -112,27 +121,27 @@ export function getDailyRecommendation(
     const reasons: string[] = [];
     
     // 1. Cinsiyet uyumu (zorunlu)
-    if (preferences.cinsiyet) {
-      if (parfum.cinsiyet !== preferences.cinsiyet && parfum.cinsiyet !== 'unisex') {
+    if (safePreferences.cinsiyet) {
+      if (parfum.cinsiyet !== safePreferences.cinsiyet && parfum.cinsiyet !== 'unisex') {
         return; // Bu parfümü dahil etme
       }
       score += 10;
     }
     
     // 2. Tercih edilen koku tipleri
-    if (preferences.kokuTipleri.includes(parfum.tip as KokuTipi)) {
+    if (safePreferences.kokuTipleri.length > 0 && safePreferences.kokuTipleri.includes(parfum.tip as KokuTipi)) {
       score += 25;
       reasons.push(`Tercih ettiğin ${parfum.tip} koku`);
     }
     
     // 3. Zaman bazlı uyum
-    if (timeBasedTypes.includes(parfum.tip as KokuTipi)) {
+    if (parfum.tip && timeBasedTypes.includes(parfum.tip as KokuTipi)) {
       score += 15;
       reasons.push('Günün bu saati için ideal');
     }
     
     // 4. Hava durumu uyumu
-    if (weatherRec && weatherRec.scentTypes.includes(parfum.tip)) {
+    if (weatherRec && weatherRec.scentTypes && parfum.tip && weatherRec.scentTypes.includes(parfum.tip)) {
       score += 20;
       reasons.push(`${weather?.description || 'Hava'} için uygun`);
     }
@@ -144,20 +153,20 @@ export function getDailyRecommendation(
     else if (currentMonth >= 8 && currentMonth <= 10) currentSeason = 'Sonbahar';
     else if (currentMonth >= 11 || currentMonth <= 1) currentSeason = 'Kış';
     
-    if (parfum.mevsim.includes(currentSeason as any)) {
+    if (parfum.mevsim && Array.isArray(parfum.mevsim) && parfum.mevsim.includes(currentSeason as any)) {
       score += 15;
       reasons.push(`${currentSeason} mevsimi için uygun`);
     }
     
     // 6. Favori bonus
-    if (favorites.includes(parfum.id)) {
+    if (safeFavorites.length > 0 && parfum.id && safeFavorites.includes(parfum.id)) {
       score += 10;
       reasons.push('Favorilerinden');
     }
     
     // 7. pH uyumu
-    if (preferences.phInfo.tahminiDeger) {
-      const userPH = preferences.phInfo.tahminiDeger;
+    if (safePreferences.phInfo && safePreferences.phInfo.tahminiDeger && parfum.phUyumu) {
+      const userPH = safePreferences.phInfo.tahminiDeger;
       if (userPH >= parfum.phUyumu.minPH && userPH <= parfum.phUyumu.maxPH) {
         score += 15;
         reasons.push('pH\'ınla uyumlu');
@@ -165,7 +174,7 @@ export function getDailyRecommendation(
     }
     
     // 8. Kullanım amacı
-    if (preferences.kullanimAmaci && parfum.kullanimAmaci.includes(preferences.kullanimAmaci)) {
+    if (safePreferences.kullanimAmaci && parfum.kullanimAmaci && Array.isArray(parfum.kullanimAmaci) && parfum.kullanimAmaci.includes(safePreferences.kullanimAmaci)) {
       score += 10;
       reasons.push('Kullanım amacına uygun');
     }
@@ -221,9 +230,15 @@ export function getMultipleDailyRecommendations(
   const recommendations: DailyRecommendation[] = [];
   const usedIds = new Set<string>();
   
+  // Güvenlik kontrolleri
+  if (!parfumler || parfumler.length === 0) return recommendations;
+  if (!preferences) return recommendations;
+  
+  const safeFavorites = favorites || [];
+  
   // Ana öneriyi al
-  const mainRec = getDailyRecommendation(parfumler, preferences, favorites);
-  if (mainRec) {
+  const mainRec = getDailyRecommendation(parfumler, preferences, safeFavorites);
+  if (mainRec && mainRec.parfum && mainRec.parfum.id) {
     recommendations.push(mainRec);
     usedIds.add(mainRec.parfum.id);
   }
@@ -235,9 +250,9 @@ export function getMultipleDailyRecommendations(
     if (recommendations.length >= count) break;
     
     const typeParfums = parfumler.filter(p => 
-      p.tip === type && 
-      !usedIds.has(p.id) &&
-      (!preferences.cinsiyet || p.cinsiyet === preferences.cinsiyet || p.cinsiyet === 'unisex')
+      p && p.tip === type && 
+      p.id && !usedIds.has(p.id) &&
+      (!preferences?.cinsiyet || p.cinsiyet === preferences.cinsiyet || p.cinsiyet === 'unisex')
     );
     
     if (typeParfums.length > 0) {
