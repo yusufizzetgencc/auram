@@ -368,3 +368,4 @@ const styles = StyleSheet.create({
   typeTextSmall: { fontSize: 9, fontWeight: FontWeights.semiBold },
 });
 
+
