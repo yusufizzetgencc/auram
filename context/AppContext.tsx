@@ -661,7 +661,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // 4️⃣ MEVSİM UYUMU
       maxScore += 10;
-      if (preferences.mevsim) {
+      if (preferences.mevsim && parfum.mevsim && Array.isArray(parfum.mevsim)) {
         const mevsimUyumu = parfum.mevsim.includes(preferences.mevsim) || 
                           parfum.mevsim.includes('Tüm Mevsimler' as Mevsim);
         if (mevsimUyumu) {
@@ -688,7 +688,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // 6️⃣ KULLANIM AMACI
       maxScore += 8;
-      if (preferences.kullanimAmaci && parfum.kullanimAmaci.includes(preferences.kullanimAmaci)) {
+      if (preferences.kullanimAmaci && parfum.kullanimAmaci && Array.isArray(parfum.kullanimAmaci) && parfum.kullanimAmaci.includes(preferences.kullanimAmaci)) {
         score += 8;
         matchReasons.push('Kullanım amacınıza uygun');
       }
@@ -753,25 +753,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // 1️⃣3️⃣ İKLİM
       maxScore += 4;
-      if (preferences.iklim && parfum.iklim.includes(preferences.iklim)) {
+      if (preferences.iklim && parfum.iklim && Array.isArray(parfum.iklim) && parfum.iklim.includes(preferences.iklim)) {
         score += 4;
       }
 
       // 1️⃣4️⃣ KIYAFET STİLİ
       maxScore += 4;
-      if (preferences.kiyafetStili && parfum.kiyafetStili.includes(preferences.kiyafetStili)) {
+      if (preferences.kiyafetStili && parfum.kiyafetStili && Array.isArray(parfum.kiyafetStili) && parfum.kiyafetStili.includes(preferences.kiyafetStili)) {
         score += 4;
       }
 
       // 1️⃣5️⃣ ORTAM
       maxScore += 3;
-      if (preferences.ortam && (parfum.ortam === preferences.ortam || parfum.ortam === 'her_ikisi')) {
+      if (preferences.ortam && parfum.ortam && (parfum.ortam === preferences.ortam || parfum.ortam === 'her_ikisi')) {
         score += 3;
       }
 
       // 1️⃣6️⃣ AKTİVİTE
       maxScore += 3;
-      if (preferences.aktivite && parfum.aktivite.includes(preferences.aktivite)) {
+      if (preferences.aktivite && parfum.aktivite && Array.isArray(parfum.aktivite) && parfum.aktivite.includes(preferences.aktivite)) {
         score += 3;
       }
 
