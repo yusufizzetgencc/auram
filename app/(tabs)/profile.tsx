@@ -1,9 +1,10 @@
 /**
  * AROMIXEN - Profile Tab
+ * Kullanıcı profili, istatistikler ve veri yönetimi
  */
 
 import React from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,11 +22,109 @@ export default function ProfileScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { preferences, resetPreferences, isOnboardingComplete, recommendations } = useApp();
+  const { 
+    preferences, 
+    resetPreferences, 
+    isOnboardingComplete, 
+    recommendations,
+    favorites,
+    collections,
+    recentlyViewed,
+    searchHistory,
+    clearFavoritesList,
+    clearCollectionsList,
+    clearRecentlyViewedList,
+    clearSearchHistoryList,
+    resetAllData,
+  } = useApp();
 
-  const handleStartNewQuiz = () => {
-    resetPreferences();
+  const handleStartNewQuiz = async () => {
+    await resetPreferences();
     router.push('/onboarding');
+  };
+
+  const handleClearHistory = () => {
+    if (recentlyViewed.length === 0 && searchHistory.length === 0) {
+      Alert.alert('Bilgi', 'Temizlenecek geçmiş bulunmuyor');
+      return;
+    }
+    Alert.alert(
+      'Geçmişi Temizle',
+      'Son görüntülenen parfümler ve arama geçmişi silinecek.',
+      [
+        { text: 'İptal', style: 'cancel' },
+        { 
+          text: 'Temizle', 
+          onPress: async () => {
+            await clearRecentlyViewedList();
+            await clearSearchHistoryList();
+            Alert.alert('Başarılı', 'Geçmiş temizlendi');
+          }
+        },
+      ]
+    );
+  };
+
+  const handleClearFavorites = () => {
+    if (favorites.length === 0) {
+      Alert.alert('Bilgi', 'Favori parfümünüz bulunmuyor');
+      return;
+    }
+    Alert.alert(
+      'Favorileri Temizle',
+      `${favorites.length} favori parfüm silinecek.`,
+      [
+        { text: 'İptal', style: 'cancel' },
+        { 
+          text: 'Temizle', 
+          style: 'destructive',
+          onPress: async () => {
+            await clearFavoritesList();
+            Alert.alert('Başarılı', 'Favoriler temizlendi');
+          }
+        },
+      ]
+    );
+  };
+
+  const handleClearCollections = () => {
+    if (collections.length === 0) {
+      Alert.alert('Bilgi', 'Koleksiyonunuz bulunmuyor');
+      return;
+    }
+    Alert.alert(
+      'Koleksiyonları Temizle',
+      `${collections.length} koleksiyon silinecek.`,
+      [
+        { text: 'İptal', style: 'cancel' },
+        { 
+          text: 'Temizle', 
+          style: 'destructive',
+          onPress: async () => {
+            await clearCollectionsList();
+            Alert.alert('Başarılı', 'Koleksiyonlar temizlendi');
+          }
+        },
+      ]
+    );
+  };
+
+  const handleResetAllData = () => {
+    Alert.alert(
+      'Tüm Verileri Sil',
+      'Tüm tercihleriniz, favorileriniz, koleksiyonlarınız ve geçmişiniz silinecek. Bu işlem geri alınamaz!',
+      [
+        { text: 'İptal', style: 'cancel' },
+        { 
+          text: 'Sil', 
+          style: 'destructive',
+          onPress: async () => {
+            await resetAllData();
+            router.replace('/');
+          }
+        },
+      ]
+    );
   };
 
   const hasPreferences = preferences.kokuTipleri.length > 0 || preferences.cinsiyet;
@@ -60,31 +159,29 @@ export default function ProfileScreen() {
           </Animated.View>
 
           {/* Stats */}
-          {isOnboardingComplete && (
-            <Animated.View 
-              entering={FadeInDown.delay(200).duration(500)}
-              style={styles.statsContainer}
-            >
-              <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-                <ThemedText style={[styles.statNumber, { color: colors.tint }]}>
-                  {recommendations.length}
-                </ThemedText>
-                <ThemedText type="caption">Öneri</ThemedText>
-              </View>
-              <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-                <ThemedText style={[styles.statNumber, { color: colors.tint }]}>
-                  {preferences.kokuTipleri.length}
-                </ThemedText>
-                <ThemedText type="caption">Favori Tip</ThemedText>
-              </View>
-              <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-                <ThemedText style={[styles.statNumber, { color: colors.tint }]}>
-                  {preferences.sevilenNotalar.length}
-                </ThemedText>
-                <ThemedText type="caption">Sevilen Nota</ThemedText>
-              </View>
-            </Animated.View>
-          )}
+          <Animated.View 
+            entering={FadeInDown.delay(200).duration(500)}
+            style={styles.statsContainer}
+          >
+            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+              <ThemedText style={[styles.statNumber, { color: '#9D4EDD' }]}>
+                {favorites.length}
+              </ThemedText>
+              <ThemedText type="caption">Favori</ThemedText>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+              <ThemedText style={[styles.statNumber, { color: '#FF6B9D' }]}>
+                {collections.length}
+              </ThemedText>
+              <ThemedText type="caption">Koleksiyon</ThemedText>
+            </View>
+            <View style={[styles.statCard, { backgroundColor: colors.card }]}>
+              <ThemedText style={[styles.statNumber, { color: '#00D4AA' }]}>
+                {recentlyViewed.length}
+              </ThemedText>
+              <ThemedText type="caption">Son Görüntülenen</ThemedText>
+            </View>
+          </Animated.View>
 
           {/* Current Preferences */}
           {hasPreferences && (
@@ -143,30 +240,6 @@ export default function ProfileScreen() {
                       icon="leaf-outline"
                       label="Mevsim"
                       value={preferences.mevsim}
-                      colors={colors}
-                    />
-                  )}
-                  {preferences.iklim && (
-                    <PreferenceRow
-                      icon="thermometer-outline"
-                      label="İklim"
-                      value={preferences.iklim}
-                      colors={colors}
-                    />
-                  )}
-                  {preferences.kiyafetStili && (
-                    <PreferenceRow
-                      icon="shirt-outline"
-                      label="Kıyafet Stili"
-                      value={preferences.kiyafetStili}
-                      colors={colors}
-                    />
-                  )}
-                  {preferences.kalicilikTercihi && (
-                    <PreferenceRow
-                      icon="time-outline"
-                      label="Kalıcılık"
-                      value={preferences.kalicilikTercihi}
                       colors={colors}
                     />
                   )}
@@ -248,8 +321,54 @@ export default function ProfileScreen() {
             </Card>
           </Animated.View>
 
-          {/* Settings */}
+          {/* Veri Yönetimi */}
           <Animated.View entering={FadeInDown.delay(500).duration(500)}>
+            <Card variant="elevated" style={styles.settingsCard}>
+              <ThemedText type="heading" style={styles.settingsTitle}>
+                Veri Yönetimi
+              </ThemedText>
+
+              <Pressable onPress={handleClearHistory}>
+                <SettingItem
+                  icon="time-outline"
+                  label="Geçmişi Temizle"
+                  value={`${recentlyViewed.length + searchHistory.length} kayıt`}
+                  colors={colors}
+                />
+              </Pressable>
+              
+              <Pressable onPress={handleClearFavorites}>
+                <SettingItem
+                  icon="heart-outline"
+                  label="Favorileri Temizle"
+                  value={`${favorites.length} favori`}
+                  colors={colors}
+                />
+              </Pressable>
+              
+              <Pressable onPress={handleClearCollections}>
+                <SettingItem
+                  icon="folder-outline"
+                  label="Koleksiyonları Temizle"
+                  value={`${collections.length} koleksiyon`}
+                  colors={colors}
+                />
+              </Pressable>
+              
+              <Pressable onPress={handleResetAllData}>
+                <SettingItem
+                  icon="trash-outline"
+                  label="Tüm Verileri Sil"
+                  value="Dikkat!"
+                  colors={{...colors, tint: colors.error}}
+                  isLast
+                />
+              </Pressable>
+            </Card>
+          </Animated.View>
+
+          {/* Settings */}
+          <Animated.View entering={FadeInDown.delay(600).duration(500)}>
             <Card variant="elevated" style={styles.settingsCard}>
               <ThemedText type="heading" style={styles.settingsTitle}>
                 Ayarlar
@@ -278,7 +397,7 @@ export default function ProfileScreen() {
           </Animated.View>
 
           {/* App Info */}
-          <Animated.View entering={FadeInDown.delay(600).duration(500)}>
+          <Animated.View entering={FadeInDown.delay(700).duration(500)}>
             <View style={styles.appInfo}>
               <View style={[styles.appLogoSmall, { backgroundColor: colors.tint + '15' }]}>
                 <Ionicons name="sparkles" size={20} color={colors.tint} />
@@ -291,6 +410,9 @@ export default function ProfileScreen() {
               </ThemedText>
             </View>
           </Animated.View>
+
+          {/* Tab bar için boşluk */}
+          <View style={{ height: 100 }} />
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -341,12 +463,15 @@ function SettingItem({
   return (
     <View style={[styles.settingItem, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border + '30' }]}>
       <View style={styles.settingLeft}>
-        <Ionicons name={icon} size={20} color={colors.icon} />
+        <Ionicons name={icon} size={20} color={colors.tint} />
         <ThemedText style={styles.settingLabel}>{label}</ThemedText>
       </View>
-      <ThemedText type="caption" style={{ color: colors.textMuted }}>
-        {value}
-      </ThemedText>
+      <View style={styles.settingRight}>
+        <ThemedText type="caption" style={{ color: colors.textMuted }}>
+          {value}
+        </ThemedText>
+        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+      </View>
     </View>
   );
 }
@@ -362,7 +487,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: Spacing['4xl'],
+    paddingBottom: Spacing['2xl'],
   },
   header: {
     marginBottom: Spacing.lg,
@@ -483,6 +608,11 @@ const styles = StyleSheet.create({
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  settingRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   settingLabel: {
     marginLeft: Spacing.md,
