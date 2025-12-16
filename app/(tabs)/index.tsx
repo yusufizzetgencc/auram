@@ -1,33 +1,32 @@
 /**
- * AROMIXEN - Keşfet (Home Dashboard)
- * Modern, temiz tasarım
+ * AROMIXEN - Ana Sayfa (Dashboard)
+ * Hava durumu, günün önerisi, koku aileleri, favoriler, son görüntülenenler
  */
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  Pressable,
-  Dimensions,
-  RefreshControl,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, FadeIn, FadeInUp, SlideInRight } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Dimensions,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import Animated, { FadeIn, FadeInUp, SlideInRight } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BorderRadius, Colors, FontSizes, FontWeights, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
-import { Parfum } from '@/types';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { DailyRecommendation, getDailyMotivation, getDailyRecommendation } from '@/services/dailyRecommendation';
 import { fetchWeatherData, getWeatherRecommendation, WeatherData } from '@/services/weather';
-import { getDailyRecommendation, getDailyMotivation, DailyRecommendation } from '@/services/dailyRecommendation';
+import { Parfum } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -50,27 +49,21 @@ export default function HomeScreen() {
     parfumler, 
     preferences, 
     favorites,
-    isFavorite,
-    toggleFavoriteParfum,
     addToRecentlyViewedList,
     getFavoriteParfums,
     getRecentlyViewedParfums,
   } = useApp();
 
-  const [searchQuery, setSearchQuery] = useState('');
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [dailyRec, setDailyRec] = useState<DailyRecommendation | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
 
   const motivation = getDailyMotivation();
 
-  // Veri yükle
   const loadData = useCallback(async () => {
     try {
       const weatherData = await fetchWeatherData();
       setWeather(weatherData);
-      
       const recommendation = getDailyRecommendation(parfumler, preferences, favorites, weatherData);
       setDailyRec(recommendation);
     } catch (error) {
@@ -88,29 +81,8 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [loadData]);
 
-  // Filtrelenmiş parfümler
-  const filteredParfums = useMemo(() => {
-    let result = parfumler;
-    
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(p =>
-        p.isim.toLowerCase().includes(query) ||
-        p.marka.toLowerCase().includes(query) ||
-        p.tip.toLowerCase().includes(query)
-      );
-    }
-    
-    if (selectedType) {
-      result = result.filter(p => p.tip === selectedType);
-    }
-    
-    return result.slice(0, 20);
-  }, [parfumler, searchQuery, selectedType]);
-
-  // Favori ve son görüntülenenler
-  const favoriteParfums = getFavoriteParfums().slice(0, 5);
-  const recentParfums = getRecentlyViewedParfums().slice(0, 5);
+  const favoriteParfums = getFavoriteParfums().slice(0, 6);
+  const recentParfums = getRecentlyViewedParfums().slice(0, 6);
 
   const handleOpenParfum = (parfum: Parfum) => {
     addToRecentlyViewedList(parfum.id);
@@ -118,6 +90,13 @@ export default function HomeScreen() {
   };
 
   const weatherRec = weather ? getWeatherRecommendation(weather) : null;
+
+  // Koku aileleri ve sayıları
+  const scentFamilies = Object.entries(TYPE_COLORS).map(([type, color]) => ({
+    type,
+    color,
+    count: parfumler.filter(p => p.tip === type).length,
+  }));
 
   return (
     <ThemedView style={styles.container}>
@@ -149,33 +128,32 @@ export default function HomeScreen() {
             <View style={styles.greetingSection}>
               <ThemedText style={styles.greetingEmoji}>{motivation.emoji}</ThemedText>
               <ThemedText type="title" style={styles.greetingTitle}>Merhaba!</ThemedText>
-              <ThemedText type="body" style={[styles.greetingSubtitle, { color: colors.textMuted }]}>
+              <ThemedText type="body" style={{ color: colors.textMuted }}>
                 {parfumler.length} parfüm seni bekliyor
               </ThemedText>
-              </View>
+            </View>
           </Animated.View>
         </SafeAreaView>
 
-        {/* Search Bar */}
-        <Animated.View entering={FadeInUp.delay(100).duration(400)} style={styles.searchSection}>
-          <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
-            <Ionicons name="search-outline" size={20} color={colors.textMuted} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Parfüm, nota veya marka ara..."
-              placeholderTextColor={colors.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color={colors.textMuted} />
-              </Pressable>
-            )}
-          </View>
-        </Animated.View>
-
         <View style={styles.content}>
+          {/* Quick Actions */}
+          <Animated.View entering={FadeInUp.delay(100).duration(400)} style={styles.quickActions}>
+                <Pressable 
+              onPress={() => router.push('/(tabs)/parfums')} 
+              style={[styles.quickAction, { backgroundColor: '#9D4EDD15' }]}
+            >
+              <Ionicons name="flask" size={22} color="#9D4EDD" />
+              <ThemedText style={[styles.quickActionText, { color: '#9D4EDD' }]}>Parfümleri Keşfet</ThemedText>
+                </Pressable>
+                <Pressable 
+              onPress={() => router.push('/(tabs)/favorites')} 
+              style={[styles.quickAction, { backgroundColor: '#FF6B9D15' }]}
+            >
+              <Ionicons name="heart" size={22} color="#FF6B9D" />
+              <ThemedText style={[styles.quickActionText, { color: '#FF6B9D' }]}>Favorilerim</ThemedText>
+            </Pressable>
+          </Animated.View>
+
           {/* Weather Widget */}
           {weather && (
             <Animated.View entering={FadeInUp.delay(200).duration(400)}>
@@ -183,57 +161,57 @@ export default function HomeScreen() {
                 <View style={styles.weatherContent}>
                   <View style={styles.weatherLeft}>
                     <View style={[styles.weatherIconBg, { backgroundColor: isDark ? 'rgba(135,206,235,0.15)' : 'rgba(74,144,217,0.1)' }]}>
-                      <Ionicons 
+                  <Ionicons 
                         name={weather.icon as keyof typeof Ionicons.glyphMap} 
                         size={28} 
                         color={isDark ? '#87CEEB' : '#4A90D9'} 
                       />
-                  </View>
+              </View>
                     <View style={styles.weatherInfo}>
                       <View style={styles.weatherTempRow}>
                         <ThemedText style={styles.weatherTemp}>{weather.temperature}°</ThemedText>
-                        <ThemedText type="caption" style={[styles.weatherFeels, { color: colors.textMuted }]}>
+                        <ThemedText type="caption" style={{ color: colors.textMuted }}>
                           Hissedilen {weather.feelsLike}°
                         </ThemedText>
-                      </View>
+            </View>
                       <ThemedText type="caption" style={{ color: colors.textMuted }}>
                         {weather.city} • {weather.description}
                       </ThemedText>
-                    </View>
-        </View>
+          </View>
+          </View>
 
                   <View style={styles.weatherRight}>
                     <View style={[styles.weatherBadge, { backgroundColor: 'rgba(157,78,221,0.1)' }]}>
                       <Ionicons name="water-outline" size={12} color="#9D4EDD" />
-                      <ThemedText style={[styles.weatherBadgeText, { color: '#9D4EDD' }]}>%{weather.humidity}</ThemedText>
-              </View>
+                      <ThemedText style={{ color: '#9D4EDD', fontSize: 11, fontWeight: '600' }}>%{weather.humidity}</ThemedText>
+            </View>
                     <View style={[styles.weatherBadge, { backgroundColor: 'rgba(0,180,216,0.1)' }]}>
                       <Ionicons name="speedometer-outline" size={12} color="#00B4D8" />
-                      <ThemedText style={[styles.weatherBadgeText, { color: '#00B4D8' }]}>{weather.windSpeed} km/s</ThemedText>
-            </View>
-            </View>
-            </View>
+                      <ThemedText style={{ color: '#00B4D8', fontSize: 11, fontWeight: '600' }}>{weather.windSpeed} km/s</ThemedText>
+                  </View>
+        </View>
+              </View>
                 
                 {weatherRec && (
                   <View style={styles.weatherRecommendation}>
-                    <ThemedText type="caption" style={[styles.weatherRecLabel, { color: colors.textMuted }]}>
-                      Önerilen koku tipleri
-                    </ThemedText>
+                    <ThemedText type="caption" style={{ color: colors.textMuted, marginBottom: Spacing.sm }}>
+                      Bugün için önerilen koku tipleri
+              </ThemedText>
                     <View style={styles.weatherTags}>
                       {weatherRec.scentTypes.slice(0, 3).map((type, i) => (
-          <Pressable 
+              <Pressable 
                           key={i} 
-                          onPress={() => setSelectedType(type === selectedType ? null : type)}
+                          onPress={() => router.push('/(tabs)/parfums')}
                           style={[styles.weatherTag, { backgroundColor: (TYPE_COLORS[type] || colors.tint) + '15' }]}
-                        >
-                          <ThemedText style={[styles.weatherTagText, { color: TYPE_COLORS[type] || colors.tint }]}>
+              >
+                          <ThemedText style={{ color: TYPE_COLORS[type] || colors.tint, fontSize: FontSizes.sm, fontWeight: '600' }}>
                             {type}
                           </ThemedText>
-                </Pressable>
-                      ))}
-              </View>
-                  </View>
-                )}
+              </Pressable>
+              ))}
+            </View>
+            </View>
+          )}
               </Card>
             </Animated.View>
           )}
@@ -252,12 +230,12 @@ export default function HomeScreen() {
                     <View style={styles.dailyBadge}>
                       <Ionicons name="sparkles" size={12} color="#FFD700" />
                       <ThemedText style={styles.dailyBadgeText}>Günün Önerisi</ThemedText>
-                    </View>
+        </View>
                     <View style={styles.dailyScore}>
                       <ThemedText style={styles.dailyScoreText}>%{dailyRec.matchScore}</ThemedText>
-                    </View>
-                  </View>
-                  
+          </View>
+        </View>
+
                   <ThemedText style={styles.dailyName}>{dailyRec.parfum.isim}</ThemedText>
                   <ThemedText style={styles.dailyBrand}>{dailyRec.parfum.marka}</ThemedText>
                   
@@ -266,59 +244,47 @@ export default function HomeScreen() {
                       <View key={i} style={styles.dailyReason}>
                         <Ionicons name="checkmark-circle" size={14} color="rgba(255,255,255,0.8)" />
                         <ThemedText style={styles.dailyReasonText}>{reason}</ThemedText>
-        </View>
-            ))}
-          </View>
-          
+      </View>
+              ))}
+            </View>
+            
                   <View style={styles.dailyAction}>
                     <ThemedText style={styles.dailyActionText}>İncele</ThemedText>
                     <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
           </View>
                 </LinearGradient>
-              </Pressable>
+        </Pressable>
             </Animated.View>
           )}
 
-          {/* Scent Types */}
+          {/* Scent Families */}
           <Animated.View entering={FadeInUp.delay(400).duration(400)}>
             <View style={styles.sectionHeader}>
               <ThemedText type="heading">Koku Aileleri</ThemedText>
-              {selectedType && (
-                <Pressable onPress={() => setSelectedType(null)}>
-                  <ThemedText style={{ color: colors.tint, fontSize: FontSizes.sm }}>Temizle</ThemedText>
-        </Pressable>
-              )}
-      </View>
-            
-            <ScrollView 
+              <Pressable onPress={() => router.push('/(tabs)/parfums')}>
+                <ThemedText style={{ color: colors.tint, fontSize: FontSizes.sm }}>Tümünü Gör</ThemedText>
+            </Pressable>
+          </View>
+
+          <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.typesContainer}
             >
-              {Object.entries(TYPE_COLORS).map(([type, color], index) => {
-                const isSelected = selectedType === type;
-                const count = parfumler.filter(p => p.tip === type).length;
-
-  return (
-                  <Animated.View key={type} entering={SlideInRight.delay(400 + index * 40).duration(300)}>
-                    <Pressable
-                      onPress={() => setSelectedType(isSelected ? null : type)}
-                      style={[styles.typeCard, { 
-                        backgroundColor: isSelected ? color : colors.card,
-                        borderColor: isSelected ? color : colors.border,
-                      }]}
-                    >
-                      <View style={[styles.typeIcon, { backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : color + '15' }]}>
-                        <Ionicons name="sparkles" size={18} color={isSelected ? '#FFF' : color} />
+              {scentFamilies.map(({ type, color, count }, index) => (
+                <Animated.View key={type} entering={SlideInRight.delay(400 + index * 40).duration(300)}>
+                  <Pressable
+                    onPress={() => router.push('/(tabs)/parfums')}
+                    style={[styles.typeCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  >
+                    <View style={[styles.typeIcon, { backgroundColor: color + '15' }]}>
+                      <Ionicons name="sparkles" size={18} color={color} />
               </View>
-                      <ThemedText style={[styles.typeName, { color: isSelected ? '#FFF' : colors.text }]}>{type}</ThemedText>
-                      <ThemedText style={[styles.typeCount, { color: isSelected ? 'rgba(255,255,255,0.8)' : colors.textMuted }]}>
-                        {count}
-                      </ThemedText>
-        </Pressable>
-                  </Animated.View>
-                );
-              })}
+                    <ThemedText style={styles.typeName}>{type}</ThemedText>
+                    <ThemedText style={[styles.typeCount, { color: colors.textMuted }]}>{count} parfüm</ThemedText>
+                  </Pressable>
+                </Animated.View>
+              ))}
             </ScrollView>
           </Animated.View>
 
@@ -328,10 +294,10 @@ export default function HomeScreen() {
               <View style={styles.sectionHeader}>
                 <ThemedText type="heading">❤️ Favorilerim</ThemedText>
                 <Pressable onPress={() => router.push('/(tabs)/favorites')}>
-                  <ThemedText style={{ color: colors.tint, fontSize: FontSizes.sm }}>Tümü</ThemedText>
-            </Pressable>
-          </View>
-
+                  <ThemedText style={{ color: colors.tint, fontSize: FontSizes.sm }}>Tümü ({favorites.length})</ThemedText>
+                </Pressable>
+              </View>
+              
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
                 {favoriteParfums.map((parfum, index) => (
                   <MiniParfumCard
@@ -351,8 +317,8 @@ export default function HomeScreen() {
             <Animated.View entering={FadeInUp.delay(600).duration(400)}>
               <View style={styles.sectionHeader}>
                 <ThemedText type="heading">🕐 Son Görüntülenen</ThemedText>
-              </View>
-              
+            </View>
+
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
                 {recentParfums.map((parfum, index) => (
                   <MiniParfumCard
@@ -367,30 +333,33 @@ export default function HomeScreen() {
             </Animated.View>
           )}
 
-          {/* All Perfumes Grid */}
+          {/* Stats Summary */}
           <Animated.View entering={FadeInUp.delay(700).duration(400)}>
-            <View style={styles.sectionHeader}>
-              <ThemedText type="heading">
-                {selectedType ? `${selectedType}` : 'Tüm Parfümler'}
-              </ThemedText>
-              <ThemedText type="caption" style={{ color: colors.textMuted }}>
-                {filteredParfums.length} sonuç
-              </ThemedText>
+            <Card variant="elevated" style={styles.statsCard}>
+              <View style={styles.statsHeader}>
+                <Ionicons name="analytics" size={20} color={colors.tint} />
+                <ThemedText type="heading" style={{ marginLeft: Spacing.sm }}>Özet</ThemedText>
                     </View>
-            
-            <View style={styles.parfumGrid}>
-              {filteredParfums.map((parfum, index) => (
-                <ParfumCard
-                  key={parfum.id}
-                  parfum={parfum}
-                  colors={colors}
-                  isFavorite={isFavorite(parfum.id)}
-                  onPress={() => handleOpenParfum(parfum)}
-                  onToggleFavorite={() => toggleFavoriteParfum(parfum.id)}
-                  delay={index * 30}
-                />
-                  ))}
+              
+              <View style={styles.statsGrid}>
+                <View style={styles.statItem}>
+                  <ThemedText style={[styles.statNumber, { color: '#9D4EDD' }]}>{parfumler.length}</ThemedText>
+                  <ThemedText type="caption" style={{ color: colors.textMuted }}>Parfüm</ThemedText>
+              </View>
+                <View style={styles.statItem}>
+                  <ThemedText style={[styles.statNumber, { color: '#FF6B9D' }]}>{favorites.length}</ThemedText>
+                  <ThemedText type="caption" style={{ color: colors.textMuted }}>Favori</ThemedText>
+            </View>
+                <View style={styles.statItem}>
+                  <ThemedText style={[styles.statNumber, { color: '#00B4D8' }]}>{Object.keys(TYPE_COLORS).length}</ThemedText>
+                  <ThemedText type="caption" style={{ color: colors.textMuted }}>Koku Ailesi</ThemedText>
+                    </View>
+                <View style={styles.statItem}>
+                  <ThemedText style={[styles.statNumber, { color: '#00D4AA' }]}>{recentParfums.length}</ThemedText>
+                  <ThemedText type="caption" style={{ color: colors.textMuted }}>Son Görüntülenen</ThemedText>
                 </View>
+              </View>
+            </Card>
           </Animated.View>
 
           <View style={{ height: 120 }} />
@@ -413,54 +382,14 @@ function MiniParfumCard({ parfum, colors, onPress, delay = 0 }: {
     <Animated.View entering={SlideInRight.delay(delay).duration(300)}>
       <Pressable onPress={onPress}>
         <Card variant="elevated" style={styles.miniCard}>
+          <View style={[styles.miniIcon, { backgroundColor: typeColor + '15' }]}>
+            <Ionicons name="sparkles" size={16} color={typeColor} />
+          </View>
           <View style={[styles.miniType, { backgroundColor: typeColor + '15' }]}>
-            <ThemedText style={[styles.miniTypeText, { color: typeColor }]}>{parfum.tip}</ThemedText>
-    </View>
+            <ThemedText style={{ color: typeColor, fontSize: 9, fontWeight: '700' }}>{parfum.tip}</ThemedText>
+      </View>
           <ThemedText type="subtitle" numberOfLines={1} style={styles.miniName}>{parfum.isim}</ThemedText>
           <ThemedText type="caption" numberOfLines={1} style={{ color: colors.textMuted }}>{parfum.marka}</ThemedText>
-        </Card>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-// Parfüm Kartı (Grid)
-function ParfumCard({ parfum, colors, isFavorite, onPress, onToggleFavorite, delay = 0 }: {
-  parfum: Parfum;
-  colors: typeof Colors.light;
-  isFavorite: boolean;
-  onPress: () => void;
-  onToggleFavorite: () => void;
-  delay?: number;
-}) {
-  const typeColor = TYPE_COLORS[parfum.tip] || colors.tint;
-
-  return (
-    <Animated.View entering={FadeInDown.delay(delay).duration(300)} style={styles.cardWrapper}>
-      <Pressable onPress={onPress}>
-        <Card variant="elevated" style={styles.parfumCard}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.cardType, { backgroundColor: typeColor + '15' }]}>
-              <ThemedText style={[styles.cardTypeText, { color: typeColor }]}>{parfum.tip}</ThemedText>
-          </View>
-            <Pressable onPress={onToggleFavorite} hitSlop={8}>
-              <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={20} color={isFavorite ? '#FF6B9D' : colors.textMuted} />
-            </Pressable>
-      </View>
-          
-          <ThemedText type="subtitle" numberOfLines={2} style={styles.cardName}>{parfum.isim}</ThemedText>
-          <ThemedText type="caption" style={{ color: colors.textMuted }}>{parfum.marka}</ThemedText>
-          
-          <View style={styles.cardMeta}>
-            <View style={styles.cardMetaItem}>
-              <Ionicons name="time-outline" size={11} color={colors.textMuted} />
-              <ThemedText style={[styles.cardMetaText, { color: colors.textMuted }]}>{parfum.kalicilik}</ThemedText>
-    </View>
-            <View style={styles.cardMetaItem}>
-              <Ionicons name="speedometer-outline" size={11} color={colors.textMuted} />
-              <ThemedText style={[styles.cardMetaText, { color: colors.textMuted }]}>{parfum.yogunluk}</ThemedText>
-            </View>
-          </View>
         </Card>
       </Pressable>
     </Animated.View>
@@ -476,14 +405,13 @@ const styles = StyleSheet.create({
   logoIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.sm },
   logoText: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold, letterSpacing: 1 },
   profileBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  greetingSection: { marginBottom: Spacing.md },
+  greetingSection: { marginBottom: Spacing.lg },
   greetingEmoji: { fontSize: 28, marginBottom: Spacing.xs },
   greetingTitle: { fontSize: FontSizes['2xl'], marginBottom: 2 },
-  greetingSubtitle: { fontSize: FontSizes.sm },
-  searchSection: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },
-  searchBox: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2, borderRadius: BorderRadius.xl, gap: Spacing.sm },
-  searchInput: { flex: 1, fontSize: FontSizes.base },
   content: { paddingHorizontal: Spacing.xl },
+  quickActions: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
+  quickAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg, gap: Spacing.sm },
+  quickActionText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold },
   weatherCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
   weatherContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   weatherLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
@@ -491,15 +419,11 @@ const styles = StyleSheet.create({
   weatherInfo: { flex: 1 },
   weatherTempRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.sm },
   weatherTemp: { fontSize: 28, fontWeight: FontWeights.bold },
-  weatherFeels: { fontSize: FontSizes.xs },
   weatherRight: { gap: Spacing.xs },
   weatherBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: BorderRadius.full, gap: 4 },
-  weatherBadgeText: { fontSize: 11, fontWeight: FontWeights.semiBold },
   weatherRecommendation: { marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' },
-  weatherRecLabel: { fontSize: FontSizes.xs, marginBottom: Spacing.sm },
   weatherTags: { flexDirection: 'row', gap: Spacing.sm },
   weatherTag: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full },
-  weatherTagText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold },
   dailyCard: { padding: Spacing.lg, borderRadius: BorderRadius.xl, marginBottom: Spacing.lg },
   dailyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   dailyBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.full, gap: 4 },
@@ -515,23 +439,18 @@ const styles = StyleSheet.create({
   dailyActionText: { color: 'rgba(255,255,255,0.8)', fontSize: FontSizes.sm },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md, marginTop: Spacing.sm },
   typesContainer: { gap: Spacing.sm, paddingBottom: Spacing.sm },
-  typeCard: { width: 90, padding: Spacing.md, borderRadius: BorderRadius.lg, alignItems: 'center', borderWidth: 1 },
-  typeIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.xs },
-  typeName: { fontSize: FontSizes.xs, fontWeight: FontWeights.semiBold, marginBottom: 2 },
+  typeCard: { width: 100, padding: Spacing.md, borderRadius: BorderRadius.lg, alignItems: 'center', borderWidth: 1 },
+  typeIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.sm },
+  typeName: { fontSize: FontSizes.xs, fontWeight: FontWeights.semiBold, marginBottom: 2, textAlign: 'center' },
   typeCount: { fontSize: 10 },
   horizontalList: { gap: Spacing.md, paddingBottom: Spacing.sm },
-  miniCard: { width: 130, padding: Spacing.md },
+  miniCard: { width: 140, padding: Spacing.md },
+  miniIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.sm },
   miniType: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: Spacing.xs },
-  miniTypeText: { fontSize: 9, fontWeight: FontWeights.bold },
   miniName: { fontSize: FontSizes.sm, marginBottom: 2 },
-  parfumGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  cardWrapper: { width: (SCREEN_WIDTH - Spacing.xl * 2 - Spacing.md) / 2 },
-  parfumCard: { padding: Spacing.md },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  cardType: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  cardTypeText: { fontSize: 9, fontWeight: FontWeights.bold },
-  cardName: { fontSize: FontSizes.sm, marginBottom: 2, minHeight: 36 },
-  cardMeta: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.04)' },
-  cardMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  cardMetaText: { fontSize: 10 },
+  statsCard: { padding: Spacing.lg },
+  statsHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
+  statsGrid: { flexDirection: 'row', justifyContent: 'space-around' },
+  statItem: { alignItems: 'center' },
+  statNumber: { fontSize: FontSizes.xl, fontWeight: FontWeights.bold },
 });

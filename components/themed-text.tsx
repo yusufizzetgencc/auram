@@ -12,9 +12,10 @@ type TextType = 'default' | 'title' | 'subtitle' | 'heading' | 'body' | 'caption
 interface ThemedTextProps {
   children: React.ReactNode;
   type?: TextType;
-  style?: TextStyle;
+  style?: TextStyle | TextStyle[];
   color?: string;
   center?: boolean;
+  numberOfLines?: number;
 }
 
 export function ThemedText({
@@ -23,6 +24,7 @@ export function ThemedText({
   style,
   color,
   center = false,
+  numberOfLines,
 }: ThemedTextProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -79,7 +81,10 @@ export function ThemedText({
   };
 
   return (
-    <Text style={[getTypeStyle(), center && styles.center, style]}>
+    <Text 
+      style={[getTypeStyle(), center && styles.center, ...(Array.isArray(style) ? style : style ? [style] : [])]}
+      numberOfLines={numberOfLines}
+    >
       {children}
     </Text>
   );

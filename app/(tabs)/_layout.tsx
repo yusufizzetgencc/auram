@@ -1,6 +1,6 @@
 /**
  * AROMIXEN - Tab Navigation Layout
- * Alt kısımda sabit navigasyon çubuğu
+ * 4 Tab: Ana Sayfa, Parfümler, Favoriler, Profil
  */
 
 import { Tabs } from 'expo-router';
@@ -13,14 +13,21 @@ import { HapticTab } from '@/components/haptic-tab';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-// Tab yapılandırması
+// Tab yapılandırması - 4 Tab
 const TAB_CONFIG = [
   { 
     name: 'index', 
-    title: 'Keşfet', 
-    icon: 'compass-outline',
-    iconFocused: 'compass',
+    title: 'Ana Sayfa', 
+    icon: 'home-outline',
+    iconFocused: 'home',
     color: '#9D4EDD',
+  },
+  { 
+    name: 'parfums', 
+    title: 'Parfümler', 
+    icon: 'flask-outline',
+    iconFocused: 'flask',
+    color: '#00B4D8',
   },
   { 
     name: 'favorites', 
@@ -44,7 +51,6 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const isDark = colorScheme === 'dark';
 
-  // Tab bar yüksekliği - safe area dahil
   const tabBarHeight = 56 + Math.max(insets.bottom, 8);
 
   return (
@@ -85,7 +91,7 @@ export default function TabLayout() {
           paddingTop: 2,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '600',
           marginTop: 2,
         },
@@ -113,7 +119,6 @@ export default function TabLayout() {
   );
 }
 
-// Tab Icon Component
 function TabIcon({ 
   name, 
   focused, 
@@ -132,7 +137,7 @@ function TabIcon({
       )}
       <Ionicons
         name={name as keyof typeof Ionicons.glyphMap}
-        size={24}
+        size={22}
         color={focused ? color : inactiveColor}
       />
     </View>
@@ -141,8 +146,8 @@ function TabIcon({
 
 const styles = StyleSheet.create({
   iconContainer: {
-    width: 48,
-    height: 28,
+    width: 44,
+    height: 26,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
