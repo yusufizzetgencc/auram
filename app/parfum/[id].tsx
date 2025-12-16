@@ -1,6 +1,6 @@
 /**
  * AROMIXEN - Parfum Detail Screen
- * Detaylı parfüm analizi + Koleksiyona ekleme
+ * Detaylı parfüm analizi + Koleksiyona ekleme + Gelişmiş özellikler
  */
 
 import React, { useState, useMemo } from 'react';
@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, FadeInUp, FadeIn, SlideInRight } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, FadeIn, SlideInRight, SlideInUp } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -21,6 +21,24 @@ import { Parfum } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 type NotaTab = 'ust' | 'orta' | 'alt';
+
+// Konsantrasyon bilgileri
+const KONSANTRASYON_INFO: Record<string, { label: string; saat: string; yuzde: string; aciklama: string }> = {
+  'parfum': { label: 'Parfüm (Extrait)', saat: '8-12+ saat', yuzde: '%20-40', aciklama: 'En yoğun ve kalıcı form' },
+  'eau_de_parfum': { label: 'Eau de Parfum', saat: '6-8 saat', yuzde: '%15-20', aciklama: 'Yoğun ve uzun kalıcı' },
+  'eau_de_toilette': { label: 'Eau de Toilette', saat: '4-6 saat', yuzde: '%5-15', aciklama: 'Günlük kullanım için ideal' },
+  'eau_de_cologne': { label: 'Eau de Cologne', saat: '2-4 saat', yuzde: '%2-4', aciklama: 'Hafif ve ferah' },
+};
+
+// İzlenim renkleri
+const IZLENIM_COLORS: Record<string, string> = {
+  'cekici': '#E91E8C',
+  'profesyonel': '#3498DB',
+  'sicak': '#FF6B6B',
+  'taze': '#00D4AA',
+  'gizemli': '#9D4EDD',
+  'enerjik': '#FFD93D',
+};
 
 export default function ParfumDetailScreen() {
   const router = useRouter();
@@ -255,6 +273,228 @@ export default function ParfumDetailScreen() {
             </Card>
           </Animated.View>
 
+          {/* Konsantrasyon Bilgisi */}
+          {parfum.konsantrasyon && KONSANTRASYON_INFO[parfum.konsantrasyon] && (
+            <Animated.View entering={FadeInUp.delay(450).duration(500)}>
+              <Card variant="elevated" style={styles.konsantrasyonCard}>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.cardIcon, { backgroundColor: '#FFD93D20' }]}>
+                    <Ionicons name="flask" size={20} color="#FFD93D" />
+                  </View>
+                  <ThemedText type="heading">Konsantrasyon</ThemedText>
+                </View>
+                
+                <View style={styles.konsantrasyonContent}>
+                  <View style={styles.konsantrasyonMain}>
+                    <ThemedText type="title" style={{ color: tipColor }}>
+                      {KONSANTRASYON_INFO[parfum.konsantrasyon].label}
+                    </ThemedText>
+                    <ThemedText type="caption" style={{ color: colors.textMuted, marginTop: 4 }}>
+                      {KONSANTRASYON_INFO[parfum.konsantrasyon].aciklama}
+                    </ThemedText>
+                  </View>
+                  
+                  <View style={styles.konsantrasyonStats}>
+                    <View style={styles.konsantrasyonStat}>
+                      <Ionicons name="time" size={16} color={tipColor} />
+                      <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600', marginLeft: 6 }}>
+                        {KONSANTRASYON_INFO[parfum.konsantrasyon].saat}
+                      </ThemedText>
+                    </View>
+                    <View style={styles.konsantrasyonStat}>
+                      <Ionicons name="water" size={16} color={tipColor} />
+                      <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600', marginLeft: 6 }}>
+                        {KONSANTRASYON_INFO[parfum.konsantrasyon].yuzde} yağ oranı
+                      </ThemedText>
+                    </View>
+                  </View>
+                </View>
+              </Card>
+            </Animated.View>
+          )}
+
+          {/* İzlenim ve Kişilik */}
+          {(parfum.izlenim && parfum.izlenim.length > 0) || (parfum.kisilikTipi && parfum.kisilikTipi.length > 0) ? (
+            <Animated.View entering={FadeInUp.delay(500).duration(500)}>
+              <Card variant="elevated" style={styles.izlenimCard}>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.cardIcon, { backgroundColor: '#9D4EDD20' }]}>
+                    <Ionicons name="sparkles" size={20} color="#9D4EDD" />
+                  </View>
+                  <ThemedText type="heading">İzlenim & Kişilik</ThemedText>
+                </View>
+                
+                {parfum.izlenim && parfum.izlenim.length > 0 && (
+                  <View style={styles.izlenimSection}>
+                    <ThemedText type="label" style={{ marginBottom: Spacing.sm, color: colors.textMuted }}>
+                      Bu koku nasıl bir izlenim bırakır?
+                    </ThemedText>
+                    <View style={styles.izlenimTags}>
+                      {parfum.izlenim.map((izlenim, index) => (
+                        <Animated.View 
+                          key={izlenim} 
+                          entering={SlideInRight.delay(index * 80).duration(300)}
+                          style={[styles.izlenimTag, { backgroundColor: (IZLENIM_COLORS[izlenim] || tipColor) + '20' }]}
+                        >
+                          <ThemedText style={{ color: IZLENIM_COLORS[izlenim] || tipColor, fontSize: FontSizes.sm, fontWeight: '600', textTransform: 'capitalize' }}>
+                            {izlenim}
+                          </ThemedText>
+                        </Animated.View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+                
+                {parfum.kisilikTipi && parfum.kisilikTipi.length > 0 && (
+                  <View style={[styles.izlenimSection, { marginTop: Spacing.lg }]}>
+                    <ThemedText type="label" style={{ marginBottom: Spacing.sm, color: colors.textMuted }}>
+                      Hangi kişilik tipine uygun?
+                    </ThemedText>
+                    <View style={styles.izlenimTags}>
+                      {parfum.kisilikTipi.map((kisilik, index) => (
+                        <Animated.View 
+                          key={kisilik} 
+                          entering={SlideInRight.delay(index * 80).duration(300)}
+                          style={[styles.kisilikTag, { backgroundColor: colors.backgroundTertiary }]}
+                        >
+                          <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, textTransform: 'capitalize' }}>
+                            {kisilik}
+                          </ThemedText>
+                        </Animated.View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </Card>
+            </Animated.View>
+          ) : null}
+
+          {/* Kullanım Zamanı & Ortam */}
+          <Animated.View entering={FadeInUp.delay(550).duration(500)}>
+            <Card variant="elevated" style={styles.kullanimCard}>
+              <View style={styles.cardHeader}>
+                <View style={[styles.cardIcon, { backgroundColor: '#00B4D820' }]}>
+                  <Ionicons name="calendar" size={20} color="#00B4D8" />
+                </View>
+                <ThemedText type="heading">Kullanım Rehberi</ThemedText>
+              </View>
+              
+              <View style={styles.kullanimGrid}>
+                {/* Gün Saati */}
+                {parfum.gununSaati && parfum.gununSaati.length > 0 && (
+                  <View style={styles.kullanimItem}>
+                    <Ionicons name="sunny" size={20} color={tipColor} />
+                    <ThemedText type="caption" style={{ color: colors.textMuted }}>Günün Saati</ThemedText>
+                    <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600', textAlign: 'center', textTransform: 'capitalize' }}>
+                      {parfum.gununSaati.map(s => s.replace('_', ' ')).join(', ')}
+                    </ThemedText>
+                  </View>
+                )}
+                
+                {/* Ortam */}
+                {parfum.ortam && (
+                  <View style={styles.kullanimItem}>
+                    <Ionicons name={parfum.ortam === 'kapali' ? 'home' : parfum.ortam === 'acik' ? 'leaf' : 'globe'} size={20} color={tipColor} />
+                    <ThemedText type="caption" style={{ color: colors.textMuted }}>Ortam</ThemedText>
+                    <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600', textTransform: 'capitalize' }}>
+                      {parfum.ortam === 'kapali' ? 'Kapalı Alan' : parfum.ortam === 'acik' ? 'Açık Alan' : 'Her İkisi'}
+                    </ThemedText>
+                  </View>
+                )}
+                
+                {/* İklim */}
+                {parfum.iklim && parfum.iklim.length > 0 && (
+                  <View style={styles.kullanimItem}>
+                    <Ionicons name="thermometer" size={20} color={tipColor} />
+                    <ThemedText type="caption" style={{ color: colors.textMuted }}>İklim</ThemedText>
+                    <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600', textTransform: 'capitalize' }}>
+                      {parfum.iklim.join(', ')}
+                    </ThemedText>
+                  </View>
+                )}
+                
+                {/* Yaş Grubu */}
+                {parfum.yasGrubu && parfum.yasGrubu.length > 0 && (
+                  <View style={styles.kullanimItem}>
+                    <Ionicons name="people" size={20} color={tipColor} />
+                    <ThemedText type="caption" style={{ color: colors.textMuted }}>Yaş Grubu</ThemedText>
+                    <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600' }}>
+                      {parfum.yasGrubu.join(', ')}
+                    </ThemedText>
+                  </View>
+                )}
+              </View>
+            </Card>
+          </Animated.View>
+
+          {/* Fiyat ve Puan */}
+          <Animated.View entering={FadeInUp.delay(600).duration(500)}>
+            <View style={styles.statsRow}>
+              {parfum.puan && (
+                <Card variant="elevated" style={styles.statCard}>
+                  <View style={styles.statContent}>
+                    <Ionicons name="star" size={24} color="#FFD93D" />
+                    <ThemedText style={styles.statValue}>{parfum.puan.toFixed(1)}</ThemedText>
+                    <ThemedText type="caption" style={{ color: colors.textMuted }}>Puan</ThemedText>
+                  </View>
+                </Card>
+              )}
+              
+              {parfum.fiyatAraligi && (
+                <Card variant="elevated" style={styles.statCard}>
+                  <View style={styles.statContent}>
+                    <Ionicons 
+                      name={parfum.fiyatAraligi === 'luks' ? 'diamond' : parfum.fiyatAraligi === 'premium' ? 'star-half' : 'pricetag'} 
+                      size={24} 
+                      color={parfum.fiyatAraligi === 'luks' ? '#FFD93D' : parfum.fiyatAraligi === 'premium' ? '#9D4EDD' : '#00D4AA'} 
+                    />
+                    <ThemedText style={[styles.statValue, { textTransform: 'capitalize' }]}>
+                      {parfum.fiyatAraligi}
+                    </ThemedText>
+                    <ThemedText type="caption" style={{ color: colors.textMuted }}>Fiyat</ThemedText>
+                  </View>
+                </Card>
+              )}
+            </View>
+          </Animated.View>
+
+          {/* Etiketler */}
+          {parfum.etiketler && parfum.etiketler.length > 0 && (
+            <Animated.View entering={FadeInUp.delay(650).duration(500)}>
+              <View style={styles.etiketlerContainer}>
+                <ThemedText type="label" style={{ marginBottom: Spacing.sm, color: colors.textMuted }}>Etiketler</ThemedText>
+                <View style={styles.etiketlerRow}>
+                  {parfum.etiketler.map((etiket, index) => (
+                    <Animated.View 
+                      key={etiket} 
+                      entering={FadeIn.delay(index * 50).duration(200)}
+                      style={[styles.etiketTag, { backgroundColor: tipColor + '15' }]}
+                    >
+                      <ThemedText style={{ color: tipColor, fontSize: FontSizes.xs }}>#{etiket}</ThemedText>
+                    </Animated.View>
+                  ))}
+                </View>
+              </View>
+            </Animated.View>
+          )}
+
+          {/* Açıklama */}
+          {parfum.aciklama && (
+            <Animated.View entering={FadeInUp.delay(700).duration(500)}>
+              <Card variant="elevated" style={styles.aciklamaCard}>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.cardIcon, { backgroundColor: tipColor + '20' }]}>
+                    <Ionicons name="document-text" size={20} color={tipColor} />
+                  </View>
+                  <ThemedText type="heading">Hakkında</ThemedText>
+                </View>
+                <ThemedText style={{ color: colors.textSecondary, lineHeight: 22 }}>
+                  {parfum.aciklama}
+                </ThemedText>
+              </Card>
+            </Animated.View>
+          )}
+
           {/* Benzer Parfümler */}
           {similarParfums.length > 0 && (
             <Animated.View entering={FadeInUp.delay(500).duration(500)}>
@@ -385,6 +625,33 @@ const styles = StyleSheet.create({
   similarList: { paddingRight: Spacing.xl, gap: Spacing.md },
   similarCard: { width: 140, padding: Spacing.md, borderRadius: BorderRadius.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   similarType: { alignSelf: 'flex-start', paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.sm, marginBottom: Spacing.sm },
+  // Konsantrasyon
+  konsantrasyonCard: { marginBottom: Spacing.lg },
+  konsantrasyonContent: { gap: Spacing.md },
+  konsantrasyonMain: { marginBottom: Spacing.sm },
+  konsantrasyonStats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  konsantrasyonStat: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.03)', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg },
+  // İzlenim
+  izlenimCard: { marginBottom: Spacing.lg },
+  izlenimSection: {},
+  izlenimTags: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  izlenimTag: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full },
+  kisilikTag: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg },
+  // Kullanım
+  kullanimCard: { marginBottom: Spacing.lg },
+  kullanimGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  kullanimItem: { width: '47%', alignItems: 'center', padding: Spacing.md, backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: BorderRadius.lg, gap: 4 },
+  // Stats
+  statsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
+  statCard: { flex: 1 },
+  statContent: { alignItems: 'center', gap: Spacing.xs },
+  statValue: { fontSize: FontSizes.xl, fontWeight: FontWeights.bold },
+  // Etiketler
+  etiketlerContainer: { marginBottom: Spacing.lg },
+  etiketlerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  etiketTag: { paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.sm },
+  // Açıklama
+  aciklamaCard: { marginBottom: Spacing.lg },
   // Modal
   modalContainer: { flex: 1 },
   modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },

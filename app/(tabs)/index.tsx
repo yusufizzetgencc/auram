@@ -8,12 +8,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Dimensions,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
+    Dimensions,
+    Pressable,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    View,
 } from 'react-native';
 import Animated, { FadeIn, FadeInUp, SlideInRight } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -248,6 +248,14 @@ export default function HomeScreen() {
           {weather && (
             <Animated.View entering={FadeInUp.delay(200).duration(400)}>
               <Card variant="elevated" style={styles.weatherCard}>
+                {/* Konum Bilgisi */}
+                <View style={styles.locationRow}>
+                  <Ionicons name="location" size={14} color={colors.tint} />
+                  <ThemedText style={{ color: colors.tint, fontSize: FontSizes.sm, fontWeight: '600', marginLeft: 4 }}>
+                    {weather.fullAddress || weather.city}
+                  </ThemedText>
+                </View>
+                
                 <View style={styles.weatherContent}>
                   <View style={styles.weatherLeft}>
                     <View style={[styles.weatherIconBg, { backgroundColor: isDark ? 'rgba(135,206,235,0.15)' : 'rgba(74,144,217,0.1)' }]}>
@@ -265,7 +273,7 @@ export default function HomeScreen() {
                         </ThemedText>
             </View>
                       <ThemedText type="caption" style={{ color: colors.textMuted }}>
-                        {weather.city} • {weather.description}
+                        {weather.description}
                       </ThemedText>
           </View>
           </View>
@@ -510,6 +518,7 @@ const styles = StyleSheet.create({
   premiumTitle: { color: '#FFF', fontSize: FontSizes.sm, fontWeight: FontWeights.bold, textAlign: 'center' },
   premiumDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 10, textAlign: 'center', marginTop: 2 },
   weatherCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
+  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md, paddingBottom: Spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
   weatherContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   weatherLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   weatherIconBg: { width: 52, height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md },

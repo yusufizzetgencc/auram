@@ -11,9 +11,14 @@ export interface WeatherData {
   description: string;
   icon: string;
   city: string;
+  district?: string;
+  country?: string;
+  fullAddress?: string;
   condition: 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'windy' | 'hot' | 'cold' | 'mild';
   windSpeed: number;
   feelsLike: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface WeatherRecommendation {
@@ -115,9 +120,31 @@ function getWeatherDescription(condition: WeatherData['condition']): string {
 }
 
 /**
- * Mock hava durumu (API key yoksa)
+ * Ters geocoding - koordinattan adres al
  */
-function getMockWeatherData(): WeatherData {
+async function reverseGeocode(latitude: number, longitude: number): Promise<{city: string; district?: string; country?: string; fullAddress?: string}> {
+  try {
+    const result = await Location.reverseGeocodeAsync({ latitude, longitude });
+    if (result && result.length > 0) {
+      const address = result[0];
+      return {
+        city: address.city || address.region || 'Bilinmeyen Şehir',
+        district: address.district || address.subregion || undefined,
+        country: address.country || undefined,
+        fullAddress: [address.district, address.city, address.country].filter(Boolean).join(', '),
+      };
+    }
+    return { city: 'Bilinmeyen Konum' };
+  } catch (error) {
+    console.error('[Weather] Reverse geocode hatası:', error);
+    return { city: 'Konum alınamadı' };
+  }
+}
+
+/**
+ * Mock hava durumu (API key yoksa) - Gerçek konum ile
+ */
+async function getMockWeatherData(): Promise<WeatherData> {
   const now = new Date();
   const month = now.getMonth();
   const hour = now.getHours();
@@ -135,15 +162,36 @@ function getMockWeatherData(): WeatherData {
   const temp = baseTemp + Math.floor(Math.random() * 4) - 2;
   const condition = temp > 28 ? 'hot' : temp < 10 ? 'cold' : temp > 20 ? 'sunny' : 'mild';
   
+  // Gerçek konum al
+  let locationData = { city: 'Konumunuz', district: undefined as string | undefined, country: undefined as string | undefined, fullAddress: undefined as string | undefined };
+  let latitude: number | undefined;
+  let longitude: number | undefined;
+  
+  try {
+    const location = await getCurrentLocation();
+    if (location) {
+      latitude = location.coords.latitude;
+      longitude = location.coords.longitude;
+      locationData = await reverseGeocode(latitude, longitude);
+    }
+  } catch (error) {
+    console.log('[Weather] Konum alınamadı, varsayılan kullanılıyor');
+  }
+  
   return {
     temperature: temp,
     humidity: 45 + Math.floor(Math.random() * 30),
     description: getWeatherDescription(condition),
     icon: getWeatherIcon(condition),
-    city: 'Konumunuz',
+    city: locationData.city,
+    district: locationData.district,
+    country: locationData.country,
+    fullAddress: locationData.fullAddress,
     condition,
     windSpeed: 5 + Math.floor(Math.random() * 15),
     feelsLike: temp + (Math.random() > 0.5 ? 2 : -2),
+    latitude,
+    longitude,
   };
 }
 
@@ -151,11 +199,9 @@ function getMockWeatherData(): WeatherData {
  * Gerçek hava durumu verisi al
  */
 export async function fetchWeatherData(): Promise<WeatherData> {
-  // API key yoksa mock data kullan
+  // API key yoksa mock data kullan (gerçek konum ile)
   if (!API_KEY) {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(getMockWeatherData()), 300);
-    });
+    return getMockWeatherData();
   }
 
   try {
@@ -176,6 +222,9 @@ export async function fetchWeatherData(): Promise<WeatherData> {
       return getMockWeatherData();
     }
 
+    // Ters geocoding ile detaylı adres al
+    const locationData = await reverseGeocode(latitude, longitude);
+
     const temp = Math.round(data.main.temp);
     const condition = getWeatherCondition(temp, data.weather[0].id);
     
@@ -184,10 +233,15 @@ export async function fetchWeatherData(): Promise<WeatherData> {
       humidity: data.main.humidity,
       description: data.weather[0].description,
       icon: getWeatherIcon(condition),
-      city: data.name,
+      city: locationData.city || data.name,
+      district: locationData.district,
+      country: locationData.country,
+      fullAddress: locationData.fullAddress,
       condition,
       windSpeed: Math.round(data.wind.speed * 3.6), // m/s to km/h
       feelsLike: Math.round(data.main.feels_like),
+      latitude,
+      longitude,
     };
   } catch (error) {
     console.error('[Weather] Veri çekme hatası:', error);

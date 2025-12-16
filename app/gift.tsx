@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Dimensions, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +17,7 @@ import { Card, Button } from '@/components/ui';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useApp } from '@/context/AppContext';
-import { Parfum, GiftRecipient, GiftOccasion, Butce, KisilikTipi, Cinsiyet } from '@/types';
+import { Parfum, GiftRecipient, GiftOccasion, Butce, KisilikTipi, Cinsiyet, CiltTipi, TerlemeOrani, YasGrubu } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -75,6 +75,51 @@ const STYLES: { id: KisilikTipi; label: string; icon: string; color: string }[] 
   { id: 'mistik', label: 'Gizemli', icon: '🌙', color: '#9D4EDD' },
 ];
 
+// Cilt Tipleri
+const SKIN_TYPES: { id: CiltTipi; label: string; icon: string; color: string }[] = [
+  { id: 'kuru', label: 'Kuru', icon: '🏜️', color: '#DAA520' },
+  { id: 'normal', label: 'Normal', icon: '✨', color: '#27AE60' },
+  { id: 'yagli', label: 'Yağlı', icon: '💧', color: '#00B4D8' },
+  { id: 'karma', label: 'Karma', icon: '🔄', color: '#9D4EDD' },
+];
+
+// Terleme Oranları
+const SWEAT_RATES: { id: TerlemeOrani; label: string; icon: string }[] = [
+  { id: 'az', label: 'Az Terlerim', icon: '❄️' },
+  { id: 'normal', label: 'Normal', icon: '💧' },
+  { id: 'cok', label: 'Çok Terlerim', icon: '💦' },
+];
+
+// Yaş Grupları
+const AGE_GROUPS: { id: YasGrubu; label: string }[] = [
+  { id: '18-24', label: '18-24' },
+  { id: '25-34', label: '25-34' },
+  { id: '35-44', label: '35-44' },
+  { id: '45-54', label: '45-54' },
+  { id: '55+', label: '55+' },
+];
+
+// Alıcı pH hesaplama fonksiyonu
+function calculateRecipientPH(skinType: CiltTipi | null, sweatRate: TerlemeOrani | null, age: YasGrubu | null): number {
+  let basePH = 5.5; // Ortalama cilt pH'ı
+  
+  // Cilt tipi etkisi
+  if (skinType === 'kuru') basePH += 0.3;
+  else if (skinType === 'yagli') basePH -= 0.3;
+  else if (skinType === 'karma') basePH += 0.1;
+  
+  // Terleme etkisi
+  if (sweatRate === 'az') basePH += 0.2;
+  else if (sweatRate === 'cok') basePH -= 0.3;
+  
+  // Yaş etkisi (yaş arttıkça pH düşer)
+  if (age === '45-54') basePH += 0.1;
+  else if (age === '55+') basePH += 0.2;
+  else if (age === '18-24') basePH -= 0.1;
+  
+  return Math.max(4.5, Math.min(7.0, basePH));
+}
+
 // Hediye mesajları
 const GIFT_MESSAGES: Record<GiftRecipient, string[]> = {
   anne: [
@@ -111,7 +156,7 @@ const GIFT_MESSAGES: Record<GiftRecipient, string[]> = {
   ],
 };
 
-type Step = 'recipient' | 'occasion' | 'budget' | 'style' | 'results';
+type Step = 'recipient' | 'occasion' | 'budget' | 'style' | 'skin_info' | 'results';
 
 export default function GiftScreen() {
   const router = useRouter();
@@ -125,10 +170,20 @@ export default function GiftScreen() {
   const [selectedOccasion, setSelectedOccasion] = useState<GiftOccasion | null>(null);
   const [selectedBudget, setSelectedBudget] = useState<Butce | null>(null);
   const [selectedStyle, setSelectedStyle] = useState<KisilikTipi | null>(null);
+  
+  // Alıcı pH bilgileri
+  const [recipientSkinType, setRecipientSkinType] = useState<CiltTipi | null>(null);
+  const [recipientSweatRate, setRecipientSweatRate] = useState<TerlemeOrani | null>(null);
+  const [recipientAge, setRecipientAge] = useState<YasGrubu | null>(null);
 
   const recipientData = RECIPIENTS.find(r => r.id === selectedRecipient);
+  
+  // Hesaplanan alıcı pH değeri
+  const recipientPH = useMemo(() => {
+    return calculateRecipientPH(recipientSkinType, recipientSweatRate, recipientAge);
+  }, [recipientSkinType, recipientSweatRate, recipientAge]);
 
-  // Önerileri hesapla
+  // Önerileri hesapla - pH uyumu ile
   const recommendations = useMemo(() => {
     if (!selectedRecipient || !selectedBudget) return [];
 
@@ -146,7 +201,6 @@ export default function GiftScreen() {
 
         // Bütçe kontrolü
         if (parfum.fiyatAraligi && parfum.fiyatAraligi !== selectedBudget) {
-          // Bütçe sıralaması: ekonomik < orta < premium < luks
           const budgetOrder = ['ekonomik', 'orta', 'premium', 'luks'];
           const parfumBudgetIndex = budgetOrder.indexOf(parfum.fiyatAraligi);
           const selectedBudgetIndex = budgetOrder.indexOf(selectedBudget);
@@ -161,9 +215,27 @@ export default function GiftScreen() {
         let score = 50; // Base score
         const reasons: string[] = [];
 
+        // pH Uyumu Hesaplama (en önemli faktör)
+        if (recipientSkinType) {
+          const phInRange = recipientPH >= parfum.phUyumu.minPH && recipientPH <= parfum.phUyumu.maxPH;
+          const phDiff = Math.abs(recipientPH - parfum.phUyumu.idealPH);
+          
+          if (phInRange) {
+            const phScore = Math.round(30 - phDiff * 10);
+            score += Math.max(0, phScore);
+            if (phDiff < 0.3) {
+              reasons.push(`pH uyumu mükemmel (%${Math.round(100 - phDiff * 50)})`);
+            } else {
+              reasons.push(`pH uyumu iyi (%${Math.round(100 - phDiff * 30)})`);
+            }
+          } else {
+            score -= 15;
+          }
+        }
+
         // Stil uyumu
         if (selectedStyle && parfum.kisilikTipi?.includes(selectedStyle)) {
-          score += 25;
+          score += 20;
           reasons.push(`${STYLES.find(s => s.id === selectedStyle)?.label} tarza uygun`);
         }
 
@@ -181,7 +253,7 @@ export default function GiftScreen() {
           };
 
           if (occasionTypeMap[selectedOccasion]?.includes(parfum.tip)) {
-            score += 20;
+            score += 15;
             reasons.push(`${OCCASIONS.find(o => o.id === selectedOccasion)?.label} için ideal`);
           }
         }
@@ -195,30 +267,39 @@ export default function GiftScreen() {
           arkadas_kadin: ['Meyvemsi', 'Çiçeksi', 'Ferah'],
           arkadas_erkek: ['Aquatik', 'Ferah', 'Odunsu'],
           is_arkadasi: ['Ferah', 'Odunsu', 'Aquatik'],
-          kendim: [], // Tüm tipler uygun
+          kendim: [],
         };
 
         if (recipientTypeMap[selectedRecipient]?.includes(parfum.tip)) {
-          score += 15;
+          score += 10;
           reasons.push(`${recipientData?.label} için önerilen tip`);
         }
 
         // Puan kontrolü
         if (parfum.puan && parfum.puan >= 4.5) {
-          score += 10;
+          score += 5;
           reasons.push('Yüksek puanlı');
         }
 
-        return { parfum, score, reasons };
+        // pH skoru hesapla (0-100)
+        let phCompatibility = 50;
+        if (recipientSkinType) {
+          const phInRange = recipientPH >= parfum.phUyumu.minPH && recipientPH <= parfum.phUyumu.maxPH;
+          const phDiff = Math.abs(recipientPH - parfum.phUyumu.idealPH);
+          phCompatibility = phInRange ? Math.round(100 - phDiff * 25) : Math.round(50 - phDiff * 15);
+          phCompatibility = Math.max(0, Math.min(100, phCompatibility));
+        }
+
+        return { parfum, score, reasons, phCompatibility };
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, 8);
 
     return scored;
-  }, [parfumler, selectedRecipient, selectedOccasion, selectedBudget, selectedStyle]);
+  }, [parfumler, selectedRecipient, selectedOccasion, selectedBudget, selectedStyle, recipientPH, recipientSkinType]);
 
   const handleNext = () => {
-    const steps: Step[] = ['recipient', 'occasion', 'budget', 'style', 'results'];
+    const steps: Step[] = ['recipient', 'occasion', 'budget', 'style', 'skin_info', 'results'];
     const currentIndex = steps.indexOf(step);
     if (currentIndex < steps.length - 1) {
       setStep(steps[currentIndex + 1]);
@@ -226,7 +307,7 @@ export default function GiftScreen() {
   };
 
   const handleBack = () => {
-    const steps: Step[] = ['recipient', 'occasion', 'budget', 'style', 'results'];
+    const steps: Step[] = ['recipient', 'occasion', 'budget', 'style', 'skin_info', 'results'];
     const currentIndex = steps.indexOf(step);
     if (currentIndex > 0) {
       setStep(steps[currentIndex - 1]);
@@ -244,6 +325,9 @@ export default function GiftScreen() {
     setSelectedOccasion(null);
     setSelectedBudget(null);
     setSelectedStyle(null);
+    setRecipientSkinType(null);
+    setRecipientSweatRate(null);
+    setRecipientAge(null);
   };
 
   const canProceed = () => {
@@ -252,6 +336,7 @@ export default function GiftScreen() {
       case 'occasion': return true; // Opsiyonel
       case 'budget': return !!selectedBudget;
       case 'style': return true; // Opsiyonel
+      case 'skin_info': return true; // Opsiyonel ama önerilen
       default: return false;
     }
   };
@@ -283,12 +368,12 @@ export default function GiftScreen() {
 
         {/* Progress */}
         <View style={styles.progressContainer}>
-          {['recipient', 'occasion', 'budget', 'style', 'results'].map((s, i) => (
+          {['recipient', 'occasion', 'budget', 'style', 'skin_info', 'results'].map((s, i) => (
             <View key={s} style={styles.progressItem}>
               <View style={[
                 styles.progressDot,
                 { 
-                  backgroundColor: ['recipient', 'occasion', 'budget', 'style', 'results'].indexOf(step) >= i 
+                  backgroundColor: ['recipient', 'occasion', 'budget', 'style', 'skin_info', 'results'].indexOf(step) >= i 
                     ? colors.tint 
                     : colors.backgroundTertiary 
                 }
@@ -452,7 +537,122 @@ export default function GiftScreen() {
             </Animated.View>
           )}
 
-          {/* Adım 5: Sonuçlar */}
+          {/* Adım 5: Cilt Bilgileri (pH Hesaplama) */}
+          {step === 'skin_info' && (
+            <Animated.View entering={FadeInUp.duration(400)}>
+              <ThemedText type="heading" center style={styles.stepTitle}>
+                Kişinin cilt özellikleri
+              </ThemedText>
+              <ThemedText type="caption" center style={{ color: colors.textMuted, marginBottom: Spacing.lg }}>
+                pH uyumlu parfüm önerisi için (opsiyonel)
+              </ThemedText>
+
+              {/* Cilt Tipi */}
+              <View style={styles.skinSection}>
+                <ThemedText type="label" style={{ marginBottom: Spacing.sm }}>Cilt Tipi</ThemedText>
+                <View style={styles.skinGrid}>
+                  {SKIN_TYPES.map((skin) => (
+                    <Pressable
+                      key={skin.id}
+                      onPress={() => setRecipientSkinType(skin.id)}
+                      style={[
+                        styles.skinCard,
+                        { backgroundColor: recipientSkinType === skin.id ? skin.color + '20' : colors.card },
+                        recipientSkinType === skin.id && { borderColor: skin.color, borderWidth: 2 },
+                      ]}
+                    >
+                      <ThemedText style={{ fontSize: 24 }}>{skin.icon}</ThemedText>
+                      <ThemedText style={{ 
+                        fontSize: FontSizes.sm, 
+                        color: recipientSkinType === skin.id ? skin.color : colors.text,
+                        fontWeight: '600',
+                      }}>
+                        {skin.label}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Terleme */}
+              <View style={styles.skinSection}>
+                <ThemedText type="label" style={{ marginBottom: Spacing.sm }}>Terleme Durumu</ThemedText>
+                <View style={styles.sweatGrid}>
+                  {SWEAT_RATES.map((sweat) => (
+                    <Pressable
+                      key={sweat.id}
+                      onPress={() => setRecipientSweatRate(sweat.id)}
+                      style={[
+                        styles.sweatCard,
+                        { backgroundColor: recipientSweatRate === sweat.id ? colors.tint + '20' : colors.card },
+                        recipientSweatRate === sweat.id && { borderColor: colors.tint, borderWidth: 2 },
+                      ]}
+                    >
+                      <ThemedText style={{ fontSize: 20 }}>{sweat.icon}</ThemedText>
+                      <ThemedText style={{ 
+                        fontSize: FontSizes.xs, 
+                        color: recipientSweatRate === sweat.id ? colors.tint : colors.textMuted,
+                        textAlign: 'center',
+                      }}>
+                        {sweat.label}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Yaş */}
+              <View style={styles.skinSection}>
+                <ThemedText type="label" style={{ marginBottom: Spacing.sm }}>Yaş Aralığı</ThemedText>
+                <View style={styles.ageGrid}>
+                  {AGE_GROUPS.map((age) => (
+                    <Pressable
+                      key={age.id}
+                      onPress={() => setRecipientAge(age.id)}
+                      style={[
+                        styles.ageCard,
+                        { backgroundColor: recipientAge === age.id ? colors.tint + '20' : colors.card },
+                        recipientAge === age.id && { borderColor: colors.tint, borderWidth: 2 },
+                      ]}
+                    >
+                      <ThemedText style={{ 
+                        fontSize: FontSizes.sm, 
+                        color: recipientAge === age.id ? colors.tint : colors.text,
+                        fontWeight: '600',
+                      }}>
+                        {age.label}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Tahmini pH */}
+              {recipientSkinType && (
+                <Animated.View entering={FadeIn.duration(300)}>
+                  <Card variant="elevated" style={styles.phPreviewCard}>
+                    <LinearGradient
+                      colors={['#00D4AA', '#00B4D8']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.phPreviewGradient}
+                    >
+                      <Ionicons name="analytics" size={24} color="#FFF" />
+                      <View style={styles.phPreviewInfo}>
+                        <ThemedText style={styles.phPreviewLabel}>Tahmini Cilt pH'ı</ThemedText>
+                        <ThemedText style={styles.phPreviewValue}>{recipientPH.toFixed(1)}</ThemedText>
+                      </View>
+                      <ThemedText style={styles.phPreviewTip}>
+                        Bu değere göre en uyumlu parfümler önerilecek
+                      </ThemedText>
+                    </LinearGradient>
+                  </Card>
+                </Animated.View>
+              )}
+            </Animated.View>
+          )}
+
+          {/* Adım 6: Sonuçlar */}
           {step === 'results' && (
             <Animated.View entering={FadeInUp.duration(400)}>
               {/* Özet */}
@@ -524,15 +724,36 @@ export default function GiftScreen() {
                             {item.parfum.marka}
                           </ThemedText>
                           
-                          <View style={[styles.resultType, { 
-                            backgroundColor: (TYPE_COLORS[item.parfum.tip] || colors.tint) + '10' 
-                          }]}>
-                            <ThemedText style={{ 
-                              color: TYPE_COLORS[item.parfum.tip] || colors.tint, 
-                              fontSize: 10 
-                            }}>
-                              {item.parfum.tip}
-                            </ThemedText>
+                          <View style={styles.resultTypePHRow}>
+                            <View style={[styles.resultType, { 
+                              backgroundColor: (TYPE_COLORS[item.parfum.tip] || colors.tint) + '10' 
+                            }]}>
+                              <ThemedText style={{ 
+                                color: TYPE_COLORS[item.parfum.tip] || colors.tint, 
+                                fontSize: 10 
+                              }}>
+                                {item.parfum.tip}
+                              </ThemedText>
+                            </View>
+                            
+                            {recipientSkinType && (
+                              <View style={[styles.phBadge, { 
+                                backgroundColor: item.phCompatibility >= 70 ? '#00D4AA20' : item.phCompatibility >= 50 ? '#FFB02020' : '#FF6B6B20' 
+                              }]}>
+                                <Ionicons 
+                                  name="water" 
+                                  size={8} 
+                                  color={item.phCompatibility >= 70 ? '#00D4AA' : item.phCompatibility >= 50 ? '#FFB020' : '#FF6B6B'} 
+                                />
+                                <ThemedText style={{ 
+                                  color: item.phCompatibility >= 70 ? '#00D4AA' : item.phCompatibility >= 50 ? '#FFB020' : '#FF6B6B', 
+                                  fontSize: 9,
+                                  fontWeight: '700',
+                                }}>
+                                  {item.phCompatibility}%
+                                </ThemedText>
+                              </View>
+                            )}
                           </View>
 
                           {item.reasons.length > 0 && (
@@ -559,7 +780,7 @@ export default function GiftScreen() {
         {step !== 'results' && (
           <Animated.View entering={FadeIn.duration(400)} style={styles.bottomButton}>
             <Button 
-              title={step === 'style' ? 'Önerileri Gör' : 'Devam Et'}
+              title={step === 'skin_info' ? 'Önerileri Gör' : 'Devam Et'}
               onPress={handleNext}
               disabled={!canProceed()}
               style={{ flex: 1 }}
@@ -782,6 +1003,86 @@ const styles = StyleSheet.create({
     right: 0,
     padding: Spacing.xl,
     paddingBottom: Spacing['2xl'],
+  },
+  // Skin Info Styles
+  skinSection: {
+    marginBottom: Spacing.xl,
+  },
+  skinGrid: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  skinCard: {
+    flex: 1,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  sweatGrid: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  sweatCard: {
+    flex: 1,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    alignItems: 'center',
+    gap: 4,
+  },
+  ageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  ageCard: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+  },
+  phPreviewCard: {
+    marginTop: Spacing.lg,
+    overflow: 'hidden',
+    padding: 0,
+  },
+  phPreviewGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    flexWrap: 'wrap',
+  },
+  phPreviewInfo: {
+    marginLeft: Spacing.md,
+    flex: 1,
+  },
+  phPreviewLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: FontSizes.sm,
+  },
+  phPreviewValue: {
+    color: '#FFF',
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+  },
+  phPreviewTip: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: FontSizes.xs,
+    width: '100%',
+    marginTop: Spacing.sm,
+  },
+  resultTypePHRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  phBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.sm,
+    gap: 2,
   },
 });
 
