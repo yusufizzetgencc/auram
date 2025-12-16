@@ -1,16 +1,15 @@
 /**
- * AROMIXEN - Favorites Tab
+ * AROMIXEN - Favoriler
  * Favori parfümler, koleksiyonlar ve son görüntülenenler
- * Filtreleme, sıralama ve karşılaştırma özellikleri
  */
 
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, FadeIn, SlideInRight } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -18,27 +17,28 @@ import { Card, Button } from '@/components/ui';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useApp } from '@/context/AppContext';
-import { Parfum, KokuTipi } from '@/types';
+import { Parfum } from '@/types';
 
 type TabType = 'favorites' | 'collections' | 'recent';
 type SortType = 'name' | 'type' | 'brand' | 'recent';
 
 const TYPE_COLORS: Record<string, string> = {
   'Odunsu': '#8B4513',
-  'Çiçeksi': '#FF69B4',
+  'Çiçeksi': '#E91E8C',
   'Oryantal': '#DAA520',
-  'Ferah': '#87CEEB',
+  'Ferah': '#00B4D8',
   'Baharatlı': '#FF4500',
   'Aquatik': '#00CED1',
 };
 
+const COLLECTION_COLORS = [
+  '#FF6B9D', '#9D4EDD', '#00B4D8', '#00D4AA', '#FFB020', '#FF6B6B',
+  '#4ECDC4', '#8B4513', '#E91E8C', '#7B2CBF',
+];
+
 const COLLECTION_ICONS = [
-  { icon: 'heart', color: '#FF6B9D' },
-  { icon: 'star', color: '#FFD700' },
-  { icon: 'diamond', color: '#9D4EDD' },
-  { icon: 'moon', color: '#4A90D9' },
-  { icon: 'sunny', color: '#FF9500' },
-  { icon: 'leaf', color: '#4CAF50' },
+  'heart', 'star', 'diamond', 'moon', 'sunny', 'leaf',
+  'flower', 'flame', 'water', 'sparkles', 'ribbon', 'rose',
 ];
 
 export default function FavoritesScreen() {
@@ -52,7 +52,12 @@ export default function FavoritesScreen() {
   const [sortBy, setSortBy] = useState<SortType>('recent');
   const [compareMode, setCompareMode] = useState(false);
   const [selectedForCompare, setSelectedForCompare] = useState<string[]>([]);
+  
+  // Koleksiyon oluşturma modal
   const [showNewCollectionModal, setShowNewCollectionModal] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [selectedColor, setSelectedColor] = useState(COLLECTION_COLORS[0]);
+  const [selectedIcon, setSelectedIcon] = useState(COLLECTION_ICONS[0]);
   
   const { 
     favorites,
@@ -69,39 +74,21 @@ export default function FavoritesScreen() {
   const favoriteParfums = getFavoriteParfums();
   const recentParfums = getRecentlyViewedParfums();
 
-  // Filtrelenmiş ve sıralanmış favoriler
+  // Filtrelenmiş favoriler
   const filteredFavorites = useMemo(() => {
     let result = [...favoriteParfums];
+    if (filterType) result = result.filter(p => p.tip === filterType);
     
-    // Filtrele
-    if (filterType) {
-      result = result.filter(p => p.tip === filterType);
-    }
-    
-    // Sırala
     switch (sortBy) {
-      case 'name':
-        result.sort((a, b) => a.isim.localeCompare(b.isim));
-        break;
-      case 'type':
-        result.sort((a, b) => a.tip.localeCompare(b.tip));
-        break;
-      case 'brand':
-        result.sort((a, b) => a.marka.localeCompare(b.marka));
-        break;
-      case 'recent':
-      default:
-        // Zaten favori ekleme sırasına göre
-        break;
+      case 'name': result.sort((a, b) => a.isim.localeCompare(b.isim)); break;
+      case 'type': result.sort((a, b) => a.tip.localeCompare(b.tip)); break;
+      case 'brand': result.sort((a, b) => a.marka.localeCompare(b.marka)); break;
     }
-    
     return result;
   }, [favoriteParfums, filterType, sortBy]);
 
-  // Mevcut koku tipleri
   const availableTypes = useMemo(() => {
-    const types = new Set(favoriteParfums.map(p => p.tip));
-    return Array.from(types);
+    return Array.from(new Set(favoriteParfums.map(p => p.tip)));
   }, [favoriteParfums]);
 
   const tabs = [
@@ -110,7 +97,6 @@ export default function FavoritesScreen() {
     { id: 'recent' as TabType, label: 'Son Görüntülenen', icon: 'time', count: recentlyViewed.length },
   ];
 
-  // Karşılaştırma için seç
   const toggleCompareSelection = (id: string) => {
     if (selectedForCompare.includes(id)) {
       setSelectedForCompare(prev => prev.filter(i => i !== id));
@@ -121,7 +107,6 @@ export default function FavoritesScreen() {
     }
   };
 
-  // Karşılaştırmaya git
   const goToCompare = () => {
     if (selectedForCompare.length >= 2) {
       router.push(`/compare?ids=${selectedForCompare.join(',')}`);
@@ -132,98 +117,60 @@ export default function FavoritesScreen() {
     }
   };
 
-  // Parfüm aç
   const handleOpenParfum = (parfum: Parfum) => {
     addToRecentlyViewedList(parfum.id);
     router.push(`/parfum/${parfum.id}`);
   };
 
-  // Koleksiyon oluştur
-  const handleCreateCollection = () => {
-    Alert.prompt(
-      'Yeni Koleksiyon',
-      'Koleksiyon adını girin:',
-      [
-        { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Oluştur', 
-          onPress: async (name) => {
-            if (name && name.trim()) {
-              const randomIcon = COLLECTION_ICONS[Math.floor(Math.random() * COLLECTION_ICONS.length)];
-              await createNewCollection(name.trim(), randomIcon.icon, randomIcon.color);
-            }
-          }
-        },
-      ],
-      'plain-text'
-    );
+  const handleCreateCollection = async () => {
+    if (!newCollectionName.trim()) {
+      Alert.alert('Hata', 'Koleksiyon adı gerekli');
+      return;
+    }
+    await createNewCollection(newCollectionName.trim(), selectedIcon, selectedColor);
+    setShowNewCollectionModal(false);
+    setNewCollectionName('');
+    setSelectedColor(COLLECTION_COLORS[0]);
+    setSelectedIcon(COLLECTION_ICONS[0]);
   };
 
-  // Koleksiyon sil
   const handleDeleteCollection = (id: string, name: string) => {
-    Alert.alert(
-      'Koleksiyonu Sil',
-      `"${name}" koleksiyonunu silmek istediğinize emin misiniz?`,
-      [
-        { text: 'İptal', style: 'cancel' },
-        { text: 'Sil', style: 'destructive', onPress: () => removeCollection(id) },
-      ]
-    );
+    Alert.alert('Koleksiyonu Sil', `"${name}" silinecek.`, [
+      { text: 'İptal', style: 'cancel' },
+      { text: 'Sil', style: 'destructive', onPress: () => removeCollection(id) },
+    ]);
   };
 
-  // Favoriler tab içeriği
+  // Favoriler Tab
   const renderFavorites = () => {
     if (favoriteParfums.length === 0) {
       return (
         <Animated.View entering={FadeIn.duration(400)} style={styles.emptyState}>
-          <View style={[styles.emptyIcon, { backgroundColor: colors.tint + '15' }]}>
-            <Ionicons name="heart-outline" size={48} color={colors.tint} />
+          <View style={[styles.emptyIcon, { backgroundColor: '#FF6B9D15' }]}>
+            <Ionicons name="heart-outline" size={40} color="#FF6B9D" />
           </View>
-          <ThemedText type="subtitle" center style={{ marginTop: Spacing.lg }}>
-            Henüz favori yok
+          <ThemedText type="subtitle" center style={{ marginTop: Spacing.lg }}>Henüz favori yok</ThemedText>
+          <ThemedText type="body" center style={[styles.emptyText, { color: colors.textMuted }]}>
+            Parfümlere dokunarak favorilere ekleyin
           </ThemedText>
-          <ThemedText type="body" center style={styles.emptyText}>
-            Parfümlere dokunarak favorilere ekleyebilirsiniz
-          </ThemedText>
-          <Button 
-            title="Parfümleri Keşfet" 
-            onPress={() => router.push('/(tabs)')}
-            style={{ marginTop: Spacing.xl }}
-          />
+          <Button title="Keşfet" onPress={() => router.push('/(tabs)')} style={{ marginTop: Spacing.xl }} />
         </Animated.View>
       );
     }
 
-  return (
-      <Animated.View entering={FadeIn.duration(400)}>
+    return (
+      <View>
         {/* Toolbar */}
         <View style={styles.toolbar}>
-          {/* Filters */}
-        <ScrollView
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterScroll}
-          >
-            <Pressable
-              onPress={() => setFilterType(null)}
-              style={[
-                styles.filterChip,
-                !filterType && { backgroundColor: colors.tint + '20' }
-              ]}
-            >
-              <ThemedText style={[styles.filterText, !filterType && { color: colors.tint }]}>
-                Tümü
-              </ThemedText>
-                </Pressable>
-            
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+            <Pressable onPress={() => setFilterType(null)} style={[styles.filterChip, !filterType && styles.filterChipActive]}>
+              <ThemedText style={[styles.filterText, !filterType && { color: colors.tint }]}>Tümü</ThemedText>
+            </Pressable>
             {availableTypes.map((type) => (
               <Pressable
                 key={type}
                 onPress={() => setFilterType(type === filterType ? null : type)}
-                style={[
-                  styles.filterChip,
-                  filterType === type && { backgroundColor: (TYPE_COLORS[type] || colors.tint) + '20' }
-                ]}
+                style={[styles.filterChip, filterType === type && { backgroundColor: (TYPE_COLORS[type] || colors.tint) + '15' }]}
               >
                 <View style={[styles.filterDot, { backgroundColor: TYPE_COLORS[type] || colors.tint }]} />
                 <ThemedText style={[styles.filterText, filterType === type && { color: TYPE_COLORS[type] || colors.tint }]}>
@@ -232,192 +179,121 @@ export default function FavoritesScreen() {
               </Pressable>
             ))}
           </ScrollView>
-
-          {/* Actions */}
+          
           <View style={styles.toolbarActions}>
             <Pressable
-              onPress={() => {
-                setCompareMode(!compareMode);
-                setSelectedForCompare([]);
-              }}
-              style={[styles.actionBtn, compareMode && { backgroundColor: colors.tint + '20' }]}
+              onPress={() => { setCompareMode(!compareMode); setSelectedForCompare([]); }}
+              style={[styles.actionBtn, compareMode && { backgroundColor: colors.tint + '15' }]}
             >
-              <Ionicons 
-                name="git-compare-outline" 
-                size={20} 
-                color={compareMode ? colors.tint : colors.textMuted} 
-              />
-            </Pressable>
-            
-            <Pressable
-              onPress={() => {
-                const sorts: SortType[] = ['recent', 'name', 'type', 'brand'];
-                const current = sorts.indexOf(sortBy);
-                setSortBy(sorts[(current + 1) % sorts.length]);
-              }}
-              style={styles.actionBtn}
-            >
-              <Ionicons name="swap-vertical-outline" size={20} color={colors.textMuted} />
+              <Ionicons name="git-compare-outline" size={18} color={compareMode ? colors.tint : colors.textMuted} />
             </Pressable>
           </View>
         </View>
 
-        {/* Sort indicator */}
-        <View style={styles.sortIndicator}>
-          <ThemedText type="caption" style={{ color: colors.textMuted }}>
-            Sıralama: {sortBy === 'recent' ? 'Son Eklenen' : sortBy === 'name' ? 'İsim' : sortBy === 'type' ? 'Tip' : 'Marka'}
-          </ThemedText>
-          <ThemedText type="caption" style={{ color: colors.textMuted }}>
-            {filteredFavorites.length} parfüm
-          </ThemedText>
-        </View>
-
-        {/* Compare mode banner */}
+        {/* Compare Banner */}
         {compareMode && (
-          <Animated.View entering={FadeInDown.duration(300)} style={[styles.compareBanner, { backgroundColor: colors.tint + '10' }]}>
-            <View style={styles.compareBannerLeft}>
-              <Ionicons name="git-compare-outline" size={20} color={colors.tint} />
-              <ThemedText style={{ color: colors.tint }}>
-                {selectedForCompare.length}/3 seçildi
-              </ThemedText>
-            </View>
-            
+          <Animated.View entering={FadeInDown.duration(200)} style={[styles.compareBanner, { backgroundColor: colors.tint + '10' }]}>
+            <ThemedText style={{ color: colors.tint }}>{selectedForCompare.length}/3 seçildi</ThemedText>
             <View style={styles.compareBannerActions}>
-              <Pressable 
-                onPress={() => {
-                  setCompareMode(false);
-                  setSelectedForCompare([]);
-                }}
-                style={styles.compareBannerBtn}
-              >
+              <Pressable onPress={() => { setCompareMode(false); setSelectedForCompare([]); }}>
                 <ThemedText style={{ color: colors.textMuted }}>İptal</ThemedText>
               </Pressable>
-              
-              <Button
-                title="Karşılaştır"
-                onPress={goToCompare}
-                disabled={selectedForCompare.length < 2}
-                size="sm"
-              />
+              <Button title="Karşılaştır" onPress={goToCompare} size="sm" disabled={selectedForCompare.length < 2} />
             </View>
           </Animated.View>
         )}
 
-        {/* Parfüm listesi */}
+        {/* Liste */}
         <View style={styles.listContainer}>
           {filteredFavorites.map((parfum, index) => (
             <ParfumCard 
               key={parfum.id} 
               parfum={parfum} 
               colors={colors}
-              isDark={isDark}
-              isFavorite={true}
               isSelected={selectedForCompare.includes(parfum.id)}
               compareMode={compareMode}
               onPress={() => compareMode ? toggleCompareSelection(parfum.id) : handleOpenParfum(parfum)}
               onToggleFavorite={() => toggleFavoriteParfum(parfum.id)}
-              delay={index * 50}
+              delay={index * 40}
             />
           ))}
         </View>
-      </Animated.View>
+      </View>
     );
   };
 
-  // Koleksiyonlar tab içeriği
-  const renderCollections = () => {
-    return (
-      <Animated.View entering={FadeIn.duration(400)} style={styles.listContainer}>
-        {/* Add Collection Button */}
-        <Pressable onPress={handleCreateCollection}>
-          <Card variant="elevated" style={styles.addCollectionCard}>
-            <View style={[styles.addIcon, { backgroundColor: colors.tint + '15' }]}>
-              <Ionicons name="add" size={28} color={colors.tint} />
-            </View>
-            <ThemedText type="subtitle">Yeni Koleksiyon</ThemedText>
-            <ThemedText type="caption" style={{ opacity: 0.7 }}>
-              Parfümlerinizi organize edin
-            </ThemedText>
-          </Card>
-        </Pressable>
-
-        {collections.length === 0 ? (
-          <View style={styles.emptyCollections}>
-            <ThemedText type="body" center style={{ opacity: 0.6 }}>
-              Henüz koleksiyon oluşturmadınız
-            </ThemedText>
+  // Koleksiyonlar Tab
+  const renderCollections = () => (
+    <View style={styles.collectionsContainer}>
+      {/* Add Button */}
+      <Animated.View entering={FadeIn.duration(300)}>
+        <Pressable onPress={() => setShowNewCollectionModal(true)} style={[styles.addCollectionBtn, { borderColor: colors.tint + '40' }]}>
+          <View style={[styles.addIcon, { backgroundColor: colors.tint + '15' }]}>
+            <Ionicons name="add" size={24} color={colors.tint} />
           </View>
-        ) : (
-          collections.map((collection, index) => (
-            <Animated.View 
-              key={collection.id} 
-              entering={FadeInDown.delay(index * 50).duration(400)}
-            >
-              <Card variant="elevated" style={styles.collectionCard}>
-                <View style={styles.collectionHeader}>
-                  <View style={[styles.collectionIcon, { backgroundColor: collection.color + '20' }]}>
-                    <Ionicons 
-                      name={collection.icon as keyof typeof Ionicons.glyphMap} 
-                      size={24} 
-                      color={collection.color} 
-                    />
-                  </View>
-                  <View style={styles.collectionInfo}>
-                    <ThemedText type="subtitle">{collection.name}</ThemedText>
-                    <ThemedText type="caption" style={{ opacity: 0.6 }}>
-                      {collection.parfumIds.length} parfüm
-                  </ThemedText>
-                  </View>
-                  <Pressable 
-                    onPress={() => handleDeleteCollection(collection.id, collection.name)}
-                    style={styles.deleteBtn}
-                  >
-                    <Ionicons name="trash-outline" size={20} color={colors.error} />
-                  </Pressable>
-                </View>
-              </Card>
-            </Animated.View>
-          ))
-        )}
+          <ThemedText type="subtitle">Yeni Koleksiyon</ThemedText>
+        </Pressable>
       </Animated.View>
-    );
-  };
 
-  // Son görüntülenenler tab içeriği
+      {collections.length === 0 ? (
+        <ThemedText type="body" center style={[styles.emptyCollText, { color: colors.textMuted }]}>
+          Koleksiyonlarınızı oluşturun
+        </ThemedText>
+      ) : (
+        collections.map((collection, index) => (
+          <Animated.View key={collection.id} entering={FadeInDown.delay(index * 50).duration(300)}>
+            <Card variant="elevated" style={styles.collectionCard}>
+              <View style={styles.collectionHeader}>
+                <View style={[styles.collectionIcon, { backgroundColor: collection.color + '20' }]}>
+                  <Ionicons name={collection.icon as keyof typeof Ionicons.glyphMap} size={22} color={collection.color} />
+                </View>
+                <View style={styles.collectionInfo}>
+                  <ThemedText type="subtitle">{collection.name}</ThemedText>
+                  <ThemedText type="caption" style={{ color: colors.textMuted }}>{collection.parfumIds.length} parfüm</ThemedText>
+                </View>
+                <Pressable onPress={() => handleDeleteCollection(collection.id, collection.name)} hitSlop={10}>
+                  <Ionicons name="trash-outline" size={18} color={colors.error} />
+                </Pressable>
+              </View>
+            </Card>
+          </Animated.View>
+        ))
+      )}
+    </View>
+  );
+
+  // Son Görüntülenen Tab
   const renderRecent = () => {
     if (recentParfums.length === 0) {
       return (
         <Animated.View entering={FadeIn.duration(400)} style={styles.emptyState}>
           <View style={[styles.emptyIcon, { backgroundColor: colors.tint + '15' }]}>
-            <Ionicons name="time-outline" size={48} color={colors.tint} />
-              </View>
-          <ThemedText type="subtitle" center style={{ marginTop: Spacing.lg }}>
-            Son görüntülenen yok
-          </ThemedText>
-          <ThemedText type="body" center style={styles.emptyText}>
-            Parfümleri incelediğinizde burada görünecekler
+            <Ionicons name="time-outline" size={40} color={colors.tint} />
+          </View>
+          <ThemedText type="subtitle" center style={{ marginTop: Spacing.lg }}>Henüz geçmiş yok</ThemedText>
+          <ThemedText type="body" center style={[styles.emptyText, { color: colors.textMuted }]}>
+            Parfümleri incelediğinizde burada görünecek
           </ThemedText>
         </Animated.View>
       );
     }
 
     return (
-      <Animated.View entering={FadeIn.duration(400)} style={styles.listContainer}>
+      <View style={styles.listContainer}>
         {recentParfums.map((parfum, index) => (
           <ParfumCard 
             key={parfum.id} 
             parfum={parfum} 
-                  colors={colors}
-            isDark={isDark}
-            isFavorite={favorites.includes(parfum.id)}
+            colors={colors}
             isSelected={false}
             compareMode={false}
+            isFavorite={favorites.includes(parfum.id)}
             onPress={() => handleOpenParfum(parfum)}
             onToggleFavorite={() => toggleFavoriteParfum(parfum.id)}
-            delay={index * 50}
-                />
-              ))}
-            </Animated.View>
+            delay={index * 40}
+          />
+        ))}
+      </View>
     );
   };
 
@@ -426,83 +302,139 @@ export default function FavoritesScreen() {
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          <ThemedText type="title" style={styles.headerTitle}>Koleksiyonum</ThemedText>
+          <ThemedText type="title">Koleksiyonum</ThemedText>
         </View>
 
         {/* Tabs */}
-        <View style={styles.tabsContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabs}
-          >
+        <View style={styles.tabsWrapper}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
             {tabs.map((tab) => (
               <Pressable
                 key={tab.id}
                 onPress={() => setActiveTab(tab.id)}
-                style={[
-                  styles.tab,
-                  activeTab === tab.id && { backgroundColor: colors.tint + '15' }
-                ]}
+                style={[styles.tab, activeTab === tab.id && { backgroundColor: colors.tint + '12' }]}
               >
                 <Ionicons 
                   name={(activeTab === tab.id ? tab.icon : tab.icon + '-outline') as keyof typeof Ionicons.glyphMap}
-                  size={18} 
+                  size={16} 
                   color={activeTab === tab.id ? colors.tint : colors.textMuted} 
                 />
-                <ThemedText 
-                  style={[
-                    styles.tabLabel,
-                    { color: activeTab === tab.id ? colors.tint : colors.textMuted }
-                  ]}
-                >
+                <ThemedText style={[styles.tabLabel, { color: activeTab === tab.id ? colors.tint : colors.textMuted }]}>
                   {tab.label}
                 </ThemedText>
                 {tab.count > 0 && (
                   <View style={[styles.tabBadge, { backgroundColor: activeTab === tab.id ? colors.tint : colors.textMuted }]}>
                     <ThemedText style={styles.tabBadgeText}>{tab.count}</ThemedText>
-                </View>
+                  </View>
                 )}
               </Pressable>
             ))}
           </ScrollView>
-              </View>
-              
+        </View>
+
         {/* Content */}
-        <ScrollView 
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.contentContainer}>
           {activeTab === 'favorites' && renderFavorites()}
           {activeTab === 'collections' && renderCollections()}
           {activeTab === 'recent' && renderRecent()}
-          
-          <View style={{ height: 100 }} />
+          <View style={{ height: 120 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* Koleksiyon Oluşturma Modal */}
+      <Modal visible={showNewCollectionModal} animationType="slide" presentationStyle="pageSheet">
+        <ThemedView style={styles.modalContainer}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={styles.modalHeader}>
+              <Pressable onPress={() => setShowNewCollectionModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </Pressable>
+              <ThemedText type="heading">Yeni Koleksiyon</ThemedText>
+              <View style={{ width: 24 }} />
+            </View>
+
+            <ScrollView style={styles.modalContent}>
+              {/* İsim */}
+              <View style={styles.inputSection}>
+                <ThemedText type="label" style={styles.inputLabel}>Koleksiyon Adı</ThemedText>
+                <TextInput
+                  style={[styles.textInput, { backgroundColor: colors.backgroundTertiary, color: colors.text }]}
+                  placeholder="Örn: Yaz Favorilerim"
+                  placeholderTextColor={colors.textMuted}
+                  value={newCollectionName}
+                  onChangeText={setNewCollectionName}
+                />
+              </View>
+
+              {/* Renk Seçimi */}
+              <View style={styles.inputSection}>
+                <ThemedText type="label" style={styles.inputLabel}>Renk</ThemedText>
+                <View style={styles.colorGrid}>
+                  {COLLECTION_COLORS.map((color) => (
+                    <Pressable
+                      key={color}
+                      onPress={() => setSelectedColor(color)}
+                      style={[styles.colorOption, { backgroundColor: color }, selectedColor === color && styles.colorOptionSelected]}
+                    >
+                      {selectedColor === color && <Ionicons name="checkmark" size={18} color="#FFF" />}
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Simge Seçimi */}
+              <View style={styles.inputSection}>
+                <ThemedText type="label" style={styles.inputLabel}>Simge</ThemedText>
+                <View style={styles.iconGrid}>
+                  {COLLECTION_ICONS.map((icon) => (
+                    <Pressable
+                      key={icon}
+                      onPress={() => setSelectedIcon(icon)}
+                      style={[
+                        styles.iconOption, 
+                        { backgroundColor: selectedIcon === icon ? selectedColor + '20' : colors.backgroundTertiary },
+                        selectedIcon === icon && { borderColor: selectedColor, borderWidth: 2 }
+                      ]}
+                    >
+                      <Ionicons 
+                        name={icon as keyof typeof Ionicons.glyphMap} 
+                        size={22} 
+                        color={selectedIcon === icon ? selectedColor : colors.textMuted} 
+                      />
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Preview */}
+              <View style={styles.previewSection}>
+                <ThemedText type="label" style={styles.inputLabel}>Önizleme</ThemedText>
+                <View style={[styles.previewCard, { backgroundColor: colors.card }]}>
+                  <View style={[styles.previewIcon, { backgroundColor: selectedColor + '20' }]}>
+                    <Ionicons name={selectedIcon as keyof typeof Ionicons.glyphMap} size={24} color={selectedColor} />
+                  </View>
+                  <ThemedText type="subtitle">{newCollectionName || 'Koleksiyon Adı'}</ThemedText>
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <Button title="Koleksiyonu Oluştur" onPress={handleCreateCollection} fullWidth disabled={!newCollectionName.trim()} />
+            </View>
+          </SafeAreaView>
+        </ThemedView>
+      </Modal>
     </ThemedView>
   );
 }
 
 // Parfüm Kartı
-function ParfumCard({ 
-  parfum, 
-  colors, 
-  isDark,
-  isFavorite,
-  isSelected,
-  compareMode,
-  onPress,
-  onToggleFavorite,
-  delay = 0,
-}: { 
+function ParfumCard({ parfum, colors, isSelected, compareMode, isFavorite = true, onPress, onToggleFavorite, delay = 0 }: {
   parfum: Parfum;
   colors: typeof Colors.light;
-  isDark: boolean;
-  isFavorite: boolean;
   isSelected: boolean;
   compareMode: boolean;
+  isFavorite?: boolean;
   onPress: () => void;
   onToggleFavorite: () => void;
   delay?: number;
@@ -510,64 +442,37 @@ function ParfumCard({
   const typeColor = TYPE_COLORS[parfum.tip] || colors.tint;
 
   return (
-    <Animated.View entering={FadeInDown.delay(delay).duration(400)}>
-    <Pressable onPress={onPress}>
-        <Card 
-          variant="elevated" 
-          style={[
-            styles.parfumCard,
-            isSelected && { borderColor: colors.tint, borderWidth: 2 }
-          ]}
-        >
+    <Animated.View entering={FadeInDown.delay(delay).duration(300)}>
+      <Pressable onPress={onPress}>
+        <Card variant="elevated" style={[styles.parfumCard, isSelected && { borderColor: colors.tint, borderWidth: 2 }]}>
           {compareMode && (
             <View style={[styles.selectIndicator, { backgroundColor: isSelected ? colors.tint : colors.backgroundTertiary }]}>
-              {isSelected && <Ionicons name="checkmark" size={16} color="#FFF" />}
-        </View>
+              {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}
+            </View>
           )}
           
-          <View style={styles.parfumHeader}>
-            <View style={[styles.parfumType, { backgroundColor: typeColor + '20' }]}>
-              <ThemedText style={[styles.parfumTypeText, { color: typeColor }]}>
-                {parfum.tip}
-        </ThemedText>
+          <View style={styles.parfumRow}>
+            <View style={[styles.parfumTypeIcon, { backgroundColor: typeColor + '15' }]}>
+              <Ionicons name="sparkles" size={18} color={typeColor} />
             </View>
+            
+            <View style={styles.parfumInfo}>
+              <ThemedText type="subtitle" numberOfLines={1}>{parfum.isim}</ThemedText>
+              <ThemedText type="caption" style={{ color: colors.textMuted }}>{parfum.marka}</ThemedText>
+              
+              <View style={styles.parfumMeta}>
+                <View style={[styles.parfumTypeBadge, { backgroundColor: typeColor + '12' }]}>
+                  <ThemedText style={[styles.parfumTypeText, { color: typeColor }]}>{parfum.tip}</ThemedText>
+                </View>
+                <ThemedText type="caption" style={{ color: colors.textMuted }}>{parfum.kalicilik}</ThemedText>
+              </View>
+            </View>
+            
             {!compareMode && (
-              <Pressable onPress={onToggleFavorite} style={styles.favoriteBtn}>
-                <Ionicons 
-                  name={isFavorite ? 'heart' : 'heart-outline'} 
-                  size={22} 
-                  color={isFavorite ? '#FF6B9D' : colors.textMuted} 
-                />
-    </Pressable>
+              <Pressable onPress={onToggleFavorite} hitSlop={10}>
+                <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? '#FF6B9D' : colors.textMuted} />
+              </Pressable>
             )}
-        </View>
-        
-          <ThemedText type="subtitle" style={styles.parfumName}>
-            {parfum.isim}
-          </ThemedText>
-          <ThemedText type="caption" style={[styles.parfumBrand, { color: colors.textMuted }]}>
-            {parfum.marka}
-          </ThemedText>
-          
-          <View style={styles.parfumMeta}>
-            <View style={styles.metaItem}>
-              <Ionicons name="water-outline" size={14} color={colors.textMuted} />
-              <ThemedText type="caption" style={{ color: colors.textMuted }}>
-                pH: {parfum.phUyumu.idealPH}
-              </ThemedText>
-            </View>
-            <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={14} color={colors.textMuted} />
-              <ThemedText type="caption" style={{ color: colors.textMuted }}>
-                {parfum.kalicilik}
-            </ThemedText>
-          </View>
-            <View style={styles.metaItem}>
-              <Ionicons name="speedometer-outline" size={14} color={colors.textMuted} />
-              <ThemedText type="caption" style={{ color: colors.textMuted }}>
-                {parfum.yogunluk}
-              </ThemedText>
-        </View>
           </View>
         </Card>
       </Pressable>
@@ -576,229 +481,61 @@ function ParfumCard({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-  headerTitle: {
-    fontSize: FontSizes['2xl'],
-  },
-  tabsContainer: {
-    paddingBottom: Spacing.md,
-  },
-  tabs: {
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.sm,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    gap: Spacing.xs,
-  },
-  tabLabel: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semiBold,
-  },
-  tabBadge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  tabBadgeText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: FontWeights.bold,
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.sm,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  filterScroll: {
-    flex: 1,
-    gap: Spacing.xs,
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    gap: 6,
-  },
-  filterDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  filterText: {
-    fontSize: FontSizes.sm,
-  },
-  toolbarActions: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    marginLeft: Spacing.sm,
-  },
-  actionBtn: {
-    padding: Spacing.sm,
-    borderRadius: BorderRadius.md,
-  },
-  sortIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.md,
-  },
-  compareBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.md,
-  },
-  compareBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  compareBannerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  compareBannerBtn: {
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-  },
-  listContainer: {
-    gap: Spacing.md,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: Spacing['3xl'],
-    paddingHorizontal: Spacing.xl,
-  },
-  emptyIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: BorderRadius['2xl'],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    marginTop: Spacing.sm,
-    opacity: 0.6,
-  },
-  addCollectionCard: {
-    alignItems: 'center',
-    padding: Spacing.xl,
-    borderStyle: 'dashed',
-    borderWidth: 2,
-    borderColor: 'rgba(157, 78, 221, 0.3)',
-  },
-  addIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.xl,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  emptyCollections: {
-    padding: Spacing.xl,
-    alignItems: 'center',
-  },
-  collectionCard: {
-    marginBottom: Spacing.sm,
-  },
-  collectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  collectionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-  },
-  collectionInfo: {
-    flex: 1,
-  },
-  deleteBtn: {
-    padding: Spacing.sm,
-  },
-  parfumCard: {
-    padding: Spacing.lg,
-    position: 'relative',
-  },
-  selectIndicator: {
-    position: 'absolute',
-    top: Spacing.md,
-    left: Spacing.md,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  parfumHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  parfumType: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.sm,
-  },
-  parfumTypeText: {
-    fontSize: FontSizes.xs,
-    fontWeight: FontWeights.semiBold,
-  },
-  favoriteBtn: {
-    padding: Spacing.xs,
-  },
-  parfumName: {
-    marginBottom: 2,
-  },
-  parfumBrand: {
-    marginBottom: Spacing.sm,
-  },
-  parfumMeta: {
-    flexDirection: 'row',
-    gap: Spacing.lg,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
+  container: { flex: 1 },
+  safeArea: { flex: 1 },
+  header: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg, paddingBottom: Spacing.sm },
+  tabsWrapper: { marginBottom: Spacing.sm },
+  tabs: { paddingHorizontal: Spacing.xl, gap: Spacing.sm },
+  tab: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, gap: 6 },
+  tabLabel: { fontSize: FontSizes.sm, fontWeight: FontWeights.medium },
+  tabBadge: { minWidth: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5 },
+  tabBadgeText: { color: '#FFF', fontSize: 10, fontWeight: FontWeights.bold },
+  content: { flex: 1 },
+  contentContainer: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm },
+  toolbar: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
+  filterScroll: { flex: 1, gap: Spacing.xs },
+  filterChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.full, gap: 6 },
+  filterChipActive: { backgroundColor: 'rgba(157,78,221,0.1)' },
+  filterDot: { width: 6, height: 6, borderRadius: 3 },
+  filterText: { fontSize: FontSizes.sm },
+  toolbarActions: { marginLeft: Spacing.sm },
+  actionBtn: { padding: Spacing.sm, borderRadius: BorderRadius.md },
+  compareBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: Spacing.md, borderRadius: BorderRadius.lg, marginBottom: Spacing.md },
+  compareBannerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  listContainer: { gap: Spacing.sm },
+  emptyState: { alignItems: 'center', paddingTop: Spacing['3xl'], paddingHorizontal: Spacing.xl },
+  emptyIcon: { width: 80, height: 80, borderRadius: BorderRadius['2xl'], justifyContent: 'center', alignItems: 'center' },
+  emptyText: { marginTop: Spacing.sm },
+  collectionsContainer: { gap: Spacing.md },
+  addCollectionBtn: { alignItems: 'center', padding: Spacing.xl, borderRadius: BorderRadius.xl, borderWidth: 2, borderStyle: 'dashed', gap: Spacing.md },
+  addIcon: { width: 48, height: 48, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center' },
+  emptyCollText: { marginTop: Spacing.xl },
+  collectionCard: { padding: Spacing.md },
+  collectionHeader: { flexDirection: 'row', alignItems: 'center' },
+  collectionIcon: { width: 44, height: 44, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md },
+  collectionInfo: { flex: 1 },
+  parfumCard: { padding: Spacing.md },
+  selectIndicator: { position: 'absolute', top: Spacing.sm, left: Spacing.sm, width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', zIndex: 1 },
+  parfumRow: { flexDirection: 'row', alignItems: 'center' },
+  parfumTypeIcon: { width: 44, height: 44, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md },
+  parfumInfo: { flex: 1 },
+  parfumMeta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 },
+  parfumTypeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  parfumTypeText: { fontSize: 10, fontWeight: FontWeights.semiBold },
+  // Modal
+  modalContainer: { flex: 1 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  modalContent: { flex: 1, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl },
+  modalFooter: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg },
+  inputSection: { marginBottom: Spacing.xl },
+  inputLabel: { marginBottom: Spacing.sm },
+  textInput: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, borderRadius: BorderRadius.lg, fontSize: FontSizes.base },
+  colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  colorOption: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  colorOptionSelected: { borderWidth: 3, borderColor: 'rgba(255,255,255,0.5)' },
+  iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  iconOption: { width: 48, height: 48, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center' },
+  previewSection: { marginTop: Spacing.lg },
+  previewCard: { flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, borderRadius: BorderRadius.xl, marginTop: Spacing.sm, gap: Spacing.md },
+  previewIcon: { width: 48, height: 48, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center' },
 });

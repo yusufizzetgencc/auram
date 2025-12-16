@@ -1,6 +1,6 @@
 /**
- * AROMIXEN - Modern Dashboard
- * Hero, Hava Durumu, Günün Önerisi ve Parfüm Keşfi
+ * AROMIXEN - Keşfet (Home Dashboard)
+ * Modern, temiz tasarım
  */
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
@@ -11,19 +11,13 @@ import {
   TextInput,
   Pressable,
   Dimensions,
-  Image,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { 
-  FadeInDown, 
-  FadeIn, 
-  FadeInUp,
-  SlideInRight,
-} from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, FadeInUp, SlideInRight } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -31,18 +25,17 @@ import { Card } from '@/components/ui';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useApp } from '@/context/AppContext';
-import { Parfum, KokuTipi } from '@/types';
+import { Parfum } from '@/types';
 import { fetchWeatherData, getWeatherRecommendation, WeatherData } from '@/services/weather';
 import { getDailyRecommendation, getDailyMotivation, DailyRecommendation } from '@/services/dailyRecommendation';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Koku tipi renkleri
 const TYPE_COLORS: Record<string, string> = {
   'Odunsu': '#8B4513',
-  'Çiçeksi': '#FF69B4',
+  'Çiçeksi': '#E91E8C',
   'Oryantal': '#DAA520',
-  'Ferah': '#87CEEB',
+  'Ferah': '#00B4D8',
   'Baharatlı': '#FF4500',
   'Aquatik': '#00CED1',
 };
@@ -119,13 +112,11 @@ export default function HomeScreen() {
   const favoriteParfums = getFavoriteParfums().slice(0, 5);
   const recentParfums = getRecentlyViewedParfums().slice(0, 5);
 
-  // Parfüm açma
   const handleOpenParfum = (parfum: Parfum) => {
     addToRecentlyViewedList(parfum.id);
     router.push(`/parfum/${parfum.id}`);
   };
 
-  // Hava durumu önerisi
   const weatherRec = weather ? getWeatherRecommendation(weather) : null;
 
   return (
@@ -137,51 +128,36 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tint} />
         }
       >
-        {/* Hero Section */}
-        <Animated.View entering={FadeIn.duration(600)}>
-          <View style={styles.heroContainer}>
-            <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1541643600914-78b084683601?w=800&q=80' }}
-              style={styles.heroImage}
-            />
-      <LinearGradient
-              colors={['transparent', isDark ? 'rgba(18,14,24,0.8)' : 'rgba(255,255,255,0.85)', isDark ? '#120E18' : '#FFFFFF']}
-              style={styles.heroGradient}
-            />
-            
-            {/* Top Bar */}
-            <SafeAreaView style={styles.heroTopBar}>
+        {/* Header */}
+        <SafeAreaView edges={['top']}>
+          <Animated.View entering={FadeIn.duration(500)} style={styles.header}>
+          <View style={styles.headerTop}>
               <View style={styles.logoContainer}>
-                <LinearGradient
-                  colors={['#9D4EDD', '#C77DFF']}
-                  style={styles.logoIcon}
-                >
+                <LinearGradient colors={['#9D4EDD', '#7B2CBF']} style={styles.logoIcon}>
                   <Ionicons name="sparkles" size={18} color="#FFF" />
                 </LinearGradient>
                 <ThemedText style={styles.logoText}>AROMIXEN</ThemedText>
             </View>
-            </SafeAreaView>
-            
-            {/* Hero Content */}
-            <View style={styles.heroContent}>
-              <ThemedText style={styles.heroMotivation}>
-                {motivation.emoji} {motivation.text}
-              </ThemedText>
-              <ThemedText type="title" style={styles.heroTitle}>
-                Koku Yolculuğuna{'\n'}Hoş Geldin
-              </ThemedText>
-              <ThemedText type="body" style={styles.heroSubtitle}>
-                {parfumler.length}+ parfüm arasından keşfet
-              </ThemedText>
+              <Pressable 
+                onPress={() => router.push('/(tabs)/profile')} 
+                style={[styles.profileBtn, { backgroundColor: colors.backgroundTertiary }]}
+              >
+                <Ionicons name="person" size={18} color={colors.text} />
+              </Pressable>
             </View>
+            
+            <View style={styles.greetingSection}>
+              <ThemedText style={styles.greetingEmoji}>{motivation.emoji}</ThemedText>
+              <ThemedText type="title" style={styles.greetingTitle}>Merhaba!</ThemedText>
+              <ThemedText type="body" style={[styles.greetingSubtitle, { color: colors.textMuted }]}>
+                {parfumler.length} parfüm seni bekliyor
+              </ThemedText>
               </View>
-        </Animated.View>
+          </Animated.View>
+        </SafeAreaView>
 
         {/* Search Bar */}
-        <Animated.View 
-          entering={FadeInUp.delay(200).duration(500)}
-          style={styles.searchContainer}
-        >
+        <Animated.View entering={FadeInUp.delay(100).duration(400)} style={styles.searchSection}>
           <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
             <Ionicons name="search-outline" size={20} color={colors.textMuted} />
             <TextInput
@@ -202,180 +178,168 @@ export default function HomeScreen() {
         <View style={styles.content}>
           {/* Weather Widget */}
           {weather && (
-            <Animated.View entering={FadeInUp.delay(300).duration(500)}>
+            <Animated.View entering={FadeInUp.delay(200).duration(400)}>
               <Card variant="elevated" style={styles.weatherCard}>
-                <LinearGradient
-                  colors={isDark ? ['#1E1A2E', '#2D2640'] : ['#E8F4FD', '#D1E8F5']}
-                  style={styles.weatherGradient}
-                >
-                  <View style={styles.weatherHeader}>
-                    <View style={styles.weatherLeft}>
-                      <View style={styles.weatherIconContainer}>
-                        <Ionicons 
-                          name={weather.icon as keyof typeof Ionicons.glyphMap} 
-                          size={32} 
-                          color={isDark ? '#87CEEB' : '#4A90D9'} 
-                        />
-                      </View>
-                      <View>
-                        <ThemedText style={styles.weatherTemp}>{weather.temperature}°C</ThemedText>
-                        <ThemedText type="caption" style={{ color: colors.textMuted }}>
-                          {weather.city} • {weather.description}
-                        </ThemedText>
-                      </View>
-                    </View>
-                    
-                    <View style={styles.weatherRight}>
-                      <View style={[styles.weatherBadge, { backgroundColor: colors.tint + '20' }]}>
-                        <Ionicons name="water-outline" size={14} color={colors.tint} />
-                        <ThemedText style={[styles.weatherBadgeText, { color: colors.tint }]}>
-                          %{weather.humidity}
-                        </ThemedText>
-                      </View>
-                    </View>
+                <View style={styles.weatherContent}>
+                  <View style={styles.weatherLeft}>
+                    <View style={[styles.weatherIconBg, { backgroundColor: isDark ? 'rgba(135,206,235,0.15)' : 'rgba(74,144,217,0.1)' }]}>
+                      <Ionicons 
+                        name={weather.icon as keyof typeof Ionicons.glyphMap} 
+                        size={28} 
+                        color={isDark ? '#87CEEB' : '#4A90D9'} 
+                      />
                   </View>
-                  
-                  {weatherRec && (
-                    <View style={styles.weatherRecommendation}>
-                      <ThemedText type="caption" style={{ color: colors.textMuted, marginBottom: 4 }}>
-                        Bugün için önerilen kokular:
-                      </ThemedText>
-                      <View style={styles.weatherTags}>
-                        {weatherRec.scentTypes.slice(0, 3).map((type, i) => (
-                          <View 
-                            key={i} 
-                            style={[styles.weatherTag, { backgroundColor: (TYPE_COLORS[type] || colors.tint) + '20' }]}
-                          >
-                            <ThemedText style={[styles.weatherTagText, { color: TYPE_COLORS[type] || colors.tint }]}>
-                              {type}
-                            </ThemedText>
-                          </View>
-                        ))}
+                    <View style={styles.weatherInfo}>
+                      <View style={styles.weatherTempRow}>
+                        <ThemedText style={styles.weatherTemp}>{weather.temperature}°</ThemedText>
+                        <ThemedText type="caption" style={[styles.weatherFeels, { color: colors.textMuted }]}>
+                          Hissedilen {weather.feelsLike}°
+                        </ThemedText>
                       </View>
+                      <ThemedText type="caption" style={{ color: colors.textMuted }}>
+                        {weather.city} • {weather.description}
+                      </ThemedText>
+                    </View>
+        </View>
+
+                  <View style={styles.weatherRight}>
+                    <View style={[styles.weatherBadge, { backgroundColor: 'rgba(157,78,221,0.1)' }]}>
+                      <Ionicons name="water-outline" size={12} color="#9D4EDD" />
+                      <ThemedText style={[styles.weatherBadgeText, { color: '#9D4EDD' }]}>%{weather.humidity}</ThemedText>
+              </View>
+                    <View style={[styles.weatherBadge, { backgroundColor: 'rgba(0,180,216,0.1)' }]}>
+                      <Ionicons name="speedometer-outline" size={12} color="#00B4D8" />
+                      <ThemedText style={[styles.weatherBadgeText, { color: '#00B4D8' }]}>{weather.windSpeed} km/s</ThemedText>
             </View>
-          )}
-                </LinearGradient>
+            </View>
+            </View>
+                
+                {weatherRec && (
+                  <View style={styles.weatherRecommendation}>
+                    <ThemedText type="caption" style={[styles.weatherRecLabel, { color: colors.textMuted }]}>
+                      Önerilen koku tipleri
+                    </ThemedText>
+                    <View style={styles.weatherTags}>
+                      {weatherRec.scentTypes.slice(0, 3).map((type, i) => (
+          <Pressable 
+                          key={i} 
+                          onPress={() => setSelectedType(type === selectedType ? null : type)}
+                          style={[styles.weatherTag, { backgroundColor: (TYPE_COLORS[type] || colors.tint) + '15' }]}
+                        >
+                          <ThemedText style={[styles.weatherTagText, { color: TYPE_COLORS[type] || colors.tint }]}>
+                            {type}
+                          </ThemedText>
+                </Pressable>
+                      ))}
+              </View>
+                  </View>
+                )}
               </Card>
-        </Animated.View>
+            </Animated.View>
           )}
 
           {/* Daily Recommendation */}
           {dailyRec && (
-            <Animated.View entering={FadeInUp.delay(400).duration(500)}>
+            <Animated.View entering={FadeInUp.delay(300).duration(400)}>
               <Pressable onPress={() => handleOpenParfum(dailyRec.parfum)}>
-                <Card variant="elevated" style={styles.dailyCard}>
-                  <LinearGradient
-                    colors={['#9D4EDD', '#7B2CBF']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.dailyGradient}
-                  >
-                    <View style={styles.dailyHeader}>
-                      <View style={styles.dailyBadge}>
-                        <Ionicons name="sparkles" size={14} color="#FFD700" />
-                        <ThemedText style={styles.dailyBadgeText}>Günün Önerisi</ThemedText>
-                      </View>
-                      <View style={styles.dailyScore}>
-                        <ThemedText style={styles.dailyScoreText}>%{dailyRec.matchScore}</ThemedText>
-                        <ThemedText style={styles.dailyScoreLabel}>Uyum</ThemedText>
-                      </View>
+        <LinearGradient
+                  colors={['#9D4EDD', '#7B2CBF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.dailyCard}
+                >
+                  <View style={styles.dailyHeader}>
+                    <View style={styles.dailyBadge}>
+                      <Ionicons name="sparkles" size={12} color="#FFD700" />
+                      <ThemedText style={styles.dailyBadgeText}>Günün Önerisi</ThemedText>
                     </View>
-                    
-                    <ThemedText style={styles.dailyName}>{dailyRec.parfum.isim}</ThemedText>
-                    <ThemedText style={styles.dailyBrand}>{dailyRec.parfum.marka}</ThemedText>
-                    
-                    <View style={styles.dailyReasons}>
-                      {dailyRec.reasons.map((reason, i) => (
-                        <View key={i} style={styles.dailyReason}>
-                          <Ionicons name="checkmark-circle" size={14} color="rgba(255,255,255,0.8)" />
-                          <ThemedText style={styles.dailyReasonText}>{reason}</ThemedText>
-                        </View>
-                      ))}
+                    <View style={styles.dailyScore}>
+                      <ThemedText style={styles.dailyScoreText}>%{dailyRec.matchScore}</ThemedText>
                     </View>
-                    
-                    <View style={styles.dailyTip}>
-                      <Ionicons name="bulb-outline" size={16} color="rgba(255,255,255,0.6)" />
-                      <ThemedText style={styles.dailyTipText}>{dailyRec.tip}</ThemedText>
-                    </View>
-                  </LinearGradient>
-                </Card>
+                  </View>
+                  
+                  <ThemedText style={styles.dailyName}>{dailyRec.parfum.isim}</ThemedText>
+                  <ThemedText style={styles.dailyBrand}>{dailyRec.parfum.marka}</ThemedText>
+                  
+                  <View style={styles.dailyReasons}>
+                    {dailyRec.reasons.slice(0, 2).map((reason, i) => (
+                      <View key={i} style={styles.dailyReason}>
+                        <Ionicons name="checkmark-circle" size={14} color="rgba(255,255,255,0.8)" />
+                        <ThemedText style={styles.dailyReasonText}>{reason}</ThemedText>
+        </View>
+            ))}
+          </View>
+          
+                  <View style={styles.dailyAction}>
+                    <ThemedText style={styles.dailyActionText}>İncele</ThemedText>
+                    <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
+          </View>
+                </LinearGradient>
               </Pressable>
             </Animated.View>
           )}
 
           {/* Scent Types */}
-          <Animated.View entering={FadeInUp.delay(500).duration(500)}>
+          <Animated.View entering={FadeInUp.delay(400).duration(400)}>
             <View style={styles.sectionHeader}>
               <ThemedText type="heading">Koku Aileleri</ThemedText>
-            </View>
+              {selectedType && (
+                <Pressable onPress={() => setSelectedType(null)}>
+                  <ThemedText style={{ color: colors.tint, fontSize: FontSizes.sm }}>Temizle</ThemedText>
+        </Pressable>
+              )}
+      </View>
             
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.typesContainer}
-          >
+            >
               {Object.entries(TYPE_COLORS).map(([type, color], index) => {
-              const isSelected = selectedType === type;
+                const isSelected = selectedType === type;
                 const count = parfumler.filter(p => p.tip === type).length;
-              
-              return (
-                  <Animated.View 
-                  key={type}
-                    entering={SlideInRight.delay(500 + index * 50).duration(400)}
-                  >
+
+  return (
+                  <Animated.View key={type} entering={SlideInRight.delay(400 + index * 40).duration(300)}>
                     <Pressable
                       onPress={() => setSelectedType(isSelected ? null : type)}
-                  style={[
-                        styles.typeCard,
-                        { 
-                          backgroundColor: isSelected ? color : colors.card,
-                          borderColor: color,
-                          borderWidth: isSelected ? 0 : 1,
-                        }
-                      ]}
+                      style={[styles.typeCard, { 
+                        backgroundColor: isSelected ? color : colors.card,
+                        borderColor: isSelected ? color : colors.border,
+                      }]}
                     >
-                      <View style={[styles.typeIcon, { backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : color + '20' }]}>
-                        <Ionicons 
-                          name="sparkles" 
-                          size={20} 
-                          color={isSelected ? '#FFF' : color} 
-                        />
-                  </View>
-                      <ThemedText style={[styles.typeName, { color: isSelected ? '#FFF' : colors.text }]}>
-                        {type}
+                      <View style={[styles.typeIcon, { backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : color + '15' }]}>
+                        <Ionicons name="sparkles" size={18} color={isSelected ? '#FFF' : color} />
+              </View>
+                      <ThemedText style={[styles.typeName, { color: isSelected ? '#FFF' : colors.text }]}>{type}</ThemedText>
+                      <ThemedText style={[styles.typeCount, { color: isSelected ? 'rgba(255,255,255,0.8)' : colors.textMuted }]}>
+                        {count}
                       </ThemedText>
-                      <ThemedText style={[styles.typeCount, { color: isSelected ? 'rgba(255,255,255,0.7)' : colors.textMuted }]}>
-                        {count} parfüm
-                      </ThemedText>
-                </Pressable>
+        </Pressable>
                   </Animated.View>
-              );
-            })}
-          </ScrollView>
+                );
+              })}
+            </ScrollView>
           </Animated.View>
 
-          {/* Favorites */}
+          {/* Favorites Section */}
           {favoriteParfums.length > 0 && (
-            <Animated.View entering={FadeInUp.delay(600).duration(500)}>
+            <Animated.View entering={FadeInUp.delay(500).duration(400)}>
               <View style={styles.sectionHeader}>
                 <ThemedText type="heading">❤️ Favorilerim</ThemedText>
                 <Pressable onPress={() => router.push('/(tabs)/favorites')}>
-                  <ThemedText style={{ color: colors.tint }}>Tümünü Gör</ThemedText>
-                </Pressable>
-        </View>
+                  <ThemedText style={{ color: colors.tint, fontSize: FontSizes.sm }}>Tümü</ThemedText>
+            </Pressable>
+          </View>
 
-        <ScrollView
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalList}
-              >
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
                 {favoriteParfums.map((parfum, index) => (
-                  <ParfumMiniCard
-                  key={parfum.id}
-                    parfum={parfum} 
+                  <MiniParfumCard
+                    key={parfum.id}
+                    parfum={parfum}
                     colors={colors}
                     onPress={() => handleOpenParfum(parfum)}
-                    delay={index * 50}
+                    delay={index * 40}
                   />
                 ))}
               </ScrollView>
@@ -384,40 +348,36 @@ export default function HomeScreen() {
 
           {/* Recently Viewed */}
           {recentParfums.length > 0 && (
-            <Animated.View entering={FadeInUp.delay(700).duration(500)}>
+            <Animated.View entering={FadeInUp.delay(600).duration(400)}>
               <View style={styles.sectionHeader}>
                 <ThemedText type="heading">🕐 Son Görüntülenen</ThemedText>
-            </View>
+              </View>
               
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalList}
-              >
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
                 {recentParfums.map((parfum, index) => (
-                  <ParfumMiniCard
+                  <MiniParfumCard
                     key={parfum.id}
-                    parfum={parfum} 
-                    colors={colors}
+                    parfum={parfum}
+                colors={colors} 
                     onPress={() => handleOpenParfum(parfum)}
-                    delay={index * 50}
+                    delay={index * 40}
                   />
                 ))}
               </ScrollView>
             </Animated.View>
           )}
 
-          {/* All Perfumes */}
-          <Animated.View entering={FadeInUp.delay(800).duration(500)}>
+          {/* All Perfumes Grid */}
+          <Animated.View entering={FadeInUp.delay(700).duration(400)}>
             <View style={styles.sectionHeader}>
               <ThemedText type="heading">
-                {selectedType ? `${selectedType} Parfümler` : 'Tüm Parfümler'}
+                {selectedType ? `${selectedType}` : 'Tüm Parfümler'}
               </ThemedText>
               <ThemedText type="caption" style={{ color: colors.textMuted }}>
                 {filteredParfums.length} sonuç
               </ThemedText>
-              </View>
-              
+                    </View>
+            
             <View style={styles.parfumGrid}>
               {filteredParfums.map((parfum, index) => (
                 <ParfumCard
@@ -429,25 +389,19 @@ export default function HomeScreen() {
                   onToggleFavorite={() => toggleFavoriteParfum(parfum.id)}
                   delay={index * 30}
                 />
-              ))}
-            </View>
-            </Animated.View>
+                  ))}
+                </View>
+          </Animated.View>
 
-          {/* Bottom Spacing */}
-          <View style={{ height: 100 }} />
+          <View style={{ height: 120 }} />
         </View>
-      </ScrollView>
-    </ThemedView>
+          </ScrollView>
+      </ThemedView>
   );
 }
 
-// Mini Parfüm Kartı (Yatay Liste)
-function ParfumMiniCard({
-  parfum,
-  colors,
-  onPress,
-  delay = 0,
-}: {
+// Mini Parfüm Kartı
+function MiniParfumCard({ parfum, colors, onPress, delay = 0 }: {
   parfum: Parfum;
   colors: typeof Colors.light;
   onPress: () => void;
@@ -456,35 +410,22 @@ function ParfumMiniCard({
   const typeColor = TYPE_COLORS[parfum.tip] || colors.tint;
 
   return (
-    <Animated.View entering={SlideInRight.delay(delay).duration(400)}>
-    <Pressable onPress={onPress}>
+    <Animated.View entering={SlideInRight.delay(delay).duration(300)}>
+      <Pressable onPress={onPress}>
         <Card variant="elevated" style={styles.miniCard}>
-          <View style={[styles.miniType, { backgroundColor: typeColor + '20' }]}>
-            <ThemedText style={[styles.miniTypeText, { color: typeColor }]}>
-            {parfum.tip}
-            </ThemedText>
-        </View>
-          <ThemedText type="subtitle" numberOfLines={1} style={styles.miniName}>
-            {parfum.isim}
-          </ThemedText>
-          <ThemedText type="caption" numberOfLines={1} style={{ color: colors.textMuted }}>
-            {parfum.marka}
-          </ThemedText>
+          <View style={[styles.miniType, { backgroundColor: typeColor + '15' }]}>
+            <ThemedText style={[styles.miniTypeText, { color: typeColor }]}>{parfum.tip}</ThemedText>
+    </View>
+          <ThemedText type="subtitle" numberOfLines={1} style={styles.miniName}>{parfum.isim}</ThemedText>
+          <ThemedText type="caption" numberOfLines={1} style={{ color: colors.textMuted }}>{parfum.marka}</ThemedText>
         </Card>
-        </Pressable>
+      </Pressable>
     </Animated.View>
   );
 }
 
 // Parfüm Kartı (Grid)
-function ParfumCard({
-  parfum,
-  colors,
-  isFavorite,
-  onPress,
-  onToggleFavorite,
-  delay = 0,
-}: {
+function ParfumCard({ parfum, colors, isFavorite, onPress, onToggleFavorite, delay = 0 }: {
   parfum: Parfum;
   colors: typeof Colors.light;
   isFavorite: boolean;
@@ -495,44 +436,31 @@ function ParfumCard({
   const typeColor = TYPE_COLORS[parfum.tip] || colors.tint;
 
   return (
-    <Animated.View 
-      entering={FadeInDown.delay(delay).duration(400)}
-      style={styles.cardWrapper}
-    >
+    <Animated.View entering={FadeInDown.delay(delay).duration(300)} style={styles.cardWrapper}>
       <Pressable onPress={onPress}>
         <Card variant="elevated" style={styles.parfumCard}>
           <View style={styles.cardHeader}>
-            <View style={[styles.cardType, { backgroundColor: typeColor + '20' }]}>
-              <ThemedText style={[styles.cardTypeText, { color: typeColor }]}>
-                {parfum.tip}
-              </ThemedText>
-            </View>
-            <Pressable onPress={onToggleFavorite} style={styles.cardFavorite}>
-              <Ionicons 
-                name={isFavorite ? 'heart' : 'heart-outline'} 
-                size={20} 
-                color={isFavorite ? '#FF6B9D' : colors.textMuted} 
-              />
-        </Pressable>
+            <View style={[styles.cardType, { backgroundColor: typeColor + '15' }]}>
+              <ThemedText style={[styles.cardTypeText, { color: typeColor }]}>{parfum.tip}</ThemedText>
+          </View>
+            <Pressable onPress={onToggleFavorite} hitSlop={8}>
+              <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={20} color={isFavorite ? '#FF6B9D' : colors.textMuted} />
+            </Pressable>
       </View>
           
-          <ThemedText type="subtitle" numberOfLines={2} style={styles.cardName}>
-              {parfum.isim}
-          </ThemedText>
-          <ThemedText type="caption" style={{ color: colors.textMuted }}>
-            {parfum.marka}
-          </ThemedText>
+          <ThemedText type="subtitle" numberOfLines={2} style={styles.cardName}>{parfum.isim}</ThemedText>
+          <ThemedText type="caption" style={{ color: colors.textMuted }}>{parfum.marka}</ThemedText>
           
           <View style={styles.cardMeta}>
             <View style={styles.cardMetaItem}>
-              <Ionicons name="time-outline" size={12} color={colors.textMuted} />
-              <ThemedText style={styles.cardMetaText}>{parfum.kalicilik}</ThemedText>
-              </View>
+              <Ionicons name="time-outline" size={11} color={colors.textMuted} />
+              <ThemedText style={[styles.cardMetaText, { color: colors.textMuted }]}>{parfum.kalicilik}</ThemedText>
+    </View>
             <View style={styles.cardMetaItem}>
-              <Ionicons name="speedometer-outline" size={12} color={colors.textMuted} />
-              <ThemedText style={styles.cardMetaText}>{parfum.yogunluk}</ThemedText>
-              </View>
-                </View>
+              <Ionicons name="speedometer-outline" size={11} color={colors.textMuted} />
+              <ThemedText style={[styles.cardMetaText, { color: colors.textMuted }]}>{parfum.yogunluk}</ThemedText>
+            </View>
+          </View>
         </Card>
       </Pressable>
     </Animated.View>
@@ -540,347 +468,70 @@ function ParfumCard({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  heroContainer: {
-    height: 320,
-    position: 'relative',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
-  },
-  heroGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-  },
-  heroTopBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.md,
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.sm,
-  },
-  logoText: {
-    fontSize: FontSizes.lg,
-    fontWeight: FontWeights.bold,
-    color: '#FFF',
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  heroContent: {
-    position: 'absolute',
-    bottom: Spacing.xl,
-    left: Spacing.xl,
-    right: Spacing.xl,
-  },
-  heroMotivation: {
-    fontSize: FontSizes.sm,
-    marginBottom: Spacing.xs,
-    opacity: 0.8,
-  },
-  heroTitle: {
-    fontSize: FontSizes['3xl'],
-    lineHeight: 40,
-    marginBottom: Spacing.xs,
-  },
-  heroSubtitle: {
-    opacity: 0.7,
-  },
-  searchContainer: {
-    paddingHorizontal: Spacing.xl,
-    marginTop: -Spacing.xl,
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.xl,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    gap: Spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: FontSizes.base,
-  },
-  content: {
-    paddingTop: Spacing.xl,
-  },
-  weatherCard: {
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
-    overflow: 'hidden',
-  },
-  weatherGradient: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.xl,
-  },
-  weatherHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  weatherLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  weatherIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(135, 206, 235, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  weatherTemp: {
-    fontSize: FontSizes['2xl'],
-    fontWeight: FontWeights.bold,
-  },
-  weatherRight: {},
-  weatherBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-    gap: 4,
-  },
-  weatherBadgeText: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semiBold,
-  },
-  weatherRecommendation: {
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-  },
-  weatherTags: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  weatherTag: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-  },
-  weatherTagText: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semiBold,
-  },
-  dailyCard: {
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
-    overflow: 'hidden',
-  },
-  dailyGradient: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.xl,
-  },
-  dailyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.md,
-  },
-  dailyBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    gap: 6,
-  },
-  dailyBadgeText: {
-    color: '#FFF',
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semiBold,
-  },
-  dailyScore: {
-    alignItems: 'center',
-  },
-  dailyScoreText: {
-    color: '#FFF',
-    fontSize: FontSizes['2xl'],
-    fontWeight: FontWeights.bold,
-  },
-  dailyScoreLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: FontSizes.xs,
-  },
-  dailyName: {
-    color: '#FFF',
-    fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
-    marginBottom: 2,
-  },
-  dailyBrand: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: FontSizes.base,
-    marginBottom: Spacing.md,
-  },
-  dailyReasons: {
-    gap: 6,
-    marginBottom: Spacing.md,
-  },
-  dailyReason: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dailyReasonText: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: FontSizes.sm,
-  },
-  dailyTip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingTop: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-  },
-  dailyTipText: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: FontSizes.sm,
-    flex: 1,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    marginBottom: Spacing.md,
-    marginTop: Spacing.md,
-  },
-  typesContainer: {
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.md,
-    paddingBottom: Spacing.sm,
-  },
-  typeCard: {
-    width: 100,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-  },
-  typeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  typeName: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semiBold,
-    marginBottom: 2,
-  },
-  typeCount: {
-    fontSize: FontSizes.xs,
-  },
-  horizontalList: {
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.md,
-  },
-  miniCard: {
-    width: 140,
-    padding: Spacing.md,
-  },
-  miniType: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-    marginBottom: Spacing.sm,
-  },
-  miniTypeText: {
-    fontSize: 10,
-    fontWeight: FontWeights.bold,
-  },
-  miniName: {
-    fontSize: FontSizes.sm,
-    marginBottom: 2,
-  },
-  parfumGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.md,
-  },
-  cardWrapper: {
-    width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md) / 2,
-  },
-  parfumCard: {
-    padding: Spacing.md,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  cardType: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-  },
-  cardTypeText: {
-    fontSize: 10,
-    fontWeight: FontWeights.bold,
-  },
-  cardFavorite: {
-    padding: 4,
-  },
-  cardName: {
-    fontSize: FontSizes.sm,
-    marginBottom: 2,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-  },
-  cardMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  cardMetaText: {
-    fontSize: 10,
-    opacity: 0.7,
-  },
+  container: { flex: 1 },
+  scrollView: { flex: 1 },
+  header: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
+  logoContainer: { flexDirection: 'row', alignItems: 'center' },
+  logoIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.sm },
+  logoText: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold, letterSpacing: 1 },
+  profileBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  greetingSection: { marginBottom: Spacing.md },
+  greetingEmoji: { fontSize: 28, marginBottom: Spacing.xs },
+  greetingTitle: { fontSize: FontSizes['2xl'], marginBottom: 2 },
+  greetingSubtitle: { fontSize: FontSizes.sm },
+  searchSection: { paddingHorizontal: Spacing.xl, marginBottom: Spacing.lg },
+  searchBox: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2, borderRadius: BorderRadius.xl, gap: Spacing.sm },
+  searchInput: { flex: 1, fontSize: FontSizes.base },
+  content: { paddingHorizontal: Spacing.xl },
+  weatherCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
+  weatherContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  weatherLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  weatherIconBg: { width: 52, height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md },
+  weatherInfo: { flex: 1 },
+  weatherTempRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.sm },
+  weatherTemp: { fontSize: 28, fontWeight: FontWeights.bold },
+  weatherFeels: { fontSize: FontSizes.xs },
+  weatherRight: { gap: Spacing.xs },
+  weatherBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: BorderRadius.full, gap: 4 },
+  weatherBadgeText: { fontSize: 11, fontWeight: FontWeights.semiBold },
+  weatherRecommendation: { marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' },
+  weatherRecLabel: { fontSize: FontSizes.xs, marginBottom: Spacing.sm },
+  weatherTags: { flexDirection: 'row', gap: Spacing.sm },
+  weatherTag: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full },
+  weatherTagText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold },
+  dailyCard: { padding: Spacing.lg, borderRadius: BorderRadius.xl, marginBottom: Spacing.lg },
+  dailyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  dailyBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.full, gap: 4 },
+  dailyBadgeText: { color: '#FFF', fontSize: 11, fontWeight: FontWeights.semiBold },
+  dailyScore: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.full },
+  dailyScoreText: { color: '#FFF', fontSize: FontSizes.sm, fontWeight: FontWeights.bold },
+  dailyName: { color: '#FFF', fontSize: FontSizes.lg, fontWeight: FontWeights.bold },
+  dailyBrand: { color: 'rgba(255,255,255,0.7)', fontSize: FontSizes.sm, marginBottom: Spacing.sm },
+  dailyReasons: { gap: 4, marginBottom: Spacing.md },
+  dailyReason: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dailyReasonText: { color: 'rgba(255,255,255,0.9)', fontSize: FontSizes.sm },
+  dailyAction: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', gap: 4 },
+  dailyActionText: { color: 'rgba(255,255,255,0.8)', fontSize: FontSizes.sm },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md, marginTop: Spacing.sm },
+  typesContainer: { gap: Spacing.sm, paddingBottom: Spacing.sm },
+  typeCard: { width: 90, padding: Spacing.md, borderRadius: BorderRadius.lg, alignItems: 'center', borderWidth: 1 },
+  typeIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.xs },
+  typeName: { fontSize: FontSizes.xs, fontWeight: FontWeights.semiBold, marginBottom: 2 },
+  typeCount: { fontSize: 10 },
+  horizontalList: { gap: Spacing.md, paddingBottom: Spacing.sm },
+  miniCard: { width: 130, padding: Spacing.md },
+  miniType: { alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginBottom: Spacing.xs },
+  miniTypeText: { fontSize: 9, fontWeight: FontWeights.bold },
+  miniName: { fontSize: FontSizes.sm, marginBottom: 2 },
+  parfumGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  cardWrapper: { width: (SCREEN_WIDTH - Spacing.xl * 2 - Spacing.md) / 2 },
+  parfumCard: { padding: Spacing.md },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
+  cardType: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  cardTypeText: { fontSize: 9, fontWeight: FontWeights.bold },
+  cardName: { fontSize: FontSizes.sm, marginBottom: 2, minHeight: 36 },
+  cardMeta: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.04)' },
+  cardMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  cardMetaText: { fontSize: 10 },
 });

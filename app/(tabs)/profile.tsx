@@ -1,10 +1,10 @@
 /**
- * AROMIXEN - Profile Tab
- * Kullanıcı profili, Koku DNA, istatistikler ve veri yönetimi
+ * AROMIXEN - Profil
+ * Kullanıcı profili, Koku DNA, istatistikler
  */
 
 import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, Share } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, Share, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,17 +19,17 @@ import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constan
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useApp } from '@/context/AppContext';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 export default function ProfileScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const isDark = colorScheme === 'dark';
   
   const { 
     preferences, 
     resetPreferences, 
     isOnboardingComplete, 
-    recommendations,
     parfumler,
     favorites,
     collections,
@@ -44,18 +44,10 @@ export default function ProfileScreen() {
     phSonucu,
   } = useApp();
 
-  // Koku DNA Profili Hesaplama
+  // Koku DNA Profili
   const scentDNA = useMemo(() => {
-    const dna = {
-      odunsu: 0,
-      ciceksi: 0,
-      oryantal: 0,
-      ferah: 0,
-      baharatli: 0,
-      aquatik: 0,
-    };
+    const dna = { odunsu: 0, ciceksi: 0, oryantal: 0, ferah: 0, baharatli: 0, aquatik: 0 };
 
-    // Tercih edilen koku tiplerinden puan ekle
     preferences.kokuTipleri.forEach(tip => {
       switch(tip) {
         case 'Odunsu': dna.odunsu += 40; break;
@@ -67,7 +59,6 @@ export default function ProfileScreen() {
       }
     });
 
-    // Favori parfümlerden puan ekle
     const favoriteParfums = favorites.map(id => parfumler.find(p => p.id === id)).filter(Boolean);
     favoriteParfums.forEach(parfum => {
       if (!parfum) return;
@@ -81,7 +72,6 @@ export default function ProfileScreen() {
       }
     });
 
-    // Normalize (0-100 arası)
     const maxValue = Math.max(...Object.values(dna), 1);
     return {
       odunsu: Math.round((dna.odunsu / maxValue) * 100),
@@ -93,7 +83,6 @@ export default function ProfileScreen() {
     };
   }, [preferences.kokuTipleri, favorites, parfumler]);
 
-  // Radar chart data
   const radarData = [
     { label: 'Odunsu', value: scentDNA.odunsu },
     { label: 'Çiçeksi', value: scentDNA.ciceksi },
@@ -103,65 +92,34 @@ export default function ProfileScreen() {
     { label: 'Aquatik', value: scentDNA.aquatik },
   ];
 
-  // Baskın koku tipi
   const dominantType = useMemo(() => {
     const max = Math.max(...Object.values(scentDNA));
     const types = Object.entries(scentDNA);
     const dominant = types.find(([_, v]) => v === max);
     const typeNames: Record<string, string> = {
-      odunsu: 'Odunsu',
-      ciceksi: 'Çiçeksi',
-      oryantal: 'Oryantal',
-      ferah: 'Ferah',
-      baharatli: 'Baharatlı',
-      aquatik: 'Aquatik',
+      odunsu: 'Odunsu', ciceksi: 'Çiçeksi', oryantal: 'Oryantal',
+      ferah: 'Ferah', baharatli: 'Baharatlı', aquatik: 'Aquatik',
     };
     return dominant ? typeNames[dominant[0]] : 'Keşifçi';
   }, [scentDNA]);
 
-  // Koku kimliği açıklaması
   const scentIdentity = useMemo(() => {
     const identities: Record<string, { title: string; desc: string; emoji: string }> = {
-      'Odunsu': { 
-        title: 'Doğa Aşığı', 
-        desc: 'Sıcak, toprak kokularını seven sofistike bir ruh.',
-        emoji: '🌲'
-      },
-      'Çiçeksi': { 
-        title: 'Romantik Ruh', 
-        desc: 'Zarif ve feminen, çiçeklerin büyüsüne kapılan.',
-        emoji: '🌸'
-      },
-      'Oryantal': { 
-        title: 'Gizemli Kaşif', 
-        desc: 'Egzotik ve çekici, doğunun sırlarını taşıyan.',
-        emoji: '✨'
-      },
-      'Ferah': { 
-        title: 'Özgür Ruh', 
-        desc: 'Tazeliği ve enerjiyi seven, dinamik kişilik.',
-        emoji: '💨'
-      },
-      'Baharatlı': { 
-        title: 'Cesur Gezgin', 
-        desc: 'Sıcak ve çarpıcı, dikkat çeken karizmatik.',
-        emoji: '🔥'
-      },
-      'Aquatik': { 
-        title: 'Deniz Tutkunu', 
-        desc: 'Ferah ve özgür, okyanusun çağrısına kulak veren.',
-        emoji: '🌊'
-      },
+      'Odunsu': { title: 'Doğa Aşığı', desc: 'Sıcak, toprak kokularını seven sofistike bir ruh.', emoji: '🌲' },
+      'Çiçeksi': { title: 'Romantik Ruh', desc: 'Zarif ve feminen, çiçeklerin büyüsüne kapılan.', emoji: '🌸' },
+      'Oryantal': { title: 'Gizemli Kaşif', desc: 'Egzotik ve çekici, doğunun sırlarını taşıyan.', emoji: '✨' },
+      'Ferah': { title: 'Özgür Ruh', desc: 'Tazeliği ve enerjiyi seven, dinamik kişilik.', emoji: '💨' },
+      'Baharatlı': { title: 'Cesur Gezgin', desc: 'Sıcak ve çarpıcı, dikkat çeken karizmatik.', emoji: '🔥' },
+      'Aquatik': { title: 'Deniz Tutkunu', desc: 'Ferah ve özgür, okyanusun çağrısına kulak veren.', emoji: '🌊' },
     };
     return identities[dominantType] || { title: 'Keşifçi', desc: 'Tüm koku dünyasını keşfetmeye hazır.', emoji: '🔮' };
   }, [dominantType]);
 
-  // Profil paylaş
   const handleShareProfile = async () => {
     try {
       await Share.share({
         title: 'Koku DNA\'m - AROMIXEN',
-        message: `${scentIdentity.emoji} Benim koku kimliğim: ${scentIdentity.title}\n\n${scentIdentity.desc}\n\nBaskın tipim: ${dominantType}\n\n#AROMIXEN ile keşfet!`,
+        message: `${scentIdentity.emoji} Koku kimliğim: ${scentIdentity.title}\n${scentIdentity.desc}\n\n#AROMIXEN`,
       });
     } catch (error) {
       console.error('Share error:', error);
@@ -174,87 +132,34 @@ export default function ProfileScreen() {
   };
 
   const handleClearHistory = () => {
-    if (recentlyViewed.length === 0 && searchHistory.length === 0) {
-      Alert.alert('Bilgi', 'Temizlenecek geçmiş bulunmuyor');
-      return;
-    }
-    Alert.alert(
-      'Geçmişi Temizle',
-      'Son görüntülenen parfümler ve arama geçmişi silinecek.',
-      [
-        { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Temizle', 
-          onPress: async () => {
-            await clearRecentlyViewedList();
-            await clearSearchHistoryList();
-            Alert.alert('Başarılı', 'Geçmiş temizlendi');
-          }
-        },
-      ]
-    );
+    if (recentlyViewed.length === 0 && searchHistory.length === 0) return;
+    Alert.alert('Geçmişi Temizle', 'Tüm geçmiş silinecek.', [
+      { text: 'İptal', style: 'cancel' },
+      { text: 'Temizle', onPress: async () => { await clearRecentlyViewedList(); await clearSearchHistoryList(); } },
+    ]);
   };
 
   const handleClearFavorites = () => {
-    if (favorites.length === 0) {
-      Alert.alert('Bilgi', 'Favori parfümünüz bulunmuyor');
-      return;
-    }
-    Alert.alert(
-      'Favorileri Temizle',
-      `${favorites.length} favori parfüm silinecek.`,
-      [
-        { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Temizle', 
-          style: 'destructive',
-          onPress: async () => {
-            await clearFavoritesList();
-            Alert.alert('Başarılı', 'Favoriler temizlendi');
-          }
-        },
-      ]
-    );
+    if (favorites.length === 0) return;
+    Alert.alert('Favorileri Temizle', `${favorites.length} favori silinecek.`, [
+      { text: 'İptal', style: 'cancel' },
+      { text: 'Temizle', style: 'destructive', onPress: () => clearFavoritesList() },
+    ]);
   };
 
   const handleClearCollections = () => {
-    if (collections.length === 0) {
-      Alert.alert('Bilgi', 'Koleksiyonunuz bulunmuyor');
-      return;
-    }
-    Alert.alert(
-      'Koleksiyonları Temizle',
-      `${collections.length} koleksiyon silinecek.`,
-      [
-        { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Temizle', 
-          style: 'destructive',
-          onPress: async () => {
-            await clearCollectionsList();
-            Alert.alert('Başarılı', 'Koleksiyonlar temizlendi');
-          }
-        },
-      ]
-    );
+    if (collections.length === 0) return;
+    Alert.alert('Koleksiyonları Temizle', `${collections.length} koleksiyon silinecek.`, [
+      { text: 'İptal', style: 'cancel' },
+      { text: 'Temizle', style: 'destructive', onPress: () => clearCollectionsList() },
+    ]);
   };
 
   const handleResetAllData = () => {
-    Alert.alert(
-      'Tüm Verileri Sil',
-      'Tüm tercihleriniz, favorileriniz, koleksiyonlarınız ve geçmişiniz silinecek. Bu işlem geri alınamaz!',
-      [
-        { text: 'İptal', style: 'cancel' },
-        { 
-          text: 'Sil', 
-          style: 'destructive',
-          onPress: async () => {
-            await resetAllData();
-            router.replace('/');
-          }
-        },
-      ]
-    );
+    Alert.alert('Tüm Verileri Sil', 'Bu işlem geri alınamaz!', [
+      { text: 'İptal', style: 'cancel' },
+      { text: 'Sil', style: 'destructive', onPress: async () => { await resetAllData(); router.replace('/'); } },
+    ]);
   };
 
   const hasPreferences = preferences.kokuTipleri.length > 0 || preferences.cinsiyet;
@@ -263,101 +168,57 @@ export default function ProfileScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Header */}
-          <Animated.View 
-            entering={FadeInDown.delay(100).duration(500)}
-            style={styles.header}
-          >
-            <LinearGradient
-              colors={[colors.tint + '20', colors.tint + '05']}
-              style={styles.headerGradient}
-            >
-              <View style={[styles.avatarContainer, { backgroundColor: colors.tint + '30' }]}>
-                <Ionicons name="person" size={40} color={colors.tint} />
-              </View>
-              <ThemedText type="title" style={styles.headerTitle}>
-                Koku Profilim
-              </ThemedText>
-              <ThemedText type="body" center style={{ opacity: 0.8 }}>
-                Kişisel parfüm tercihlerin
-              </ThemedText>
-            </LinearGradient>
+          <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.header}>
+            <View style={[styles.avatarContainer, { backgroundColor: colors.tint + '15' }]}>
+              <Ionicons name="person" size={32} color={colors.tint} />
+            </View>
+            <ThemedText type="title" style={styles.headerTitle}>Profilim</ThemedText>
           </Animated.View>
 
           {/* Stats */}
-          <Animated.View 
-            entering={FadeInDown.delay(200).duration(500)}
-            style={styles.statsContainer}
-          >
+          <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.statsRow}>
             <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <ThemedText style={[styles.statNumber, { color: '#9D4EDD' }]}>
-                {favorites.length}
-              </ThemedText>
-              <ThemedText type="caption">Favori</ThemedText>
+              <ThemedText style={[styles.statNumber, { color: '#FF6B9D' }]}>{favorites.length}</ThemedText>
+              <ThemedText type="caption" style={{ color: colors.textMuted }}>Favori</ThemedText>
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <ThemedText style={[styles.statNumber, { color: '#FF6B9D' }]}>
-                {collections.length}
-              </ThemedText>
-              <ThemedText type="caption">Koleksiyon</ThemedText>
+              <ThemedText style={[styles.statNumber, { color: '#9D4EDD' }]}>{collections.length}</ThemedText>
+              <ThemedText type="caption" style={{ color: colors.textMuted }}>Koleksiyon</ThemedText>
             </View>
             <View style={[styles.statCard, { backgroundColor: colors.card }]}>
-              <ThemedText style={[styles.statNumber, { color: '#00D4AA' }]}>
-                {recentlyViewed.length}
-              </ThemedText>
-              <ThemedText type="caption">Görüntülenen</ThemedText>
+              <ThemedText style={[styles.statNumber, { color: '#00B4D8' }]}>{recentlyViewed.length}</ThemedText>
+              <ThemedText type="caption" style={{ color: colors.textMuted }}>Görüntülenen</ThemedText>
             </View>
           </Animated.View>
 
           {/* Koku DNA */}
           {hasDNA && (
-            <Animated.View entering={FadeInUp.delay(300).duration(500)}>
+            <Animated.View entering={FadeInUp.delay(300).duration(400)}>
               <Card variant="elevated" style={styles.dnaCard}>
                 <View style={styles.dnaHeader}>
                   <View style={styles.dnaHeaderLeft}>
-                    <View style={[styles.cardIcon, { backgroundColor: '#9D4EDD20' }]}>
-                      <Ionicons name="finger-print" size={20} color="#9D4EDD" />
+                    <View style={[styles.iconBg, { backgroundColor: '#9D4EDD15' }]}>
+                      <Ionicons name="finger-print" size={18} color="#9D4EDD" />
                     </View>
-                    <View>
-                      <ThemedText type="heading">Koku DNA'n</ThemedText>
-                      <ThemedText type="caption" style={{ color: colors.textMuted }}>
-                        Senin koku parmak izin
-                      </ThemedText>
-                    </View>
+                    <ThemedText type="heading">Koku DNA</ThemedText>
                   </View>
                   <Pressable onPress={handleShareProfile} style={styles.shareBtn}>
-                    <Ionicons name="share-outline" size={20} color={colors.tint} />
+                    <Ionicons name="share-outline" size={18} color={colors.tint} />
                   </Pressable>
                 </View>
                 
-                {/* Radar Chart */}
                 <View style={styles.radarContainer}>
-                  <RadarChart 
-                    data={radarData} 
-                    size={260}
-                    animate={true}
-                  />
+                  <RadarChart data={radarData} size={Math.min(SCREEN_WIDTH - 80, 260)} animate={true} />
                 </View>
                 
-                {/* Identity Card */}
-                <LinearGradient
-                  colors={['#9D4EDD', '#7B2CBF']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.identityCard}
-                >
+                <LinearGradient colors={['#9D4EDD', '#7B2CBF']} style={styles.identityCard}>
                   <ThemedText style={styles.identityEmoji}>{scentIdentity.emoji}</ThemedText>
                   <ThemedText style={styles.identityTitle}>{scentIdentity.title}</ThemedText>
                   <ThemedText style={styles.identityDesc}>{scentIdentity.desc}</ThemedText>
                   <View style={styles.identityBadge}>
-                    <ThemedText style={styles.identityBadgeText}>
-                      Baskın: {dominantType}
-                    </ThemedText>
+                    <ThemedText style={styles.identityBadgeText}>Baskın: {dominantType}</ThemedText>
                   </View>
                 </LinearGradient>
               </Card>
@@ -366,184 +227,140 @@ export default function ProfileScreen() {
 
           {/* pH Bilgisi */}
           {kullaniciPH && (
-            <Animated.View entering={FadeInUp.delay(400).duration(500)}>
+            <Animated.View entering={FadeInUp.delay(400).duration(400)}>
               <Card variant="elevated" style={styles.phCard}>
                 <View style={styles.cardHeader}>
-                  <View style={[styles.cardIcon, { backgroundColor: '#00D4AA20' }]}>
-                    <Ionicons name="water" size={20} color="#00D4AA" />
+                  <View style={[styles.iconBg, { backgroundColor: '#00D4AA15' }]}>
+                    <Ionicons name="water" size={18} color="#00D4AA" />
                   </View>
                   <ThemedText type="heading">pH Profilim</ThemedText>
                 </View>
                 
                 <View style={styles.phContent}>
-                  <View style={[styles.phCircle, { borderColor: '#00D4AA' }]}>
+                  <View style={styles.phCircle}>
                     <ThemedText style={styles.phValue}>{kullaniciPH.toFixed(1)}</ThemedText>
-                    <ThemedText type="caption">pH</ThemedText>
+                    <ThemedText type="caption" style={{ color: colors.textMuted }}>pH</ThemedText>
                   </View>
                   
                   <View style={styles.phInfo}>
-                    <View style={styles.phInfoRow}>
-                      <ThemedText type="body">Cilt Tipi:</ThemedText>
-                      <ThemedText type="subtitle" style={{ textTransform: 'capitalize' }}>
-                        {preferences.ciltTipi || '-'}
-                      </ThemedText>
+                    <View style={styles.phRow}>
+                      <ThemedText type="body" style={{ color: colors.textMuted }}>Cilt:</ThemedText>
+                      <ThemedText style={styles.phRowValue}>{preferences.ciltTipi || '-'}</ThemedText>
                     </View>
-                    <View style={styles.phInfoRow}>
-                      <ThemedText type="body">Aralık:</ThemedText>
-                      <ThemedText type="subtitle" style={{ textTransform: 'capitalize' }}>
-                        {phSonucu?.aralik || '-'}
-                      </ThemedText>
+                    <View style={styles.phRow}>
+                      <ThemedText type="body" style={{ color: colors.textMuted }}>Aralık:</ThemedText>
+                      <ThemedText style={styles.phRowValue}>{phSonucu?.aralik || '-'}</ThemedText>
                     </View>
-                    {phSonucu && (
-                      <View style={styles.phInfoRow}>
-                        <ThemedText type="body">Güvenilirlik:</ThemedText>
-                        <ThemedText type="subtitle">%{phSonucu.guvenilirlik}</ThemedText>
-                      </View>
-                    )}
                   </View>
                 </View>
               </Card>
             </Animated.View>
           )}
 
-          {/* Current Preferences */}
+          {/* Tercihler */}
           {hasPreferences && (
-            <Animated.View entering={FadeInUp.delay(500).duration(500)}>
-              <Card variant="elevated" style={styles.preferencesCard}>
+            <Animated.View entering={FadeInUp.delay(500).duration(400)}>
+              <Card variant="elevated" style={styles.prefsCard}>
                 <View style={styles.cardHeader}>
-                  <View style={[styles.cardIcon, { backgroundColor: colors.tint + '15' }]}>
-                    <Ionicons name="sparkles" size={20} color={colors.tint} />
+                  <View style={[styles.iconBg, { backgroundColor: colors.tint + '15' }]}>
+                    <Ionicons name="sparkles" size={18} color={colors.tint} />
                   </View>
                   <ThemedText type="heading">Tercihlerim</ThemedText>
                 </View>
 
-                <View style={styles.preferencesList}>
-                  {preferences.cinsiyet && (
-                    <PreferenceRow icon="person-outline" label="Cinsiyet" value={preferences.cinsiyet} colors={colors} />
-                  )}
-                  {preferences.kokuTipleri.length > 0 && (
-                    <PreferenceRow icon="sparkles-outline" label="Koku Tipleri" value={preferences.kokuTipleri.join(', ')} colors={colors} />
-                  )}
-                  {preferences.yogunluk && (
-                    <PreferenceRow icon="speedometer-outline" label="Yoğunluk" value={preferences.yogunluk} colors={colors} />
-                  )}
-                  {preferences.mevsim && (
-                    <PreferenceRow icon="leaf-outline" label="Mevsim" value={preferences.mevsim} colors={colors} />
-                  )}
-                  {preferences.ciltTipi && (
-                    <PreferenceRow icon="hand-left-outline" label="Cilt Tipi" value={preferences.ciltTipi} colors={colors} />
-                  )}
+                <View style={styles.prefsList}>
+                  {preferences.cinsiyet && <PrefRow icon="person-outline" label="Cinsiyet" value={preferences.cinsiyet} colors={colors} />}
+                  {preferences.kokuTipleri.length > 0 && <PrefRow icon="sparkles-outline" label="Koku Tipleri" value={preferences.kokuTipleri.join(', ')} colors={colors} />}
+                  {preferences.yogunluk && <PrefRow icon="speedometer-outline" label="Yoğunluk" value={preferences.yogunluk} colors={colors} />}
+                  {preferences.mevsim && <PrefRow icon="leaf-outline" label="Mevsim" value={preferences.mevsim} colors={colors} />}
                 </View>
               </Card>
             </Animated.View>
           )}
 
-          {/* Actions */}
-          <Animated.View entering={FadeInUp.delay(600).duration(500)}>
+          {/* Aksiyonlar */}
+          <Animated.View entering={FadeInUp.delay(600).duration(400)}>
             <Card variant="elevated" style={styles.actionsCard}>
               <Button
-                title={isOnboardingComplete ? 'Yeni Test Başlat' : 'Koku Testine Başla'}
+                title={isOnboardingComplete ? 'Yeni Test Başlat' : 'Teste Başla'}
                 onPress={handleStartNewQuiz}
                 fullWidth
-                icon={<Ionicons name={isOnboardingComplete ? "refresh-outline" : "sparkles-outline"} size={20} color="#FFFFFF" style={{ marginRight: 8 }} />}
+                icon={<Ionicons name={isOnboardingComplete ? "refresh-outline" : "sparkles-outline"} size={18} color="#FFF" style={{ marginRight: 6 }} />}
               />
-
               {isOnboardingComplete && (
                 <Button
                   title="Önerilerimi Gör"
                   onPress={() => router.push('/results')}
                   variant="outline"
                   fullWidth
-                  style={{ marginTop: Spacing.md }}
-                  icon={<Ionicons name="list-outline" size={20} color={colors.tint} style={{ marginRight: 8 }} />}
+                  style={{ marginTop: Spacing.sm }}
+                  icon={<Ionicons name="list-outline" size={18} color={colors.tint} style={{ marginRight: 6 }} />}
                 />
               )}
             </Card>
           </Animated.View>
 
           {/* Veri Yönetimi */}
-          <Animated.View entering={FadeInUp.delay(700).duration(500)}>
+          <Animated.View entering={FadeInUp.delay(700).duration(400)}>
             <Card variant="elevated" style={styles.settingsCard}>
               <ThemedText type="heading" style={styles.settingsTitle}>Veri Yönetimi</ThemedText>
-
-              <Pressable onPress={handleClearHistory}>
-                <SettingItem icon="time-outline" label="Geçmişi Temizle" value={`${recentlyViewed.length + searchHistory.length} kayıt`} colors={colors} />
+              
+              <Pressable onPress={handleClearHistory} style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <Ionicons name="time-outline" size={18} color={colors.textMuted} />
+                  <ThemedText style={{ marginLeft: Spacing.sm }}>Geçmişi Temizle</ThemedText>
+                </View>
+                <ThemedText type="caption" style={{ color: colors.textMuted }}>{recentlyViewed.length + searchHistory.length}</ThemedText>
               </Pressable>
               
-              <Pressable onPress={handleClearFavorites}>
-                <SettingItem icon="heart-outline" label="Favorileri Temizle" value={`${favorites.length} favori`} colors={colors} />
+              <Pressable onPress={handleClearFavorites} style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <Ionicons name="heart-outline" size={18} color={colors.textMuted} />
+                  <ThemedText style={{ marginLeft: Spacing.sm }}>Favorileri Temizle</ThemedText>
+                </View>
+                <ThemedText type="caption" style={{ color: colors.textMuted }}>{favorites.length}</ThemedText>
               </Pressable>
               
-              <Pressable onPress={handleClearCollections}>
-                <SettingItem icon="folder-outline" label="Koleksiyonları Temizle" value={`${collections.length} koleksiyon`} colors={colors} />
+              <Pressable onPress={handleClearCollections} style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <Ionicons name="folder-outline" size={18} color={colors.textMuted} />
+                  <ThemedText style={{ marginLeft: Spacing.sm }}>Koleksiyonları Temizle</ThemedText>
+                </View>
+                <ThemedText type="caption" style={{ color: colors.textMuted }}>{collections.length}</ThemedText>
               </Pressable>
               
-              <Pressable onPress={handleResetAllData}>
-                <SettingItem icon="trash-outline" label="Tüm Verileri Sil" value="Dikkat!" colors={{...colors, tint: colors.error}} isLast />
+              <Pressable onPress={handleResetAllData} style={[styles.settingRow, { borderBottomWidth: 0 }]}>
+                <View style={styles.settingLeft}>
+                  <Ionicons name="trash-outline" size={18} color={colors.error} />
+                  <ThemedText style={{ marginLeft: Spacing.sm, color: colors.error }}>Tüm Verileri Sil</ThemedText>
+                </View>
               </Pressable>
             </Card>
           </Animated.View>
 
           {/* App Info */}
-          <Animated.View entering={FadeInUp.delay(800).duration(500)}>
-            <View style={styles.appInfo}>
-              <View style={[styles.appLogoSmall, { backgroundColor: colors.tint + '15' }]}>
-                <Ionicons name="sparkles" size={20} color={colors.tint} />
-              </View>
-              <ThemedText type="caption" center style={{ marginTop: Spacing.sm }}>
-                AROMIXEN v1.0.0
-              </ThemedText>
-              <ThemedText type="caption" center style={{ opacity: 0.6, marginTop: 2 }}>
-                Kişisel parfüm öneri uygulamanız
-              </ThemedText>
+          <View style={styles.appInfo}>
+            <View style={[styles.appLogo, { backgroundColor: colors.tint + '15' }]}>
+              <Ionicons name="sparkles" size={16} color={colors.tint} />
             </View>
-          </Animated.View>
+            <ThemedText type="caption" style={{ color: colors.textMuted }}>AROMIXEN v1.0.0</ThemedText>
+          </View>
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: 120 }} />
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
 }
 
-function PreferenceRow({ icon, label, value, colors }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-  colors: typeof Colors.light;
-}) {
+function PrefRow({ icon, label, value, colors }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; colors: typeof Colors.light }) {
   return (
-    <View style={styles.preferenceRow}>
-      <View style={styles.preferenceLeft}>
-        <Ionicons name={icon} size={18} color={colors.icon} />
-        <ThemedText type="body" style={styles.preferenceLabel}>{label}</ThemedText>
+    <View style={styles.prefRow}>
+      <View style={styles.prefLeft}>
+        <Ionicons name={icon} size={16} color={colors.textMuted} />
+        <ThemedText style={styles.prefLabel}>{label}</ThemedText>
       </View>
-      <View style={[styles.preferenceBadge, { backgroundColor: colors.tint + '15' }]}>
-        <ThemedText style={[styles.preferenceValue, { color: colors.tint }]} numberOfLines={1}>
-          {value}
-        </ThemedText>
-      </View>
-    </View>
-  );
-}
-
-function SettingItem({ icon, label, value, colors, isLast = false }: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-  colors: typeof Colors.light;
-  isLast?: boolean;
-}) {
-  return (
-    <View style={[styles.settingItem, !isLast && { borderBottomWidth: 1, borderBottomColor: colors.border + '30' }]}>
-      <View style={styles.settingLeft}>
-        <Ionicons name={icon} size={20} color={colors.tint} />
-        <ThemedText style={styles.settingLabel}>{label}</ThemedText>
-      </View>
-      <View style={styles.settingRight}>
-        <ThemedText type="caption" style={{ color: colors.textMuted }}>{value}</ThemedText>
-        <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-      </View>
+      <ThemedText style={[styles.prefValue, { color: colors.tint }]} numberOfLines={1}>{value}</ThemedText>
     </View>
   );
 }
@@ -552,196 +369,44 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safeArea: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: Spacing['2xl'] },
-  header: { marginBottom: Spacing.lg },
-  headerGradient: {
-    alignItems: 'center',
-    paddingTop: Spacing['2xl'],
-    paddingBottom: Spacing['2xl'],
-  },
-  avatarContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: BorderRadius['2xl'],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  headerTitle: { marginBottom: Spacing.xs },
-  statsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    padding: Spacing.base,
-    borderRadius: BorderRadius.lg,
-  },
-  statNumber: {
-    fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
-  },
-  dnaCard: {
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-  dnaHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-  },
-  dnaHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  shareBtn: {
-    padding: Spacing.sm,
-  },
-  radarContainer: {
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  identityCard: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.xl,
-    alignItems: 'center',
-  },
-  identityEmoji: {
-    fontSize: 40,
-    marginBottom: Spacing.sm,
-  },
-  identityTitle: {
-    color: '#FFF',
-    fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
-    marginBottom: Spacing.xs,
-  },
-  identityDesc: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: FontSizes.sm,
-    textAlign: 'center',
-    marginBottom: Spacing.md,
-  },
-  identityBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-  },
-  identityBadgeText: {
-    color: '#FFF',
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semiBold,
-  },
-  phCard: {
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  cardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-  },
-  phContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xl,
-  },
-  phCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  phValue: {
-    fontSize: FontSizes['2xl'],
-    fontWeight: FontWeights.bold,
-  },
-  phInfo: {
-    flex: 1,
-    gap: Spacing.sm,
-  },
-  phInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  preferencesCard: {
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-  preferencesList: { gap: Spacing.sm },
-  preferenceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.xs,
-  },
-  preferenceLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  preferenceLabel: { marginLeft: Spacing.md },
-  preferenceBadge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    maxWidth: '50%',
-  },
-  preferenceValue: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semiBold,
-    textTransform: 'capitalize',
-  },
-  actionsCard: {
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-  settingsCard: {
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
-  },
-  settingsTitle: { marginBottom: Spacing.lg },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-  },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  settingLabel: { marginLeft: Spacing.md },
-  appInfo: {
-    alignItems: 'center',
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.xl,
-  },
-  appLogoSmall: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.lg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  scrollContent: { paddingHorizontal: Spacing.xl },
+  header: { alignItems: 'center', paddingTop: Spacing.xl, paddingBottom: Spacing.lg },
+  avatarContainer: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.md },
+  headerTitle: { fontSize: FontSizes.xl },
+  statsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
+  statCard: { flex: 1, alignItems: 'center', padding: Spacing.md, borderRadius: BorderRadius.lg },
+  statNumber: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold },
+  dnaCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
+  dnaHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
+  dnaHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  shareBtn: { padding: Spacing.xs },
+  radarContainer: { alignItems: 'center', marginBottom: Spacing.lg },
+  identityCard: { padding: Spacing.lg, borderRadius: BorderRadius.xl, alignItems: 'center' },
+  identityEmoji: { fontSize: 32, marginBottom: Spacing.xs },
+  identityTitle: { color: '#FFF', fontSize: FontSizes.lg, fontWeight: FontWeights.bold },
+  identityDesc: { color: 'rgba(255,255,255,0.8)', fontSize: FontSizes.sm, textAlign: 'center', marginTop: 4, marginBottom: Spacing.sm },
+  identityBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: BorderRadius.full },
+  identityBadgeText: { color: '#FFF', fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold },
+  phCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md },
+  iconBg: { width: 32, height: 32, borderRadius: BorderRadius.md, justifyContent: 'center', alignItems: 'center' },
+  phContent: { flexDirection: 'row', alignItems: 'center', gap: Spacing.lg },
+  phCircle: { width: 64, height: 64, borderRadius: 32, borderWidth: 3, borderColor: '#00D4AA', justifyContent: 'center', alignItems: 'center' },
+  phValue: { fontSize: FontSizes.xl, fontWeight: FontWeights.bold },
+  phInfo: { flex: 1, gap: Spacing.xs },
+  phRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  phRowValue: { fontWeight: FontWeights.semiBold, textTransform: 'capitalize' },
+  prefsCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
+  prefsList: { gap: Spacing.sm },
+  prefRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  prefLeft: { flexDirection: 'row', alignItems: 'center' },
+  prefLabel: { marginLeft: Spacing.sm },
+  prefValue: { fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold, textTransform: 'capitalize', maxWidth: '50%' },
+  actionsCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
+  settingsCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
+  settingsTitle: { marginBottom: Spacing.md },
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  settingLeft: { flexDirection: 'row', alignItems: 'center' },
+  appInfo: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.xs },
+  appLogo: { width: 32, height: 32, borderRadius: BorderRadius.md, justifyContent: 'center', alignItems: 'center' },
 });
