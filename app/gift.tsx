@@ -3,21 +3,21 @@
  * Hediye parfüm önerileri
  */
 
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Dimensions, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useMemo, useState } from 'react';
+import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight, SlideInUp } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Card, Button } from '@/components/ui';
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Button, Card } from '@/components/ui';
+import { BorderRadius, Colors, FontSizes, FontWeights, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
-import { Parfum, GiftRecipient, GiftOccasion, Butce, KisilikTipi, Cinsiyet, CiltTipi, TerlemeOrani, YasGrubu } from '@/types';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Butce, CiltTipi, Cinsiyet, GiftOccasion, GiftRecipient, KisilikTipi, Parfum, TerlemeOrani, YasGrubu } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -156,7 +156,7 @@ const GIFT_MESSAGES: Record<GiftRecipient, string[]> = {
   ],
 };
 
-type Step = 'recipient' | 'occasion' | 'budget' | 'style' | 'skin_info' | 'results';
+type Step = 'recipient' | 'style' | 'occasion' | 'skin_info' | 'budget' | 'results';
 
 export default function GiftScreen() {
   const router = useRouter();
@@ -299,7 +299,7 @@ export default function GiftScreen() {
   }, [parfumler, selectedRecipient, selectedOccasion, selectedBudget, selectedStyle, recipientPH, recipientSkinType]);
 
   const handleNext = () => {
-    const steps: Step[] = ['recipient', 'occasion', 'budget', 'style', 'skin_info', 'results'];
+    const steps: Step[] = ['recipient', 'style', 'occasion', 'skin_info', 'budget', 'results'];
     const currentIndex = steps.indexOf(step);
     if (currentIndex < steps.length - 1) {
       setStep(steps[currentIndex + 1]);
@@ -307,7 +307,7 @@ export default function GiftScreen() {
   };
 
   const handleBack = () => {
-    const steps: Step[] = ['recipient', 'occasion', 'budget', 'style', 'skin_info', 'results'];
+    const steps: Step[] = ['recipient', 'style', 'occasion', 'skin_info', 'budget', 'results'];
     const currentIndex = steps.indexOf(step);
     if (currentIndex > 0) {
       setStep(steps[currentIndex - 1]);
