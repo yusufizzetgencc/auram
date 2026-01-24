@@ -3,24 +3,24 @@
  * pH Bazlı Kişiselleştirilmiş Parfüm Önerileri
  */
 
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-  Modal,
-  Animated,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { BorderRadius, Colors, Shadows, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
 import { RecommendationResult } from '@/types';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+    Animated,
+    Dimensions,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 
@@ -167,7 +167,7 @@ export default function ResultsScreen() {
               </View>
               <View style={styles.tag}>
                 <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
-                <Text style={[styles.tagText, { color: colors.textSecondary }]}>{parfum.mevsim.join(', ')}</Text>
+                <Text style={[styles.tagText, { color: colors.textSecondary }]}>{(parfum.mevsim || []).join(', ') || 'Tüm Mevsimler'}</Text>
               </View>
             </View>
 

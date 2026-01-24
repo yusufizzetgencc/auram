@@ -3,20 +3,19 @@
  * 2-3 parfümü yan yana karşılaştır
  */
 
-import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useMemo } from 'react';
+import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BorderRadius, Colors, FontSizes, FontWeights, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Parfum } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -66,8 +65,8 @@ export default function CompareScreen() {
   const seasonOverlap = useMemo(() => {
     if (compareParfums.length < 2) return [];
     
-    const allSeasons = compareParfums.map(p => p.mevsim);
-    return allSeasons[0].filter(season =>
+    const allSeasons = compareParfums.map(p => p.mevsim || []);
+    return (allSeasons[0] || []).filter(season =>
       allSeasons.every(seasons => seasons.includes(season))
     );
   }, [compareParfums]);
@@ -250,7 +249,7 @@ export default function CompareScreen() {
               
               <View style={styles.seasonsGrid}>
                 {['İlkbahar', 'Yaz', 'Sonbahar', 'Kış'].map((season) => {
-                  const count = compareParfums.filter(p => p.mevsim.includes(season as any)).length;
+                  const count = compareParfums.filter(p => (p.mevsim || []).includes(season as any)).length;
                   const isOverlap = count === compareParfums.length;
                   
                   return (

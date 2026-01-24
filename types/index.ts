@@ -312,7 +312,7 @@ export interface ScentCalendarEntry {
 }
 
 // 📊 Mood Tracker
-export type MoodType = 'enerjik' | 'romantik' | 'profesyonel' | 'rahat' | 'gizemi' | 'cesur' | 'mutlu' | 'sakin';
+export type MoodType = 'enerjik' | 'romantik' | 'profesyonel' | 'rahat' | 'gizemli' | 'cesur' | 'mutlu' | 'sakin';
 
 export interface MoodEntry {
   id: string;

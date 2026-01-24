@@ -3,28 +3,24 @@
  * Parfüm kullanım takvimi
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Dimensions, Modal, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Card, Button } from '@/components/ui';
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Card } from '@/components/ui';
+import { BorderRadius, Colors, FontSizes, FontWeights, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
-import { ScentCalendarEntry, Parfum } from '@/types';
-import { 
-  loadScentCalendar, 
-  addCalendarEntry, 
-  getCalendarEntriesForMonth,
-  getLastUsedDate,
-  getParfumUsageCount,
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import {
+    addCalendarEntry,
+    getCalendarEntriesForMonth
 } from '@/services/storage';
+import { Parfum, ScentCalendarEntry } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DAY_SIZE = (SCREEN_WIDTH - Spacing.xl * 2 - Spacing.xs * 6) / 7;
@@ -269,12 +265,12 @@ export default function CalendarScreen() {
                     >
                       <ThemedText style={[
                         styles.dayText,
-                        isToday(day) && { color: colors.tint, fontWeight: FontWeights.bold },
+                        isToday(day) ? { color: colors.tint, fontWeight: FontWeights.bold } : {},
                       ]}>
                         {day}
                       </ThemedText>
                       {entry && (
-                        <View style={[styles.dayIndicator, { backgroundColor: typeColor }]}>
+                        <View style={[styles.dayIndicator, { backgroundColor: typeColor || 'transparent' }]}>
                           {entry.rating && entry.rating >= 4 && (
                             <Ionicons name="star" size={8} color="#FFF" />
                           )}

@@ -3,21 +3,21 @@
  * Parfüm katmanlama önerileri
  */
 
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Card, Button } from '@/components/ui';
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Card } from '@/components/ui';
+import { BorderRadius, Colors, FontSizes, FontWeights, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
-import { Parfum, KokuTipi, LayeringRule } from '@/types';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { LayeringRule, Parfum } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -180,7 +180,7 @@ export default function LayeringScreen() {
         }
 
         // Aynı mevsim
-        const commonSeasons = baseParfum.mevsim.filter(s => parfum.mevsim.includes(s));
+        const commonSeasons = (baseParfum.mevsim || []).filter(s => (parfum.mevsim || []).includes(s));
         if (commonSeasons.length > 0) {
           score += 10;
         }

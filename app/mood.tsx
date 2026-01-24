@@ -3,32 +3,30 @@
  * Ruh haline göre parfüm önerileri
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { 
-  FadeIn, 
-  FadeInDown, 
-  FadeInUp, 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withSpring,
-  withSequence,
-  withTiming,
-  Easing,
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, {
+    FadeIn,
+    FadeInDown,
+    FadeInUp,
+    useAnimatedStyle,
+    useSharedValue,
+    withSequence,
+    withSpring
 } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Card, Button } from '@/components/ui';
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Card } from '@/components/ui';
+import { BorderRadius, Colors, FontSizes, FontWeights, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
-import { MoodType, MoodParfumMatch, Parfum, KokuTipi } from '@/types';
-import { addMoodEntry, getTodaysMood, loadMoodHistory } from '@/services/storage';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { addMoodEntry, getTodaysMood } from '@/services/storage';
+import { MoodParfumMatch, MoodType, Parfum } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -160,7 +158,7 @@ export default function MoodTrackerScreen() {
         }
         
         // Etiket uyumu
-        const matchingTags = parfum.etiketler.filter(tag => 
+        const matchingTags = (parfum.etiketler || []).filter(tag => 
           moodData.characteristics.some(c => tag.toLowerCase().includes(c.toLowerCase()))
         );
         score += matchingTags.length * 10;
@@ -285,7 +283,7 @@ export default function MoodTrackerScreen() {
               {/* Seçilen Mood */}
               <Pressable onPress={() => setShowResults(false)}>
                 <LinearGradient
-                  colors={selectedMoodData.colors}
+                  colors={selectedMoodData.colors as [string, string, ...string[]]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.selectedMoodCard}
@@ -393,7 +391,7 @@ function MoodCard({
     >
       <Pressable onPress={handlePress}>
         <LinearGradient
-          colors={isSelected ? mood.colors : [colors.card, colors.card]}
+          colors={(isSelected ? mood.colors : [colors.card, colors.card]) as [string, string, ...string[]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[
