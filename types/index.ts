@@ -179,54 +179,65 @@ export interface UserPHInfo {
   aralik: PHAraligi | null;
 }
 
-// Kullanıcı Tercihleri - Kapsamlı Genişletilmiş
+// Yeni pH ve Biyolojik Analiz Tipleri
+export type GumusOksitlenme = 'asidik' | 'notr_alkali' | 'emin_degil';
+export type SuTuketimi = 'az' | 'normal' | 'cok';
+export type BeslenmeAliskanligi = 'asidik' | 'notr' | 'alkali';
+export type VucutIsisi = 'sicak' | 'serin' | 'dengeli';
+export type ParfumReaksiyonu = 'tatli_pudrali' | 'eksi_uzaklasir' | 'ayni_kalir';
+export type UygulamaYeri = 'sadece_ten' | 'ten_kiyafet' | 'sadece_kiyafet';
+export type Aura = 'temiz' | 'gizemli' | 'cekici' | 'dinamik' | 'otoriter';
+export type CinsiyetAlgisi = 'feminen' | 'maskulen' | 'unisex';
+
+// Kullanıcı Tercihleri - Biyolojik Odaklı YENİ Yapı
 export interface UserPreferences {
-  // pH Bilgileri
+  // 0️⃣ Temel / Zorunlu pH (Eğer formülle hesaplanacaksa burada tutulur)
   phInfo: UserPHInfo;
   
-  // 1️⃣ Kişisel Bilgiler (YENİ)
-  yasGrubu: YasGrubu | null;
-  kisilikTipi: KisilikTipi | null;
-  
-  // 2️⃣ Parfüm Deneyimi (YENİ)
-  deneyimSeviyesi: DeneyimSeviyesi | null;
-  kullanimSikligi: KullanimSikligi | null;
-  
-  // 3️⃣ Bütçe ve Marka (YENİ)
-  butce: Butce | null;
-  markaTercihi: MarkaTercihi | null;
-  konsantrasyonTercihi: KonsantrasyonTercihi | null;
-  
-  // 4️⃣ Koku Tercihleri
-  kokuTipleri: KokuTipi[];
-  yogunluk: KokuYogunlugu | null;
-  izlenimHedefi: IzlenimHedefi | null;
-  
-  // 5️⃣ Kullanım Detayları
-  kullanimAmaci: KullanimAmaci | null;
-  gununSaati: GununSaati | null;
-  cinsiyet: Cinsiyet | null;
-  
-  // 6️⃣ Fiziksel Özellikler
+  // 🧬 Bölüm 1: Biyolojik İmza ve pH Analizi (Ten Kimyası)
   ciltTipi: CiltTipi | null;
-  ciltHassasiyeti: CiltHassasiyeti | null;
+  gumusOksitlenme: GumusOksitlenme | null;
+  suTuketimi: SuTuketimi | null;
+  beslenmeAliskanligi: BeslenmeAliskanligi | null;
   terlemeOrani: TerlemeOrani | null;
+  vucutIsisi: VucutIsisi | null;
+
+  // 🧪 Bölüm 2: Koku Reaksiyonu ve Uygulama Alışkanlığı
+  parfumReaksiyonu: ParfumReaksiyonu | null;
+  uygulamaYeri: UygulamaYeri | null;
   kokuAlmaHassasiyeti: KokuAlmaHassasiyeti | null;
-  alerjiDurumu: AlerjiDurumu[];
-  
-  // 7️⃣ Çevre Faktörleri
-  mevsim: Mevsim | null;
-  iklim: Iklim | null;
+
+  // 🎭 Bölüm 3: Aura ve Koku Karakteri
+  aura: Aura | null;
+  kokuTipleri: KokuTipi[];
+  kacinilacakNotalar: string[]; // (aşırı şekerli vb. temsili notalar tutulabilir veya sadece string key)
+  cinsiyetAlgisi: CinsiyetAlgisi | null;
+
+  // 👔 Bölüm 4: Yaşam Dinamikleri
   ortam: Ortam | null;
-  
-  // 8️⃣ Yaşam Tarzı
   kiyafetStili: KiyafetStili | null;
-  aktivite: AktiviteYogunlugu | null;
-  
-  // 9️⃣ Nota Tercihleri
-  sevilenNotalar: string[];
-  sevilmeyenNotalar: string[];
-  kalicilikTercihi: KalicilikTercihi | null;
+
+  // Geriye dönük uyumluluk veya API için saklanabilecek (fakat onboarding'de sorulmayan) bazı opsiyonel alanlar
+  yasGrubu?: YasGrubu | null;
+  kisilikTipi?: KisilikTipi | null;
+  deneyimSeviyesi?: DeneyimSeviyesi | null;
+  kullanimSikligi?: KullanimSikligi | null;
+  butce?: Butce | null;
+  markaTercihi?: MarkaTercihi | null;
+  konsantrasyonTercihi?: KonsantrasyonTercihi | null;
+  yogunluk?: KokuYogunlugu | null;
+  izlenimHedefi?: IzlenimHedefi | null;
+  kullanimAmaci?: KullanimAmaci | null;
+  gununSaati?: GununSaati | null;
+  cinsiyet?: Cinsiyet | null;
+  ciltHassasiyeti?: CiltHassasiyeti | null;
+  alerjiDurumu?: AlerjiDurumu[];
+  mevsim?: Mevsim | null;
+  iklim?: Iklim | null;
+  aktivite?: AktiviteYogunlugu | null;
+  sevilenNotalar?: string[];
+  sevilmeyenNotalar?: string[];
+  kalicilikTercihi?: KalicilikTercihi | null;
 }
 
 // pH Hesaplama Sonucu
@@ -431,4 +442,59 @@ export interface ScheduledNotification {
   data?: Record<string, string>;
   scheduledFor: string;
   sent: boolean;
+}
+
+// 🏆 SOTD — Günün Kokusu
+export interface SOTDEntry {
+  id: string;
+  parfumId: string;
+  date: string;             // "YYYY-MM-DD"
+  weather?: {
+    temp: number;
+    condition: string;
+    city: string;
+  };
+  createdAt: string;
+}
+
+// 🔥 Streak (Seri) Sistemi
+export interface StreakData {
+  currentStreak: number;    // Mevcut ardışık gün
+  longestStreak: number;    // En uzun seri
+  lastSOTDDate: string | null;  // Son SOTD tarihi
+  totalSOTDs: number;       // Toplam seçim sayısı
+  badges: StreakBadge[];    // Kazanılan rozetler
+}
+
+export interface StreakBadge {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  requiredStreak: number;
+  earnedAt: string;
+}
+
+// 📊 Performans Günlüğü (Akşam Değerlendirmesi)
+export interface PerformanceLog {
+  id: string;
+  parfumId: string;
+  date: string;
+  longevity: number;        // 1-5 ⭐
+  compliment: boolean;      // İltifat aldın mı?
+  personalRating: number;   // 1-10 slider
+  note?: string;
+  createdAt: string;
+}
+
+// 📈 Aylık İstatistikler (Wrapped)
+export interface MonthlyStats {
+  month: number;
+  year: number;
+  totalDays: number;
+  mostUsedParfumId: string | null;
+  mostComplimentedParfumId: string | null;
+  averageLongevity: number;
+  complimentRate: number;   // %
+  topParfums: { parfumId: string; count: number; compliments: number }[];
 }

@@ -5,7 +5,7 @@
  */
 
 import { BorderRadius, Colors, Shadows, Spacing } from '@/constants/theme';
-import { useApp } from '@/context/AppContext';
+import { useApp, hesaplaPHPure } from '@/context/AppContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
     OnboardingStep,
@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
     Animated,
     Dimensions,
@@ -32,414 +32,213 @@ const { width, height } = Dimensions.get('window');
 
 // ============ KAPSAMLI ONBOARDING ADIMLARI ============
 const onboardingSteps: OnboardingStep[] = [
-  // ========== BÖLÜM 1: KİŞİSEL BİLGİLER ==========
-  {
-    id: 'cinsiyet',
-    kategori: 'Kişisel Bilgiler',
-    title: 'Parfüm Tercihiniz',
-    subtitle: 'Size uygun parfüm yönlendirmesi',
-    type: 'single',
-    field: 'cinsiyet',
-    options: [
-      { id: 'erkek', title: 'Erkek', subtitle: 'Maskülen kokular', icon: 'man-outline', color: '#00B4D8', emoji: '👔' },
-      { id: 'kadın', title: 'Kadın', subtitle: 'Feminen kokular', icon: 'woman-outline', color: '#FF6B9D', emoji: '👗' },
-      { id: 'unisex', title: 'Unisex', subtitle: 'Cinsiyetsiz kokular', icon: 'people-outline', color: '#9D4EDD', emoji: '⚧️' },
-    ],
-  },
-  {
-    id: 'yas_grubu',
-    kategori: 'Kişisel Bilgiler',
-    title: 'Yaş Grubunuz Nedir?',
-    subtitle: 'Yaşınıza uygun koku profilleri önerilir',
-    type: 'single',
-    field: 'yasGrubu',
-    options: [
-      { id: '18-24', title: '18-24', subtitle: 'Genç ve dinamik', icon: 'sparkles-outline', color: '#FF6B9D', emoji: '✨' },
-      { id: '25-34', title: '25-34', subtitle: 'Enerjik ve modern', icon: 'flash-outline', color: '#00D4AA', emoji: '⚡' },
-      { id: '35-44', title: '35-44', subtitle: 'Olgun ve sofistike', icon: 'diamond-outline', color: '#9D4EDD', emoji: '💎' },
-      { id: '45-54', title: '45-54', subtitle: 'Deneyimli ve zarif', icon: 'star-outline', color: '#FF8C42', emoji: '⭐' },
-      { id: '55+', title: '55+', subtitle: 'Klasik ve zamansız', icon: 'ribbon-outline', color: '#C9A227', emoji: '👑' },
-    ],
-  },
-  {
-    id: 'kisilik_tipi',
-    kategori: 'Kişisel Bilgiler',
-    title: 'Kendinizi Nasıl Tanımlarsınız?',
-    subtitle: 'Kişiliğinize uygun kokular önerilir',
-    type: 'single',
-    field: 'kisilikTipi',
-    options: [
-      { id: 'romantik', title: 'Romantik', subtitle: 'Duygusal ve hassas', icon: 'heart-outline', color: '#FF6B9D', emoji: '💕' },
-      { id: 'dinamik', title: 'Dinamik', subtitle: 'Enerjik ve aktif', icon: 'flash-outline', color: '#00D4AA', emoji: '🚀' },
-      { id: 'sofistike', title: 'Sofistike', subtitle: 'Zarif ve seçici', icon: 'diamond-outline', color: '#9D4EDD', emoji: '💎' },
-      { id: 'dogal', title: 'Doğal', subtitle: 'Sade ve samimi', icon: 'leaf-outline', color: '#2ECC71', emoji: '🌿' },
-      { id: 'cesur', title: 'Cesur', subtitle: 'Göze çarpan ve güçlü', icon: 'flame-outline', color: '#E63946', emoji: '🔥' },
-      { id: 'mistik', title: 'Mistik', subtitle: 'Gizemli ve derin', icon: 'moon-outline', color: '#5A189A', emoji: '🌙' },
-    ],
-  },
-  // ========== BÖLÜM 2: KOKU TERCİHLERİ ==========
-  {
-    id: 'koku_tipleri',
-    kategori: 'Koku Tercihleri',
-    title: 'Hangi Koku Tiplerini Seviyorsunuz?',
-    subtitle: 'Birden fazla seçebilirsiniz (en az 1)',
-    type: 'multiple',
-    field: 'kokuTipleri',
-    required: true,
-    options: [
-      { id: 'Çiçeksi', title: 'Çiçeksi', subtitle: 'Gül, yasemin, lavanta', icon: 'flower-outline', color: '#FF6B9D', emoji: '🌸' },
-      { id: 'Odunsu', title: 'Odunsu', subtitle: 'Sandal, sedir, paçuli', icon: 'leaf-outline', color: '#8B5A2B', emoji: '🌲' },
-      { id: 'Ferah', title: 'Ferah', subtitle: 'Narenciye, deniz, nane', icon: 'water-outline', color: '#00D4AA', emoji: '🌊' },
-      { id: 'Amber', title: 'Amber', subtitle: 'Vanilya, amber, reçine', icon: 'flame-outline', color: '#FF8C42', emoji: '🔥' },
-      { id: 'Baharatlı', title: 'Baharatlı', subtitle: 'Tarçın, karanfil, biber', icon: 'sparkles-outline', color: '#E63946', emoji: '🌶️' },
-      { id: 'Meyvemsi', title: 'Meyvemsi', subtitle: 'Şeftali, elma, mango', icon: 'nutrition-outline', color: '#FF69B4', emoji: '🍑' },
-      { id: 'Tatlı', title: 'Tatlı', subtitle: 'Karamel, çikolata', icon: 'ice-cream-outline', color: '#FFB4D1', emoji: '🍫' },
-      { id: 'Yeşil', title: 'Yeşil', subtitle: 'Yeşil çay, bambu, ot', icon: 'leaf-outline', color: '#2ECC71', emoji: '🌿' },
-      { id: 'Oryantal', title: 'Oryantal', subtitle: 'Oud, safran, baharat', icon: 'moon-outline', color: '#C9A227', emoji: '🌙' },
-      { id: 'Aquatik', title: 'Aquatik', subtitle: 'Okyanus, yağmur', icon: 'boat-outline', color: '#00B4D8', emoji: '🌊' },
-    ],
-  },
-  {
-    id: 'yogunluk',
-    kategori: 'Koku Tercihleri',
-    title: 'Hangi Yoğunlukta Kokular Tercih Edersiniz?',
-    subtitle: 'Parfümün güç seviyesi',
-    type: 'single',
-    field: 'yogunluk',
-    options: [
-      { id: 'hafif', title: 'Hafif', subtitle: 'Yakın mesafede hissedilir', icon: 'remove-outline', color: '#00D4AA', emoji: '🌬️' },
-      { id: 'orta', title: 'Orta', subtitle: 'Dengeli yoğunluk', icon: 'reorder-two-outline', color: '#9D4EDD', emoji: '⚖️' },
-      { id: 'yogun', title: 'Yoğun', subtitle: 'Uzaktan bile hissedilir', icon: 'reorder-four-outline', color: '#E63946', emoji: '💪' },
-    ],
-  },
-  {
-    id: 'izlenim',
-    kategori: 'Koku Tercihleri',
-    title: 'Nasıl Bir İzlenim Bırakmak İstersiniz?',
-    subtitle: 'Kokunuzun yansıtmasını istediğiniz his',
-    type: 'single',
-    field: 'izlenimHedefi',
-    options: [
-      { id: 'cekici', title: 'Çekici', subtitle: 'Etkileyici ve baştan çıkarıcı', icon: 'heart-outline', color: '#E63946', emoji: '💋' },
-      { id: 'profesyonel', title: 'Profesyonel', subtitle: 'Ciddi ve güvenilir', icon: 'briefcase-outline', color: '#5A189A', emoji: '💼' },
-      { id: 'taze', title: 'Taze', subtitle: 'Temiz ve bakımlı', icon: 'sparkles-outline', color: '#00D4AA', emoji: '✨' },
-      { id: 'gizemli', title: 'Gizemli', subtitle: 'Merak uyandıran', icon: 'moon-outline', color: '#240046', emoji: '🌙' },
-      { id: 'sicak', title: 'Sıcak', subtitle: 'Samimi ve davetkar', icon: 'heart-outline', color: '#FF8C42', emoji: '🔥' },
-      { id: 'enerjik', title: 'Enerjik', subtitle: 'Dinamik ve canlı', icon: 'flash-outline', color: '#FFE66D', emoji: '⚡' },
-    ],
-  },
-  {
-    id: 'kalicilik',
-    kategori: 'Koku Alışkanlıkları',
-    title: 'Ne Kadar Kalıcılık İstersiniz?',
-    subtitle: 'Parfümün cildinizde kalma süresi',
-    type: 'single',
-    field: 'kalicilikTercihi',
-    options: [
-      { id: 'kisa', title: 'Kısa (2-4 saat)', subtitle: 'Hafif ve uçucu', icon: 'time-outline', color: '#00D4AA', emoji: '⏱️' },
-      { id: 'orta', title: 'Orta (4-6 saat)', subtitle: 'Dengeli', icon: 'hourglass-outline', color: '#9D4EDD', emoji: '⏳' },
-      { id: 'uzun', title: 'Uzun (6+ saat)', subtitle: 'Güçlü kalıcılık', icon: 'infinite-outline', color: '#E63946', emoji: '♾️' },
-    ],
-  },
-  {
-    id: 'sevilen',
-    kategori: 'Koku Alışkanlıkları',
-    title: 'Sevdiğiniz Notalar',
-    subtitle: 'Size hitap eden koku notalarını seçin',
-    type: 'multi-select-notes',
-    field: 'sevilenNotalar',
-    noteOptions: [
-      'gül', 'yasemin', 'lavanta', 'vanilya', 'amber', 'sandal ağacı',
-      'bergamot', 'limon', 'portakal', 'misk', 'paçuli', 'tarçın',
-      'kakao', 'kahve', 'karamel', 'nane', 'deniz notası', 'oud',
-      'deri', 'tütün', 'vetiver', 'iris', 'şakayık', 'mandalina',
-      'hindistan cevizi', 'bal', 'bademn', 'elma', 'armut', 'şeftali'
-    ],
-  },
-  {
-    id: 'sevilmeyen',
-    kategori: 'Koku Alışkanlıkları',
-    title: 'Sevmediğiniz Notalar',
-    subtitle: 'Kaçınmak istediğiniz notalar (opsiyonel)',
-    type: 'multi-select-notes',
-    field: 'sevilmeyenNotalar',
-    noteOptions: [
-      'gül', 'yasemin', 'lavanta', 'vanilya', 'amber', 'sandal ağacı',
-      'bergamot', 'limon', 'portakal', 'misk', 'paçuli', 'tarçın',
-      'oud', 'deri', 'tütün', 'biber', 'karanfil', 'kümin',
-      'hayvansal notalar', 'yosun', 'toprak'
-    ],
-  },
-
-  // ========== BÖLÜM 3: KULLANIM & YAŞAM TARZI ==========
-  {
-    id: 'kullanim',
-    kategori: 'Kullanım Detayları',
-    title: 'Ne Amaçla Kullanacaksınız?',
-    subtitle: 'Parfümü hangi ortamlarda kullanacaksınız',
-    type: 'single',
-    field: 'kullanimAmaci',
-    options: [
-      { id: 'gunluk', title: 'Günlük', subtitle: 'Her gün kullanım', icon: 'today-outline', color: '#00D4AA', emoji: '📅' },
-      { id: 'is', title: 'İş', subtitle: 'Ofis ve profesyonel', icon: 'briefcase-outline', color: '#5A189A', emoji: '💼' },
-      { id: 'aksam', title: 'Akşam/Gece', subtitle: 'Dışarı çıkma', icon: 'moon-outline', color: '#240046', emoji: '🌃' },
-      { id: 'ozel', title: 'Özel Gün', subtitle: 'Kutlamalar', icon: 'star-outline', color: '#C9A227', emoji: '🎉' },
-      { id: 'romantik', title: 'Romantik', subtitle: 'Sevgiliyle buluşma', icon: 'heart-outline', color: '#E63946', emoji: '❤️' },
-      { id: 'spor', title: 'Spor Sonrası', subtitle: 'Aktif yaşam', icon: 'fitness-outline', color: '#2ECC71', emoji: '🏃' },
-    ],
-  },
-  {
-    id: 'gunun_saati',
-    kategori: 'Kullanım Detayları',
-    title: 'Günün Hangi Saatlerinde Kullanacaksınız?',
-    subtitle: 'Zamana göre nota açılımları farklılık gösterir',
-    type: 'single',
-    field: 'gununSaati',
-    options: [
-      { id: 'sabah', title: 'Sabah', subtitle: '06:00 - 12:00', icon: 'sunny-outline', color: '#FFE66D', emoji: '🌅' },
-      { id: 'oglen', title: 'Öğlen', subtitle: '12:00 - 17:00', icon: 'partly-sunny-outline', color: '#FF8C42', emoji: '☀️' },
-      { id: 'aksam', title: 'Akşam', subtitle: '17:00 - 21:00', icon: 'moon-outline', color: '#9D4EDD', emoji: '🌆' },
-      { id: 'gece', title: 'Gece', subtitle: '21:00 - 06:00', icon: 'moon', color: '#240046', emoji: '🌙' },
-      { id: 'tum_gun', title: 'Tüm Gün', subtitle: 'Her saat', icon: 'time-outline', color: '#00D4AA', emoji: '⏰' },
-    ],
-  },
-  {
-    id: 'mevsim',
-    kategori: 'Çevre Faktörleri',
-    title: 'Hangi Mevsimde Kullanacaksınız?',
-    subtitle: 'Mevsime uygun notalar önerilir',
-    type: 'single',
-    field: 'mevsim',
-    options: [
-      { id: 'İlkbahar', title: 'İlkbahar', subtitle: 'Hafif, çiçeksi', icon: 'flower-outline', color: '#C8E6C9', emoji: '🌷' },
-      { id: 'Yaz', title: 'Yaz', subtitle: 'Ferah, narenciye', icon: 'sunny-outline', color: '#FFE66D', emoji: '☀️' },
-      { id: 'Sonbahar', title: 'Sonbahar', subtitle: 'Sıcak, baharatlı', icon: 'leaf-outline', color: '#FF8C42', emoji: '🍂' },
-      { id: 'Kış', title: 'Kış', subtitle: 'Yoğun, odunsu', icon: 'snow-outline', color: '#B3E5FC', emoji: '❄️' },
-      { id: 'Tüm Mevsimler', title: 'Tüm Mevsimler', subtitle: 'Her zaman', icon: 'infinite-outline', color: '#9D4EDD', emoji: '♾️' },
-    ],
-  },
-  {
-    id: 'iklim',
-    kategori: 'Çevre Faktörleri',
-    title: 'Bulunduğunuz İklim Nasıl?',
-    subtitle: 'İklim koşullarına uygun koku',
-    type: 'single',
-    field: 'iklim',
-    options: [
-      { id: 'sicak', title: 'Sıcak', subtitle: '25°C üzeri', icon: 'sunny', color: '#E63946', emoji: '🔥' },
-      { id: 'soguk', title: 'Soğuk', subtitle: '15°C altı', icon: 'snow', color: '#00B4D8', emoji: '❄️' },
-      { id: 'nemli', title: 'Nemli', subtitle: 'Yüksek nem', icon: 'water', color: '#00D4AA', emoji: '💧' },
-      { id: 'kuru', title: 'Kuru', subtitle: 'Düşük nem', icon: 'partly-sunny', color: '#FF8C42', emoji: '🏜️' },
-      { id: 'iliman', title: 'Ilıman', subtitle: 'Orta sıcaklık', icon: 'cloudy-outline', color: '#9D4EDD', emoji: '🌤️' },
-    ],
-  },
-  {
-    id: 'ortam',
-    kategori: 'Çevre Faktörleri',
-    title: 'Genellikle Nerede Kullanırsınız?',
-    subtitle: 'Kullanım alanınıza uygun parfüm',
-    type: 'single',
-    field: 'ortam',
-    options: [
-      { id: 'kapali', title: 'Kapalı Alan', subtitle: 'Ofis, ev, restoran', icon: 'home-outline', color: '#8B5A2B', emoji: '🏠' },
-      { id: 'acik', title: 'Açık Alan', subtitle: 'Park, bahçe, dışarı', icon: 'leaf-outline', color: '#2ECC71', emoji: '🌳' },
-      { id: 'her_ikisi', title: 'Her İkisi', subtitle: 'Hem kapalı hem açık', icon: 'globe-outline', color: '#00D4AA', emoji: '🌍' },
-    ],
-  },
-  {
-    id: 'kiyafet',
-    kategori: 'Yaşam Tarzı',
-    title: 'Günlük Kıyafet Tarzınız?',
-    subtitle: 'Tarzınıza uygun parfüm önerisi',
-    type: 'single',
-    field: 'kiyafetStili',
-    options: [
-      { id: 'casual', title: 'Casual', subtitle: 'Günlük rahat', icon: 'shirt-outline', color: '#00D4AA', emoji: '👕' },
-      { id: 'formal', title: 'Formal', subtitle: 'Resmi ve şık', icon: 'briefcase-outline', color: '#5A189A', emoji: '👔' },
-      { id: 'sportif', title: 'Sportif', subtitle: 'Aktif ve dinamik', icon: 'fitness-outline', color: '#2ECC71', emoji: '🏃' },
-      { id: 'trendy', title: 'Trendy', subtitle: 'Moda takipçisi', icon: 'sparkles-outline', color: '#FF6B9D', emoji: '✨' },
-      { id: 'gece', title: 'Gece/Özel', subtitle: 'Özel geceler için', icon: 'moon-outline', color: '#240046', emoji: '🌙' },
-      { id: 'bohem', title: 'Bohem', subtitle: 'Özgür ve yaratıcı', icon: 'color-palette-outline', color: '#FF8C42', emoji: '🎨' },
-      { id: 'minimalist', title: 'Minimalist', subtitle: 'Sade ve zarif', icon: 'remove-outline', color: '#8A7A9C', emoji: '⚪' },
-    ],
-  },
-  {
-    id: 'aktivite',
-    kategori: 'Yaşam Tarzı',
-    title: 'Günlük Aktivite Yoğunluğunuz?',
-    subtitle: 'Rutininize uygun koku',
-    type: 'single',
-    field: 'aktivite',
-    options: [
-      { id: 'spor', title: 'Spor', subtitle: 'Aktif spor', icon: 'fitness-outline', color: '#2ECC71', emoji: '🏋️' },
-      { id: 'ofis', title: 'Ofis', subtitle: 'Masa başı çalışma', icon: 'desktop-outline', color: '#5A189A', emoji: '💻' },
-      { id: 'ev', title: 'Ev', subtitle: 'Ev aktiviteleri', icon: 'home-outline', color: '#8B5A2B', emoji: '🏠' },
-      { id: 'sosyal', title: 'Sosyal', subtitle: 'Sosyal etkinlikler', icon: 'people-outline', color: '#FF6B9D', emoji: '👥' },
-      { id: 'seyahat', title: 'Seyahat', subtitle: 'Sürekli hareket', icon: 'airplane-outline', color: '#00B4D8', emoji: '✈️' },
-    ],
-  },
-
-  // ========== BÖLÜM 4: FİZİKSEL & TEKNİK ==========
-  {
-    id: 'ph_bilgi',
-    kategori: 'Cilt pH',
-    title: 'Cilt pH Değerinizi Biliyor musunuz?',
-    subtitle: 'pH değeri parfümün cildinizde nasıl kokacağını belirler',
-    type: 'single',
-    field: 'phInfo',
-    options: [
-      { id: 'biliyorum', title: 'Evet, Biliyorum', subtitle: 'pH değerimi gireceğim', icon: 'checkmark-circle-outline', color: '#2ECC71', emoji: '✅' },
-      { id: 'bilmiyorum', title: 'Hayır, Bilmiyorum', subtitle: 'Benim için hesaplayın', icon: 'calculator-outline', color: '#9D4EDD', emoji: '🧮' },
-    ],
-  },
-  {
-    id: 'ph_deger',
-    kategori: 'Cilt pH',
-    title: 'pH Değerinizi Girin',
-    subtitle: 'Normal cilt pH değeri 4.5 - 6.5 arasındadır',
-    type: 'ph-input',
-    field: 'phDeger',
-  },
+  // ========== BÖLÜM 1: BİYOLOJİK İMZA VE pH ANALİZİ ==========
   {
     id: 'cilt_tipi',
-    kategori: 'Fiziksel Özellikler',
-    title: 'Cilt Tipiniz Nedir?',
-    subtitle: 'Cilt tipiniz parfümün kalıcılığını doğrudan etkiler',
+    kategori: 'Biyolojik İmza',
+    title: 'Cilt Yapınız Genellikle Nasıldır?',
+    subtitle: 'Parfümün kalıcılığını belirler (Kalıcılık Çarpanı)',
     type: 'single',
     field: 'ciltTipi',
     options: [
-      { id: 'normal', title: 'Normal', subtitle: 'Dengeli nem, koku iyi kalır', icon: 'hand-left-outline', color: '#2ECC71', emoji: '✋' },
-      { id: 'kuru', title: 'Kuru', subtitle: 'Koku hızlı uçabilir, nemlendirici kullanın', icon: 'water-outline', color: '#FF8C42', emoji: '🏜️' },
-      { id: 'yagli', title: 'Yağlı', subtitle: 'Koku çok uzun kalır', icon: 'water', color: '#00D4AA', emoji: '💧' },
-      { id: 'karma', title: 'Karma', subtitle: 'Bölgesel farklılıklar var', icon: 'git-merge-outline', color: '#9D4EDD', emoji: '🔀' },
+      { id: 'kuru', title: 'Kuru', subtitle: 'Parfümü hızlı emer, çabuk uçar', icon: 'water-outline', color: '#FF8C42', emoji: '🏜️' },
+      { id: 'karma', title: 'Karma / Normal', subtitle: 'Dengeli tutuş sağlar', icon: 'git-merge-outline', color: '#2ECC71', emoji: '✋' },
+      { id: 'yagli', title: 'Yağlı', subtitle: 'Kokuyu uzun süre hapseder', icon: 'water', color: '#00D4AA', emoji: '💧' },
+    ],
+  },
+  {
+    id: 'gumus_oksitlenme',
+    kategori: 'Biyolojik İmza',
+    title: 'Gümüş Takı Kullandığınızda Kararma Olur mu?',
+    subtitle: 'Gizli pH Testi: Ten kimyanızı anlamamızı sağlar',
+    type: 'single',
+    field: 'gumusOksitlenme',
+    options: [
+      { id: 'asidik', title: 'Evet, çabuk kararır', subtitle: 'Asidik eğilim (Tatlılar ekşiyebilir)', icon: 'alert-circle-outline', color: '#E63946', emoji: '🔗' },
+      { id: 'notr_alkali', title: 'Hayır, parlak kalır', subtitle: 'Dengeli / Alkali eğilim', icon: 'sparkles-outline', color: '#9D4EDD', emoji: '✨' },
+      { id: 'emin_degil', title: 'Emin değilim / Kullanmam', subtitle: 'Diğer faktörlere bakarız', icon: 'help-circle-outline', color: '#8A7A9C', emoji: '❓' },
+    ],
+  },
+  {
+    id: 'su_tuketimi',
+    kategori: 'Biyolojik İmza',
+    title: 'Günlük Su Tüketiminiz Ne Seviyede?',
+    subtitle: 'Su, ten pH dengesini nötrler',
+    type: 'single',
+    field: 'suTuketimi',
+    options: [
+      { id: 'az', title: 'Az', subtitle: 'Günde 1 litreden az', icon: 'water-outline', color: '#FF8C42', emoji: '💧' },
+      { id: 'normal', title: 'Normal', subtitle: '1.5 - 2 litre', icon: 'water', color: '#00B4D8', emoji: '🚰' },
+      { id: 'cok', title: 'Çok', subtitle: '2.5 litre ve üzeri', icon: 'pint-outline', color: '#00D4AA', emoji: '🌊' },
+    ],
+  },
+  {
+    id: 'beslenme',
+    kategori: 'Biyolojik İmza',
+    title: 'Beslenme Alışkanlığınızın Temeli Nedir?',
+    subtitle: 'Baharat ve protein ten kokusunu değiştirir',
+    type: 'single',
+    field: 'beslenmeAliskanligi',
+    options: [
+      { id: 'asidik', title: 'Baharatlı / Kırmızı Et', subtitle: 'Asidik eğilim', icon: 'flame-outline', color: '#E63946', emoji: '🥩' },
+      { id: 'notr', title: 'Karbonhidrat / Hafif', subtitle: 'Nötr eğilim', icon: 'pizza-outline', color: '#F4A261', emoji: '🥖' },
+      { id: 'alkali', title: 'Sebze / Meyve', subtitle: 'Alkali eğilim', icon: 'leaf-outline', color: '#2ECC71', emoji: '🥗' },
     ],
   },
   {
     id: 'terleme',
-    kategori: 'Fiziksel Özellikler',
-    title: 'Günlük Terleme Oranınız?',
-    subtitle: 'Terleme, üst notaların uçma hızını etkiler',
+    kategori: 'Biyolojik İmza',
+    title: 'Aktivite ve Terleme Dengeniz Nasıldır?',
+    subtitle: 'Ter, parfümün yapısını bozar',
     type: 'single',
     field: 'terlemeOrani',
     options: [
-      { id: 'az', title: 'Az', subtitle: 'Nadiren terlerim', icon: 'sunny-outline', color: '#FFE66D', emoji: '☀️' },
-      { id: 'normal', title: 'Normal', subtitle: 'Ortalama terleme', icon: 'partly-sunny-outline', color: '#FF8C42', emoji: '⛅' },
-      { id: 'cok', title: 'Çok', subtitle: 'Sık terlerim', icon: 'rainy-outline', color: '#00B4D8', emoji: '💦' },
+      { id: 'cok', title: 'Hızlı ve sık terleyen', subtitle: 'Parfüm yapısı bozulabilir', icon: 'rainy-outline', color: '#00B4D8', emoji: '💦' },
+      { id: 'normal', title: 'Ortalama', subtitle: 'Fiziksel eforla terlerim', icon: 'partly-sunny-outline', color: '#FF8C42', emoji: '⛅' },
+      { id: 'az', title: 'Çok nadir / Kuru', subtitle: 'Serin bir tenim var', icon: 'sunny-outline', color: '#FFE66D', emoji: '☀️' },
     ],
   },
   {
-    id: 'hassasiyet',
-    kategori: 'Fiziksel Özellikler',
-    title: 'Cildiniz Hassas mı?',
-    subtitle: 'Hassas cilt bazı notalarla uyumsuz olabilir',
+    id: 'vucut_isisi',
+    kategori: 'Biyolojik İmza',
+    title: 'Vücut Isınız Genellikle Nasıldır?',
+    subtitle: 'Yayılım (sillage) gücünü belirler',
     type: 'single',
-    field: 'ciltHassasiyeti',
+    field: 'vucutIsisi',
     options: [
-      { id: 'hassas', title: 'Hassas', subtitle: 'Kolayca tahriş olur', icon: 'alert-circle-outline', color: '#E63946', emoji: '⚠️' },
-      { id: 'normal', title: 'Normal', subtitle: 'Genelde sorun yok', icon: 'checkmark-circle-outline', color: '#2ECC71', emoji: '✅' },
-      { id: 'dayanikli', title: 'Dayanıklı', subtitle: 'Hiçbir şey etkilemez', icon: 'shield-checkmark-outline', color: '#00D4AA', emoji: '🛡️' },
-    ],
-  },
-  {
-    id: 'koku_alma',
-    kategori: 'Fiziksel Özellikler',
-    title: 'Koku Alma Hassasiyetiniz?',
-    subtitle: 'Çok hassas burunlar yoğun kokulardan rahatsız olabilir',
-    type: 'single',
-    field: 'kokuAlmaHassasiyeti',
-    options: [
-      { id: 'dusuk', title: 'Düşük', subtitle: 'Kokuları zor algılarım', icon: 'remove-circle-outline', color: '#8A7A9C', emoji: '👃' },
-      { id: 'normal', title: 'Normal', subtitle: 'Standart koku algısı', icon: 'checkmark-circle-outline', color: '#2ECC71', emoji: '✅' },
-      { id: 'yuksek', title: 'Yüksek', subtitle: 'İnce nüansları fark ederim', icon: 'eye-outline', color: '#9D4EDD', emoji: '👁️' },
-      { id: 'cok_yuksek', title: 'Çok Yüksek', subtitle: 'Aşırı hassasım', icon: 'alert-outline', color: '#E63946', emoji: '🔴' },
-    ],
-  },
-  {
-    id: 'alerji',
-    kategori: 'Fiziksel Özellikler',
-    title: 'Bilinen Alerji veya Hassasiyetiniz Var mı?',
-    subtitle: 'Birden fazla seçebilirsiniz',
-    type: 'multi-select',
-    field: 'alerjiDurumu',
-    options: [
-      { id: 'yok', title: 'Alerjim Yok', subtitle: 'Her türlü nota uygundur', icon: 'checkmark-circle-outline', color: '#2ECC71', emoji: '✅' },
-      { id: 'alkol', title: 'Alkol', subtitle: 'Alkol bazlı parfümler', icon: 'wine-outline', color: '#E63946', emoji: '🍷' },
-      { id: 'cicek', title: 'Çiçek', subtitle: 'Yoğun çiçek notaları', icon: 'flower-outline', color: '#FF6B9D', emoji: '🌸' },
-      { id: 'baharat', title: 'Baharat', subtitle: 'Tarçın, karanfil vb.', icon: 'flame-outline', color: '#FF8C42', emoji: '🌶️' },
-      { id: 'diger', title: 'Diğer', subtitle: 'Farklı bir hassasiyet', icon: 'help-circle-outline', color: '#8A7A9C', emoji: '❓' },
+      { id: 'sicak', title: 'Sıcak', subtitle: 'Koku hızla yayılır', icon: 'flame', color: '#E63946', emoji: '🔥' },
+      { id: 'serin', title: 'Serin / Üşüyen', subtitle: 'Koku yavaş ve sakin açılır', icon: 'snow-outline', color: '#00B4D8', emoji: '❄️' },
+      { id: 'dengeli', title: 'Dengeli / Değişken', subtitle: 'Ortalama yayılım', icon: 'thermometer-outline', color: '#9D4EDD', emoji: '🌡️' },
     ],
   },
 
-  // ========== BÖLÜM 5: DENEYİM & MARKET ==========
+  // ========== BÖLÜM 2: KOKU REAKSİYONU VE UYGULAMA ==========
   {
-    id: 'deneyim_seviyesi',
-    kategori: 'Parfüm Deneyimi',
-    title: 'Parfüm Deneyiminiz Ne Düzeyde?',
-    subtitle: 'Size uygun karmaşıklıkta kokular önerilir',
+    id: 'parfum_reaksiyonu',
+    kategori: 'Koku Reaksiyonu',
+    title: 'Parfümler Günün Sonunda Teninizde Ne Olur?',
+    subtitle: 'pH Doğrulama Sorusu',
     type: 'single',
-    field: 'deneyimSeviyesi',
+    field: 'parfumReaksiyonu',
     options: [
-      { id: 'yeni_baslayan', title: 'Yeni Başlayan', subtitle: 'Parfüm dünyasını keşfediyorum', icon: 'bulb-outline', color: '#00D4AA', emoji: '🌱' },
-      { id: 'orta', title: 'Orta Seviye', subtitle: 'Birkaç parfüm denedim', icon: 'trending-up-outline', color: '#FF8C42', emoji: '📈' },
-      { id: 'uzman', title: 'Uzman', subtitle: 'Notaları ayırt edebiliyorum', icon: 'eye-outline', color: '#9D4EDD', emoji: '👁️' },
-      { id: 'koleksiyoner', title: 'Koleksiyoner', subtitle: 'Geniş bir koleksiyonum var', icon: 'library-outline', color: '#C9A227', emoji: '📚' },
+      { id: 'tatli_pudrali', title: 'Tatlı ve pudralı olur', subtitle: 'Bazik/Alkali eğilim', icon: 'flower-outline', color: '#FFB4D1', emoji: '🌸' },
+      { id: 'eksi_uzaklasir', title: 'Ekşir / Başka kokuya dönüşür', subtitle: 'Asidik eğilim', icon: 'alert-outline', color: '#E63946', emoji: '🍋' },
+      { id: 'ayni_kalir', title: 'Aynı kalır, sadece hafifler', subtitle: 'Nötr eğilim', icon: 'checkmark-circle-outline', color: '#2ECC71', emoji: '⚖️' },
     ],
   },
   {
-    id: 'kullanim_sikligi',
-    kategori: 'Parfüm Deneyimi',
-    title: 'Ne Sıklıkla Parfüm Kullanırsınız?',
-    subtitle: 'Kullanım alışkanlığınıza göre öneriler',
+    id: 'uygulama_yeri',
+    kategori: 'Koku Reaksiyonu',
+    title: 'Parfümü En Çok Nereye Sıkarsınız?',
+    subtitle: 'Sadece kıyafete sıkmak pH kurallarını esnetir',
     type: 'single',
-    field: 'kullanimSikligi',
+    field: 'uygulamaYeri',
     options: [
-      { id: 'nadir', title: 'Nadir', subtitle: 'Sadece özel günlerde', icon: 'calendar-outline', color: '#8A7A9C', emoji: '📅' },
-      { id: 'haftada_1_2', title: 'Haftada 1-2', subtitle: 'Belirli günlerde', icon: 'time-outline', color: '#00D4AA', emoji: '⏰' },
-      { id: 'gunluk', title: 'Her Gün', subtitle: 'Günlük ritüelim', icon: 'sunny-outline', color: '#FF8C42', emoji: '☀️' },
-      { id: 'gunde_birden_fazla', title: 'Günde Birden Fazla', subtitle: 'Farklı anlar için farklı kokular', icon: 'layers-outline', color: '#9D4EDD', emoji: '✨' },
+      { id: 'sadece_ten', title: 'Sadece Tenime', subtitle: 'Nabız noktaları, boyun', icon: 'hand-left-outline', color: '#FF8C42', emoji: '🧴' },
+      { id: 'ten_kiyafet', title: 'Tenime ve Kıyafetime', subtitle: 'Dengeli kullanım', icon: 'shirt-outline', color: '#9D4EDD', emoji: '👔' },
+      { id: 'sadece_kiyafet', title: 'Sadece Kıyafetime', subtitle: 'Koku tenden bağımsızlaşır', icon: 'briefcase-outline', color: '#00D4AA', emoji: '🧥' },
     ],
   },
   {
-    id: 'butce',
-    kategori: 'Bütçe & Tercihler',
-    title: 'Parfüm Bütçeniz Nedir?',
-    subtitle: 'Fiyat aralığınıza uygun öneriler',
+    id: 'koku_hassasiyeti',
+    kategori: 'Koku Reaksiyonu',
+    title: 'Koku Hassasiyetiniz Ne Durumda?',
+    subtitle: 'Yoğun kokuların sizi rahatsız edip etmeyeceği',
     type: 'single',
-    field: 'butce',
+    field: 'kokuAlmaHassasiyeti',
     options: [
-      { id: 'ekonomik', title: 'Ekonomik', subtitle: '₺500 altı', icon: 'wallet-outline', color: '#2ECC71', emoji: '💰' },
-      { id: 'orta', title: 'Orta Segment', subtitle: '₺500 - ₺1500', icon: 'cash-outline', color: '#00D4AA', emoji: '💵' },
-      { id: 'premium', title: 'Premium', subtitle: '₺1500 - ₺4000', icon: 'diamond-outline', color: '#9D4EDD', emoji: '💎' },
-      { id: 'luks', title: 'Lüks', subtitle: '₺4000 üzeri', icon: 'trophy-outline', color: '#C9A227', emoji: '👑' },
+      { id: 'cok_yuksek', title: 'Çok Hassasım', subtitle: 'Ağır kokular baş ağrıtır', icon: 'alert-circle-outline', color: '#E63946', emoji: '🔴' },
+      { id: 'normal', title: 'Normal', subtitle: 'Dengeli bir algım var', icon: 'checkmark-circle-outline', color: '#2ECC71', emoji: '✅' },
+      { id: 'dusuk', title: 'Düşük', subtitle: 'Kendi kokumu hemen alamam', icon: 'remove-circle-outline', color: '#8A7A9C', emoji: '👃' },
+    ],
+  },
+
+  // ========== BÖLÜM 3: AURA & KARAKTER ==========
+  {
+    id: 'aura',
+    kategori: 'Aura ve Karakter',
+    title: 'Arkanızda Nasıl Bir "İz" Bırakmak İstersiniz?',
+    subtitle: 'Kokunuzun yaratacağı hissiyat',
+    type: 'single',
+    field: 'aura',
+    options: [
+      { id: 'temiz', title: 'Temiz & Zarif', subtitle: 'Yeni duş almış, sabunsu', icon: 'water-outline', color: '#00B4D8', emoji: '🛁' },
+      { id: 'gizemli', title: 'Gizemli & Derin', subtitle: 'Karanlık, merak uyandıran', icon: 'moon-outline', color: '#240046', emoji: '🌑' },
+      { id: 'cekici', title: 'Çekici & Baştan Çıkarıcı', subtitle: 'Sıcak, tatlı, sarmalayıcı', icon: 'heart-outline', color: '#E63946', emoji: '💋' },
+      { id: 'dinamik', title: 'Dinamik & Enerjik', subtitle: 'Ferah, hareketli', icon: 'flash-outline', color: '#FFE66D', emoji: '⚡' },
+      { id: 'otoriter', title: 'Otoriter & Saygın', subtitle: 'Odunsu, ağırbaşlı', icon: 'briefcase-outline', color: '#8B5A2B', emoji: '🏛️' },
     ],
   },
   {
-    id: 'marka_tercihi',
-    kategori: 'Bütçe & Tercihler',
-    title: 'Marka Tercihiniz Var mı?',
-    subtitle: 'Niche vs Designer parfümler',
-    type: 'single',
-    field: 'markaTercihi',
+    id: 'koku_aileleri',
+    kategori: 'Aura ve Karakter',
+    title: 'Hangi Koku Aileleri Sizi Mutlu Eder?',
+    subtitle: 'Birden fazla seçebilirsiniz (En az 1)',
+    type: 'multiple',
+    field: 'kokuTipleri',
+    required: true,
     options: [
-      { id: 'niche', title: 'Niche/Butik', subtitle: 'Özel, az bilinen markalar', icon: 'sparkles-outline', color: '#9D4EDD', emoji: '✨' },
-      { id: 'designer', title: 'Designer', subtitle: 'Tanınmış moda markaları', icon: 'shirt-outline', color: '#FF6B9D', emoji: '👔' },
-      { id: 'farketmez', title: 'Farketmez', subtitle: 'Koku önemli, marka değil', icon: 'infinite-outline', color: '#00D4AA', emoji: '♾️' },
+      { id: 'Ferah', title: 'Taze Narenciyeler', subtitle: 'Limon, Bergamot', icon: 'sunny-outline', color: '#FFE66D', emoji: '🍋' },
+      { id: 'Çiçeksi', title: 'Zarif Çiçekler', subtitle: 'Yasemin, Gül', icon: 'flower-outline', color: '#FF6B9D', emoji: '🌸' },
+      { id: 'Tatlı', title: 'Tatlı ve Gurme', subtitle: 'Vanilya, Karamel', icon: 'ice-cream-outline', color: '#FFB4D1', emoji: '🍰' },
+      { id: 'Odunsu', title: 'Odunsu ve Reçineli', subtitle: 'Sandal, Sedir', icon: 'leaf-outline', color: '#8B5A2B', emoji: '🪵' },
+      { id: 'Aquatik', title: 'Ferah ve Su', subtitle: 'Okyanus, Yağmur', icon: 'boat-outline', color: '#00B4D8', emoji: '🌊' },
+      { id: 'Baharatlı', title: 'Baharatlı ve Oryantal', subtitle: 'Tarçın, Biber', icon: 'flame-outline', color: '#E63946', emoji: '🌶️' },
     ],
   },
   {
-    id: 'konsantrasyon',
-    kategori: 'Bütçe & Tercihler',
-    title: 'Parfüm Konsantrasyonu Tercihiniz?',
-    subtitle: 'Kalıcılık ve yoğunluğu etkiler',
-    type: 'single',
-    field: 'konsantrasyonTercihi',
-    helpText: 'Konsantrasyon arttıkça kalıcılık ve yoğunluk artar',
+    id: 'kacinilacak_notalar',
+    kategori: 'Aura ve Karakter',
+    title: '"Kesinlikle Olmasın" Dediğiniz Notalar?',
+    subtitle: 'Sizi rahatsız eden özellikler (Opsiyonel)',
+    type: 'multiple',
+    field: 'kacinilacakNotalar',
     options: [
-      { id: 'eau_fraiche', title: 'Eau Fraîche', subtitle: '1-3% yağ, 1-2 saat', icon: 'water-outline', color: '#00B4D8', emoji: '💧' },
-      { id: 'eau_de_cologne', title: 'Eau de Cologne', subtitle: '2-4% yağ, 2-3 saat', icon: 'rainy-outline', color: '#00D4AA', emoji: '🌊' },
-      { id: 'eau_de_toilette', title: 'Eau de Toilette', subtitle: '5-15% yağ, 3-4 saat', icon: 'flower-outline', color: '#FF6B9D', emoji: '🌸' },
-      { id: 'eau_de_parfum', title: 'Eau de Parfum', subtitle: '15-20% yağ, 5-8 saat', icon: 'sparkles-outline', color: '#9D4EDD', emoji: '✨' },
-      { id: 'parfum', title: 'Extrait/Parfum', subtitle: '20-40% yağ, 8+ saat', icon: 'diamond-outline', color: '#C9A227', emoji: '💎' },
+      { id: 'Aşırı şekerli', title: 'Aşırı Şekerli', subtitle: 'Bayıcı tatlılık', icon: 'close-circle-outline', color: '#FFB4D1', emoji: '🍬' },
+      { id: 'Baskın çiçek', title: 'Baskın Çiçek', subtitle: 'Yoğun çiçeksi kokular', icon: 'close-circle-outline', color: '#FF6B9D', emoji: '💐' },
+      { id: 'Deri veya tütün', title: 'Deri, Tütün veya İs', subtitle: 'Karanlık/Ağır notalar', icon: 'close-circle-outline', color: '#5A189A', emoji: '🚬' },
+    ],
+  },
+  {
+    id: 'cinsiyet_algisi',
+    kategori: 'Aura ve Karakter',
+    title: 'Parfümünüzün Cinsiyet Algısı Önemli mi?',
+    subtitle: 'Parfümün duruşu',
+    type: 'single',
+    field: 'cinsiyetAlgisi',
+    options: [
+      { id: 'feminen', title: 'Feminen', subtitle: 'Kadınsı bir karakter', icon: 'woman-outline', color: '#FF6B9D', emoji: '💃' },
+      { id: 'maskulen', title: 'Maskülen', subtitle: 'Erkeksi bir duruş', icon: 'man-outline', color: '#00B4D8', emoji: '🕴️' },
+      { id: 'unisex', title: 'Cinsiyetsiz (Unisex)', subtitle: 'Karaktere odaklı', icon: 'people-outline', color: '#9D4EDD', emoji: '👥' },
+    ],
+  },
+
+  // ========== BÖLÜM 4: YAŞAM DİNAMİKLERİ ==========
+  {
+    id: 'yasam_ortami',
+    kategori: 'Yaşam Dinamikleri',
+    title: 'Yaşamınızın Büyük Kısmı Nerede Geçiyor?',
+    subtitle: 'Ortama uygun yoğunluk ve form',
+    type: 'single',
+    field: 'ortam',
+    options: [
+      { id: 'kapali', title: 'Kapalı / Ofis / Ev', subtitle: 'Nazik, boğmayan kokular', icon: 'home-outline', color: '#8B5A2B', emoji: '🏢' },
+      { id: 'acik', title: 'Açık / Saha', subtitle: 'Güçlü, uçup gitmeyen kokular', icon: 'leaf-outline', color: '#2ECC71', emoji: '🏞️' },
+      { id: 'her_ikisi', title: 'Yarı Açık, Dengeli', subtitle: 'Değişken ortamlar', icon: 'globe-outline', color: '#00D4AA', emoji: '🌤️' },
+    ],
+  },
+  {
+    id: 'giyim_tarzi',
+    kategori: 'Yaşam Dinamikleri',
+    title: 'Giyim Tarzınızı En İyi Hangisi Özetler?',
+    subtitle: 'Tarzınıza uygun tamamlayıcı koku',
+    type: 'single',
+    field: 'kiyafetStili',
+    options: [
+      { id: 'minimalist', title: 'Minimalist / Rahat', subtitle: 'Basic parçalar, jean', icon: 'shirt-outline', color: '#8A7A9C', emoji: '👕' },
+      { id: 'formal', title: 'Şık / Resmi', subtitle: 'Takım elbise, ofis şıklığı', icon: 'briefcase-outline', color: '#5A189A', emoji: '👔' },
+      { id: 'trendy', title: 'Trendy / İddialı', subtitle: 'Modayı takip eden', icon: 'sparkles-outline', color: '#FF6B9D', emoji: '✨' },
+      { id: 'sportif', title: 'Sportif / Aktif', subtitle: 'Eşofman, rahat giyim', icon: 'fitness-outline', color: '#2ECC71', emoji: '👟' },
     ],
   },
 ];
@@ -469,18 +268,16 @@ export default function OnboardingScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  // pH bilgisine göre adımları filtrele
   const getVisibleSteps = () => {
-    if (preferences.phInfo.biliyorMu === 'biliyorum') {
-      return onboardingSteps;
-    } else {
-      return onboardingSteps.filter(step => step.id !== 'ph_deger');
-    }
+    return onboardingSteps;
   };
 
   const visibleSteps = getVisibleSteps();
   const currentStepData = visibleSteps[currentStep];
   const progress = ((currentStep + 1) / visibleSteps.length) * 100;
+  
+  // Canlı pH hesaplama (Preferences değiştikçe güncellenir)
+  const livePHData = useMemo(() => hesaplaPHPure(preferences), [preferences]);
 
   // Progress bar animasyonu
   useEffect(() => {
@@ -554,9 +351,7 @@ export default function OnboardingScreen() {
     if (currentStep < visibleSteps.length - 1) {
       animateTransition(1, () => setCurrentStep(currentStep + 1));
     } else {
-      if (preferences.phInfo.biliyorMu === 'bilmiyorum') {
-        hesaplaPH();
-      }
+      hesaplaPH();
       getRecommendations();
       setIsOnboardingComplete(true);
       router.replace('/results');
@@ -581,10 +376,7 @@ export default function OnboardingScreen() {
   const canProceed = () => {
     switch (currentStepData.type) {
       case 'single':
-        if (currentStepData.id === 'ph_bilgi') {
-          return preferences.phInfo.biliyorMu !== null;
-        }
-        return preferences[currentStepData.field as keyof UserPreferences] !== null;
+        return preferences[currentStepData.field as keyof UserPreferences] !== null && preferences[currentStepData.field as keyof UserPreferences] !== undefined;
       case 'multiple':
         const arr = preferences[currentStepData.field as keyof UserPreferences] as string[];
         return arr && arr.length > 0;
@@ -601,19 +393,15 @@ export default function OnboardingScreen() {
 
   // Seçili mi kontrolü
   const isSelected = (optionId: string) => {
-    if (currentStepData.id === 'ph_bilgi') {
-      return preferences.phInfo.biliyorMu === optionId;
-    }
-    
     const value = preferences[currentStepData.field as keyof UserPreferences];
     if (Array.isArray(value)) {
-      return value.includes(optionId);
+      return (value as string[]).includes(optionId);
     }
     return value === optionId;
   };
 
   // Seçenek kartı renderı
-  const renderOption = (option: OnboardingStep['options'][0], index: number) => {
+  const renderOption = (option: NonNullable<OnboardingStep['options']>[0], index: number) => {
     const selected = isSelected(option.id);
     const isMultiple = currentStepData.type === 'multiple' || currentStepData.type === 'multi-select';
 
@@ -752,16 +540,10 @@ export default function OnboardingScreen() {
   // Kategori badge rengi
   const getCategoryColor = (kategori: string) => {
     const categoryColors: Record<string, string> = {
-      'Kişisel Bilgiler': '#9D4EDD',
-      'Parfüm Deneyimi': '#FF6B9D',
-      'Bütçe & Tercihler': '#C9A227',
-      'Cilt pH': '#00D4AA',
-      'Fiziksel Özellikler': '#FF8C42',
-      'Koku Tercihleri': '#E63946',
-      'Kullanım Detayları': '#00B4D8',
-      'Çevre Faktörleri': '#2ECC71',
-      'Yaşam Tarzı': '#5A189A',
-      'Koku Alışkanlıkları': '#FF69B4',
+      'Biyolojik İmza': '#00D4AA',
+      'Koku Reaksiyonu': '#FF6B9D',
+      'Aura ve Karakter': '#9D4EDD',
+      'Yaşam Dinamikleri': '#FF8C42',
     };
     return categoryColors[kategori] || colors.tint;
   };
@@ -803,6 +585,14 @@ export default function OnboardingScreen() {
           </View>
           <Text style={[styles.progressText, { color: colors.textSecondary }]}>
             {currentStep + 1} / {visibleSteps.length}
+          </Text>
+        </View>
+
+        {/* Canlı pH Göstergesi */}
+        <View style={[styles.livePHContainer, { backgroundColor: colors.card, borderColor: livePHData.tahminiPH < 5 ? '#E63946' : livePHData.tahminiPH > 6 ? '#9D4EDD' : '#00D4AA' }]}>
+          <Text style={[styles.livePHLabel, { color: colors.textSecondary }]}>pH</Text>
+          <Text style={[styles.livePHValue, { color: livePHData.tahminiPH < 5 ? '#E63946' : livePHData.tahminiPH > 6 ? '#9D4EDD' : '#00D4AA' }]}>
+            {livePHData.tahminiPH.toFixed(1)}
           </Text>
         </View>
       </View>
@@ -923,6 +713,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'right',
+  },
+  livePHContainer: {
+    marginLeft: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  livePHLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  livePHValue: {
+    fontSize: 14,
+    fontWeight: '800',
   },
   content: {
     flex: 1,

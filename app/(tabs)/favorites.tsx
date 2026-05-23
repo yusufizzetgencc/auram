@@ -82,7 +82,7 @@ export default function FavoritesScreen() {
     switch (sortBy) {
       case 'name': result.sort((a, b) => a.isim.localeCompare(b.isim)); break;
       case 'type': result.sort((a, b) => a.tip.localeCompare(b.tip)); break;
-      case 'brand': result.sort((a, b) => a.marka.localeCompare(b.marka)); break;
+      case 'brand': result.sort((a, b) => (a.marka || '').localeCompare(b.marka || '')); break;
     }
     return result;
   }, [favoriteParfums, filterType, sortBy]);
@@ -164,7 +164,7 @@ export default function FavoritesScreen() {
         <View style={styles.toolbar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
             <Pressable onPress={() => setFilterType(null)} style={[styles.filterChip, !filterType && styles.filterChipActive]}>
-              <ThemedText style={[styles.filterText, !filterType && { color: colors.tint }]}>Tümü</ThemedText>
+              <ThemedText style={[styles.filterText, !filterType ? { color: colors.tint } : {}]}>Tümü</ThemedText>
             </Pressable>
             {availableTypes.map((type) => (
               <Pressable
@@ -173,7 +173,7 @@ export default function FavoritesScreen() {
                 style={[styles.filterChip, filterType === type && { backgroundColor: (TYPE_COLORS[type] || colors.tint) + '15' }]}
               >
                 <View style={[styles.filterDot, { backgroundColor: TYPE_COLORS[type] || colors.tint }]} />
-                <ThemedText style={[styles.filterText, filterType === type && { color: TYPE_COLORS[type] || colors.tint }]}>
+                <ThemedText style={[styles.filterText, filterType === type ? { color: TYPE_COLORS[type] || colors.tint } : {}]}>
                   {type}
                 </ThemedText>
               </Pressable>
@@ -444,7 +444,7 @@ function ParfumCard({ parfum, colors, isSelected, compareMode, isFavorite = true
   return (
     <Animated.View entering={FadeInDown.delay(delay).duration(300)}>
       <Pressable onPress={onPress}>
-        <Card variant="elevated" style={[styles.parfumCard, isSelected && { borderColor: colors.tint, borderWidth: 2 }]}>
+        <Card variant="elevated" style={[styles.parfumCard, isSelected ? { borderColor: colors.tint, borderWidth: 2 } : {}]}>
           {compareMode && (
             <View style={[styles.selectIndicator, { backgroundColor: isSelected ? colors.tint : colors.backgroundTertiary }]}>
               {isSelected && <Ionicons name="checkmark" size={14} color="#FFF" />}

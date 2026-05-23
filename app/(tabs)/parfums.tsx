@@ -173,7 +173,7 @@ export default function ParfumsScreen() {
               onPress={() => setSelectedType(null)}
               style={[styles.filterChip, !selectedType && { backgroundColor: colors.tint + '15' }]}
             >
-              <ThemedText style={[styles.filterText, !selectedType && { color: colors.tint }]}>Tümü</ThemedText>
+              <ThemedText style={[styles.filterText, !selectedType ? { color: colors.tint } : {}]}>Tümü</ThemedText>
             </Pressable>
             
             {scentTypes.map((type) => (
@@ -187,7 +187,7 @@ export default function ParfumsScreen() {
               >
                 <View style={[styles.filterDot, { backgroundColor: TYPE_COLORS[type] || colors.tint }]} />
                 <ThemedText 
-                  style={[styles.filterText, selectedType === type && { color: TYPE_COLORS[type] || colors.tint }]}
+                  style={[styles.filterText, selectedType === type ? { color: TYPE_COLORS[type] || colors.tint } : {}]}
                 >
                   {type}
                 </ThemedText>

@@ -141,7 +141,7 @@ export function Button({
       ) : (
         <>
           {icon && <>{icon}</>}
-          <Text style={[getTextStyle(), icon && { marginLeft: Spacing.sm }, textStyle]}>
+          <Text style={[getTextStyle(), icon ? { marginLeft: Spacing.sm } : undefined, textStyle]}>
             {title}
           </Text>
         </>

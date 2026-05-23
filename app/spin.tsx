@@ -243,7 +243,7 @@ export default function SpinScreen() {
               />
               <ThemedText style={[
                 styles.sourceBtnText,
-                source === item.id && styles.sourceBtnTextActive,
+                source === item.id ? styles.sourceBtnTextActive : {},
               ]}>
                 {item.label}
               </ThemedText>

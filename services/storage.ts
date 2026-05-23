@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserPreferences, ScentCalendarEntry, MoodEntry, JournalEntry, NotificationPreferences, SpinResult } from '@/types';
+import { UserPreferences, ScentCalendarEntry, MoodEntry, JournalEntry, NotificationPreferences, SpinResult, SOTDEntry, StreakData, PerformanceLog } from '@/types';
 
 // ============ STORAGE KEYS ============
 const STORAGE_KEYS = {
@@ -20,6 +20,9 @@ const STORAGE_KEYS = {
   JOURNAL_ENTRIES: '@aromixen_journal',
   SPIN_HISTORY: '@aromixen_spin_history',
   NOTIFICATION_PREFS: '@aromixen_notifications',
+  SOTD_HISTORY: '@aromixen_sotd_history',
+  STREAK_DATA: '@aromixen_streak_data',
+  PERFORMANCE_LOGS: '@aromixen_performance_logs',
 } as const;
 
 // ============ TYPES ============
@@ -466,6 +469,9 @@ export async function loadAllUserDataExtended(defaultPrefs: UserPreferences) {
     journalEntries,
     spinHistory,
     notificationPrefs,
+    sotdHistory,
+    streakData,
+    performanceLogs,
   ] = await Promise.all([
     loadUserPreferences(defaultPrefs),
     loadOnboardingStatus(),
@@ -478,6 +484,9 @@ export async function loadAllUserDataExtended(defaultPrefs: UserPreferences) {
     loadJournalEntries(),
     loadSpinHistory(),
     loadNotificationPreferences(),
+    loadSotdHistory(),
+    loadStreakData(),
+    loadPerformanceLogs(),
   ]);
 
   return {
@@ -493,6 +502,102 @@ export async function loadAllUserDataExtended(defaultPrefs: UserPreferences) {
     journalEntries,
     spinHistory,
     notificationPrefs,
+    sotdHistory,
+    streakData,
+    performanceLogs,
   };
+}
+
+// ============ 🏆 SOTD (Scent of the Day) ============
+export async function loadSotdHistory(): Promise<SOTDEntry[]> {
+  return loadData(STORAGE_KEYS.SOTD_HISTORY, []);
+}
+
+export async function saveSotdHistory(entries: SOTDEntry[]): Promise<boolean> {
+  return saveData(STORAGE_KEYS.SOTD_HISTORY, entries);
+}
+
+export async function addSotdEntry(parfumId: string, weather?: any): Promise<SOTDEntry> {
+  const history = await loadSotdHistory();
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Check if today already has SOTD
+  const existingIndex = history.findIndex(e => e.date === today);
+  
+  const entry: SOTDEntry = {
+    id: `sotd_${Date.now()}`,
+    parfumId,
+    date: today,
+    weather,
+    createdAt: new Date().toISOString()
+  };
+
+  if (existingIndex >= 0) {
+    history[existingIndex] = entry; // Override today's pick
+  } else {
+    history.unshift(entry);
+  }
+
+  await saveSotdHistory(history);
+  return entry;
+}
+
+export async function getTodaysSotd(): Promise<SOTDEntry | null> {
+  const history = await loadSotdHistory();
+  const today = new Date().toISOString().split('T')[0];
+  return history.find(e => e.date === today) || null;
+}
+
+// ============ 🔥 STREAK ============
+const defaultStreak: StreakData = {
+  currentStreak: 0,
+  longestStreak: 0,
+  lastSOTDDate: null,
+  totalSOTDs: 0,
+  badges: []
+};
+
+export async function loadStreakData(): Promise<StreakData> {
+  return loadData(STORAGE_KEYS.STREAK_DATA, defaultStreak);
+}
+
+export async function saveStreakData(data: StreakData): Promise<boolean> {
+  return saveData(STORAGE_KEYS.STREAK_DATA, data);
+}
+
+// ============ 📊 PERFORMANCE LOGS ============
+export async function loadPerformanceLogs(): Promise<PerformanceLog[]> {
+  return loadData(STORAGE_KEYS.PERFORMANCE_LOGS, []);
+}
+
+export async function savePerformanceLogs(logs: PerformanceLog[]): Promise<boolean> {
+  return saveData(STORAGE_KEYS.PERFORMANCE_LOGS, logs);
+}
+
+export async function addPerformanceLog(log: Omit<PerformanceLog, 'id' | 'createdAt'>): Promise<PerformanceLog> {
+  const logs = await loadPerformanceLogs();
+  
+  const existingIndex = logs.findIndex(l => l.date === log.date);
+  
+  const newLog: PerformanceLog = {
+    ...log,
+    id: `perf_${Date.now()}`,
+    createdAt: new Date().toISOString()
+  };
+
+  if (existingIndex >= 0) {
+    logs[existingIndex] = newLog;
+  } else {
+    logs.unshift(newLog);
+  }
+
+  await savePerformanceLogs(logs);
+  return newLog;
+}
+
+export async function getTodaysPerformanceLog(): Promise<PerformanceLog | null> {
+  const logs = await loadPerformanceLogs();
+  const today = new Date().toISOString().split('T')[0];
+  return logs.find(l => l.date === today) || null;
 }
 

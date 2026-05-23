@@ -66,6 +66,7 @@ function RootLayoutContent() {
         <Stack.Screen name="layering" />
         <Stack.Screen name="mood" />
         <Stack.Screen name="spin" />
+        <Stack.Screen name="performance" />
         <Stack.Screen name="parfum/[id]" />
       </Stack>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />

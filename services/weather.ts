@@ -172,7 +172,7 @@ async function getMockWeatherData(): Promise<WeatherData> {
     if (location) {
       latitude = location.coords.latitude;
       longitude = location.coords.longitude;
-      locationData = await reverseGeocode(latitude, longitude);
+      locationData = (await reverseGeocode(latitude, longitude)) as any;
     }
   } catch (error) {
     console.log('[Weather] Konum alınamadı, varsayılan kullanılıyor');

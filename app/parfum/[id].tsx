@@ -267,7 +267,7 @@ export default function ParfumDetailScreen() {
               <View style={styles.featuresGrid}>
                 <FeatureItem icon="speedometer-outline" label="Yoğunluk" value={parfum.yogunluk} colors={colors} />
                 <FeatureItem icon="time-outline" label="Kalıcılık" value={parfum.kalicilik} colors={colors} />
-                <FeatureItem icon="leaf-outline" label="Mevsim" value={parfum.mevsim.join(', ')} colors={colors} />
+                <FeatureItem icon="leaf-outline" label="Mevsim" value={parfum.mevsim?.join(', ') || '-'} colors={colors} />
                 <FeatureItem icon="person-outline" label="Cinsiyet" value={parfum.cinsiyet} colors={colors} />
               </View>
             </Card>
@@ -537,7 +537,7 @@ export default function ParfumDetailScreen() {
                   <Ionicons name="folder-open-outline" size={48} color={colors.textMuted} />
                   <ThemedText type="subtitle" center style={{ marginTop: Spacing.md }}>Henüz koleksiyon yok</ThemedText>
                   <ThemedText type="body" center style={{ color: colors.textMuted, marginTop: Spacing.xs }}>
-                    Profil > Favoriler > Koleksiyonlar'dan yeni koleksiyon oluşturun
+                    Profil &gt; Favoriler &gt; Koleksiyonlar'dan yeni koleksiyon oluşturun
                   </ThemedText>
                   <Button title="Koleksiyonlara Git" onPress={() => { setShowCollectionModal(false); router.push('/(tabs)/favorites'); }} style={{ marginTop: Spacing.xl }} />
                 </View>

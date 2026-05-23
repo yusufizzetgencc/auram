@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { View, StyleSheet, ViewStyle, Pressable } from 'react-native';
+import { View, StyleSheet, ViewStyle, StyleProp, Pressable } from 'react-native';
 import { Colors, BorderRadius, Spacing, Shadows } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -12,7 +12,7 @@ interface CardProps {
   onPress?: () => void;
   selected?: boolean;
   variant?: 'default' | 'elevated' | 'outlined';
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 

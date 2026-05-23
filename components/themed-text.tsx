@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Text, TextStyle, StyleSheet } from 'react-native';
+import { Text, TextStyle, StyleSheet, StyleProp } from 'react-native';
 import { Colors, FontSizes, FontWeights } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -12,7 +12,7 @@ type TextType = 'default' | 'title' | 'subtitle' | 'heading' | 'body' | 'caption
 interface ThemedTextProps {
   children: React.ReactNode;
   type?: TextType;
-  style?: TextStyle | TextStyle[];
+  style?: StyleProp<TextStyle>;
   color?: string;
   center?: boolean;
   numberOfLines?: number;
@@ -82,7 +82,7 @@ export function ThemedText({
 
   return (
     <Text 
-      style={[getTypeStyle(), center && styles.center, ...(Array.isArray(style) ? style : style ? [style] : [])]}
+      style={[getTypeStyle(), center && styles.center, style]}
       numberOfLines={numberOfLines}
     >
       {children}

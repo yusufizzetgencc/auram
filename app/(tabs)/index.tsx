@@ -6,7 +6,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
     Dimensions,
     Pressable,
@@ -24,7 +24,8 @@ import { Card } from '@/components/ui';
 import { BorderRadius, Colors, FontSizes, FontWeights, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { DailyRecommendation, getDailyMotivation, getDailyRecommendation } from '@/services/dailyRecommendation';
+import { Confetti, ConfettiRef } from '@/components/confetti';
+import { DailyRecommendation, getDailyMotivation, getMultipleDailyRecommendations } from '@/services/dailyRecommendation';
 import { fetchWeatherData, getWeatherRecommendation, WeatherData } from '@/services/weather';
 import { Parfum } from '@/types';
 
@@ -52,10 +53,16 @@ export default function HomeScreen() {
     addToRecentlyViewedList,
     getFavoriteParfums,
     getRecentlyViewedParfums,
+    todaySotd,
+    streakData,
+    selectTodaysSotd,
+    performanceLogs,
   } = useApp();
 
+  const confettiRef = useRef<ConfettiRef>(null);
+
   const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [dailyRec, setDailyRec] = useState<DailyRecommendation | null>(null);
+  const [dailyRecs, setDailyRecs] = useState<DailyRecommendation[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const motivation = getDailyMotivation();
@@ -64,8 +71,8 @@ export default function HomeScreen() {
     try {
       const weatherData = await fetchWeatherData();
       setWeather(weatherData);
-      const recommendation = getDailyRecommendation(parfumler, preferences, favorites, weatherData);
-      setDailyRec(recommendation);
+      const recommendations = getMultipleDailyRecommendations(parfumler, preferences, favorites, 3);
+      setDailyRecs(recommendations);
     } catch (error) {
       console.error('Data load error:', error);
     }
@@ -126,12 +133,67 @@ export default function HomeScreen() {
             </View>
             
             <View style={styles.greetingSection}>
-              <ThemedText style={styles.greetingEmoji}>{motivation.emoji}</ThemedText>
-              <ThemedText type="title" style={styles.greetingTitle}>Merhaba!</ThemedText>
-              <ThemedText type="body" style={{ color: colors.textMuted }}>
-                {parfumler.length} parfüm seni bekliyor
-              </ThemedText>
+              {weather ? (
+                <>
+                  <ThemedText style={styles.greetingEmoji}>🌤️</ThemedText>
+                  <ThemedText type="title" style={styles.greetingTitle}>
+                    Günaydın! Dışarıda {weather.temperature}°C ve {weather.description.toLowerCase()} bir hava var.
+                  </ThemedText>
+                </>
+              ) : (
+                <>
+                  <ThemedText style={styles.greetingEmoji}>{motivation.emoji}</ThemedText>
+                  <ThemedText type="title" style={styles.greetingTitle}>Merhaba!</ThemedText>
+                </>
+              )}
             </View>
+          </Animated.View>
+
+          {/* SOTD Hub */}
+          <Animated.View entering={FadeInUp.delay(50).duration(400)}>
+            {streakData.currentStreak > 0 && (
+              <View style={[styles.streakBanner, { backgroundColor: isDark ? 'rgba(255, 107, 157, 0.15)' : 'rgba(255, 107, 157, 0.1)' }]}>
+                <ThemedText style={[styles.streakText, { color: isDark ? '#FFB3C6' : '#D81159' }]}>
+                  🔥 Serin: {streakData.currentStreak}. Gün | En Uzun: {streakData.longestStreak}
+                </ThemedText>
+              </View>
+            )}
+
+            {!todaySotd ? (
+              <View style={styles.sotdContainer}>
+                <ThemedText type="subtitle" style={styles.sotdTitle}>Bugün Ne Sıksan?</ThemedText>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sotdScroll}>
+                  {dailyRecs.map((rec, index) => (
+                    <Card key={index} style={styles.sotdCard}>
+                      <ThemedText style={styles.sotdCardTitle} numberOfLines={1}>{rec.parfum.isim}</ThemedText>
+                      <ThemedText style={styles.sotdCardBrand}>{rec.parfum.marka || 'Aromixen'}</ThemedText>
+                      <Pressable 
+                        style={styles.sotdButton}
+                        onPress={() => {
+                          selectTodaysSotd(rec.parfum.id, weather);
+                          confettiRef.current?.fire();
+                        }}
+                      >
+                        <ThemedText style={styles.sotdButtonText}>Bugün Bunu Sıktım</ThemedText>
+                      </Pressable>
+                    </Card>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : (
+              <View style={styles.sotdContainer}>
+                <ThemedText type="subtitle" style={styles.sotdTitle}>Günün Kokusu</ThemedText>
+                <Card style={styles.sotdSelectedCard}>
+                  <View style={styles.sotdSelectedIcon}>
+                    <Ionicons name="checkmark-circle" size={32} color="#00D4AA" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.sotdCardTitle}>{parfumler.find(p => p.id === todaySotd.parfumId)?.isim}</ThemedText>
+                    <ThemedText style={styles.sotdCardBrand}>Harika bir seçim! Akşam performansını kaydetmeyi unutma.</ThemedText>
+                  </View>
+                </Card>
+              </View>
+            )}
           </Animated.View>
         </SafeAreaView>
 
@@ -314,46 +376,7 @@ export default function HomeScreen() {
             </Animated.View>
           )}
 
-          {/* Daily Recommendation */}
-          {dailyRec && (
-            <Animated.View entering={FadeInUp.delay(300).duration(400)}>
-              <Pressable onPress={() => handleOpenParfum(dailyRec.parfum)}>
-        <LinearGradient
-                  colors={['#9D4EDD', '#7B2CBF']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.dailyCard}
-                >
-                  <View style={styles.dailyHeader}>
-                    <View style={styles.dailyBadge}>
-                      <Ionicons name="sparkles" size={12} color="#FFD700" />
-                      <ThemedText style={styles.dailyBadgeText}>Günün Önerisi</ThemedText>
-        </View>
-                    <View style={styles.dailyScore}>
-                      <ThemedText style={styles.dailyScoreText}>%{dailyRec.matchScore}</ThemedText>
-          </View>
-        </View>
 
-                  <ThemedText style={styles.dailyName}>{dailyRec.parfum.isim}</ThemedText>
-                  <ThemedText style={styles.dailyBrand}>{dailyRec.parfum.marka}</ThemedText>
-                  
-                  <View style={styles.dailyReasons}>
-                    {dailyRec.reasons.slice(0, 2).map((reason, i) => (
-                      <View key={i} style={styles.dailyReason}>
-                        <Ionicons name="checkmark-circle" size={14} color="rgba(255,255,255,0.8)" />
-                        <ThemedText style={styles.dailyReasonText}>{reason}</ThemedText>
-      </View>
-              ))}
-            </View>
-            
-                  <View style={styles.dailyAction}>
-                    <ThemedText style={styles.dailyActionText}>İncele</ThemedText>
-                    <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
-          </View>
-                </LinearGradient>
-        </Pressable>
-            </Animated.View>
-          )}
 
           {/* Scent Families */}
           <Animated.View entering={FadeInUp.delay(400).duration(400)}>
@@ -463,7 +486,8 @@ export default function HomeScreen() {
           <View style={{ height: 120 }} />
         </View>
           </ScrollView>
-      </ThemedView>
+      <Confetti ref={confettiRef} />
+    </ThemedView>
   );
 }
 
@@ -510,6 +534,76 @@ const styles = StyleSheet.create({
   quickActions: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
   quickAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg, gap: Spacing.sm },
   quickActionText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold },
+  emptyText: {
+    fontSize: FontSizes.sm,
+    color: Colors.light.textMuted,
+  },
+  streakBanner: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  streakText: {
+    fontSize: FontSizes.sm,
+    fontWeight: 'bold',
+  },
+  sotdContainer: {
+    marginHorizontal: Spacing.lg,
+    marginVertical: Spacing.md,
+  },
+  sotdTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: 'bold',
+    marginBottom: Spacing.sm,
+  },
+  sotdScroll: {
+    paddingRight: Spacing.lg,
+  },
+  sotdCard: {
+    width: 200,
+    marginRight: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: 'rgba(157, 78, 221, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(157, 78, 221, 0.2)',
+  },
+  sotdCardTitle: {
+    fontSize: FontSizes.md,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  sotdCardBrand: {
+    fontSize: FontSizes.sm,
+    color: Colors.light.textMuted,
+    marginBottom: Spacing.md,
+  },
+  sotdButton: {
+    backgroundColor: '#9D4EDD',
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    alignItems: 'center',
+  },
+  sotdButtonText: {
+    color: '#FFF',
+    fontSize: FontSizes.sm,
+    fontWeight: 'bold',
+  },
+  sotdSelectedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    backgroundColor: 'rgba(0, 212, 170, 0.1)',
+    borderColor: 'rgba(0, 212, 170, 0.3)',
+    borderWidth: 1,
+  },
+  sotdSelectedIcon: {
+    marginRight: Spacing.md,
+  },
   // Premium Features
   premiumContainer: { gap: Spacing.md, paddingBottom: Spacing.sm, marginBottom: Spacing.md },
   premiumCard: { width: 120, borderRadius: BorderRadius.xl, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 5 },

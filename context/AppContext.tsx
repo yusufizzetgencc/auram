@@ -8,7 +8,7 @@ import {
   Collection,
   RecentlyViewedItem,
   SearchHistoryItem,
-  loadAllUserData,
+  loadAllUserDataExtended,
   loadFavorites,
   loadCollections,
   loadRecentlyViewed,
@@ -26,6 +26,9 @@ import {
   removeFromSearchHistory,
   clearSearchHistory,
   clearAllData,
+  addSotdEntry,
+  saveStreakData,
+  addPerformanceLog,
 } from '@/services/storage';
 import {
     KokuTipi,
@@ -37,7 +40,11 @@ import {
     PHHesapSonucu,
     RecommendationResult,
     UserPHInfo,
-    UserPreferences
+    UserPreferences,
+    SOTDEntry,
+    StreakData,
+    PerformanceLog,
+    MonthlyStats
 } from '@/types';
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -109,6 +116,15 @@ interface AppContextType {
   // ============ VERİ YÖNETİMİ ============
   resetAllData: () => Promise<void>;
   refreshData: () => Promise<void>;
+  
+  // ============ SOTD & PERFORMANS ============
+  sotdHistory: SOTDEntry[];
+  streakData: StreakData;
+  performanceLogs: PerformanceLog[];
+  todaySotd: SOTDEntry | null;
+  selectTodaysSotd: (parfumId: string, weather?: any) => Promise<void>;
+  logPerformance: (parfumId: string, data: Omit<PerformanceLog, 'id' | 'createdAt' | 'parfumId'>) => Promise<void>;
+  getMonthlyStats: (month: number, year: number) => MonthlyStats;
 }
 
 const defaultPHInfo: UserPHInfo = {
@@ -120,6 +136,31 @@ const defaultPHInfo: UserPHInfo = {
 
 const defaultPreferences: UserPreferences = {
   phInfo: defaultPHInfo,
+  
+  // 🧬 Bölüm 1: Biyolojik İmza ve pH Analizi
+  ciltTipi: null,
+  gumusOksitlenme: null,
+  suTuketimi: null,
+  beslenmeAliskanligi: null,
+  terlemeOrani: null,
+  vucutIsisi: null,
+
+  // 🧪 Bölüm 2: Koku Reaksiyonu ve Uygulama Alışkanlığı
+  parfumReaksiyonu: null,
+  uygulamaYeri: null,
+  kokuAlmaHassasiyeti: null,
+
+  // 🎭 Bölüm 3: Aura ve Koku Karakteri
+  aura: null,
+  kokuTipleri: [],
+  kacinilacakNotalar: [],
+  cinsiyetAlgisi: null,
+
+  // 👔 Bölüm 4: Yaşam Dinamikleri
+  ortam: null,
+  kiyafetStili: null,
+
+  // Geriye dönük uyumluluk veya ileride kullanılabilecek boş alanlar
   yasGrubu: null,
   kisilikTipi: null,
   deneyimSeviyesi: null,
@@ -127,21 +168,15 @@ const defaultPreferences: UserPreferences = {
   butce: null,
   markaTercihi: null,
   konsantrasyonTercihi: null,
-  kokuTipleri: [],
   yogunluk: null,
   izlenimHedefi: null,
   kullanimAmaci: null,
   gununSaati: null,
   cinsiyet: null,
-  ciltTipi: null,
   ciltHassasiyeti: null,
-  terlemeOrani: null,
-  kokuAlmaHassasiyeti: null,
   alerjiDurumu: [],
   mevsim: null,
   iklim: null,
-  ortam: null,
-  kiyafetStili: null,
   aktivite: null,
   sevilenNotalar: [],
   sevilmeyenNotalar: [],
@@ -149,6 +184,72 @@ const defaultPreferences: UserPreferences = {
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+export const getPHAraligi = (ph: number): PHAraligi => {
+  if (ph < 5.0) return 'asidik';
+  if (ph > 6.0) return 'bazik';
+  return 'normal';
+};
+
+// Saf (Pure) pH Hesaplama Fonksiyonu - Side effect içermez, render anında çağrılabilir
+export const hesaplaPHPure = (preferences: UserPreferences): PHHesapSonucu => {
+  let tahminiPH = 5.5; 
+  let asidikEtki = 0;
+  let alkaliEtki = 0;
+
+  if (preferences.ciltTipi === 'kuru') asidikEtki += 0.2;
+  if (preferences.ciltTipi === 'yagli') alkaliEtki += 0.2;
+
+  if (preferences.gumusOksitlenme === 'asidik') asidikEtki += 0.5;
+  if (preferences.gumusOksitlenme === 'notr_alkali') alkaliEtki += 0.3;
+
+  if (preferences.suTuketimi === 'az') asidikEtki += 0.3;
+  if (preferences.suTuketimi === 'cok') {
+    asidikEtki *= 0.5;
+    alkaliEtki *= 0.5;
+  }
+
+  if (preferences.beslenmeAliskanligi === 'asidik') asidikEtki += 0.4;
+  if (preferences.beslenmeAliskanligi === 'alkali') alkaliEtki += 0.4;
+
+  if (preferences.terlemeOrani === 'cok') asidikEtki += 0.3;
+  
+  if (preferences.parfumReaksiyonu === 'tatli_pudrali') alkaliEtki += 0.3;
+  if (preferences.parfumReaksiyonu === 'eksi_uzaklasir') asidikEtki += 0.4;
+
+  tahminiPH = tahminiPH - asidikEtki + alkaliEtki;
+  tahminiPH = Math.max(4.0, Math.min(7.0, Number(tahminiPH.toFixed(2))));
+  
+  const aralik = getPHAraligi(tahminiPH);
+
+  let guvenilirlik = 50;
+  if (preferences.gumusOksitlenme) guvenilirlik += 10;
+  if (preferences.beslenmeAliskanligi) guvenilirlik += 10;
+  if (preferences.parfumReaksiyonu) guvenilirlik += 15;
+  if (preferences.suTuketimi) guvenilirlik += 5;
+  if (preferences.terlemeOrani) guvenilirlik += 10;
+
+  let aciklama = '';
+  if (aralik === 'asidik') {
+    aciklama = 'Cildiniz asidik pH\'a sahip (Gümüş kararması veya beslenme tarzı etken). Narenciye ve ferah notalar sizde çok iyi açılırken, tatlı kokular ekşiyebilir.';
+  } else if (aralik === 'bazik') {
+    aciklama = 'Cildiniz bazik/alkali eğilimli. Alt notalar (odunsu, amber, vanilya) sizde daha sıcak ve kalıcı olur.';
+  } else {
+    aciklama = 'Cildiniz nötr pH dengesinde. Çoğu parfüm şişedeki kokusunu teninizde doğrudan yansıtır.';
+  }
+
+  return {
+    tahminiPH,
+    aralik,
+    guvenilirlik,
+    aciklama,
+    faktorler: {
+      ciltTipiEtkisi: asidikEtki > alkaliEtki ? -0.1 : 0.1,
+      terlemeEtkisi: 0,
+      hassasiyetEtkisi: 0,
+    }
+  };
+};
 
 export function AppProvider({ children }: { children: ReactNode }) {
   // ============ LOADING STATE ============
@@ -170,6 +271,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [recentlyViewed, setRecentlyViewed] = useState<RecentlyViewedItem[]>([]);
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
 
+  // ============ SOTD & PERFORMANS ============
+  const [sotdHistory, setSotdHistory] = useState<SOTDEntry[]>([]);
+  const [streakData, setStreakData] = useState<StreakData>({ currentStreak: 0, longestStreak: 0, lastSOTDDate: null, totalSOTDs: 0, badges: [] });
+  const [performanceLogs, setPerformanceLogs] = useState<PerformanceLog[]>([]);
+  
+  const todaySotd = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return sotdHistory.find(e => e.date === today) || null;
+  }, [sotdHistory]);
+
   // ============ PARFÜM VERİLERİ ============
   const parfumler = parfumData.parfumler as unknown as Parfum[];
   const kokuTipleri = parfumData.kokuTipleri;
@@ -182,7 +293,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       try {
         setIsLoading(true);
         
-        const storedData = await loadAllUserData(defaultPreferences);
+        const storedData = await loadAllUserDataExtended(defaultPreferences);
         
         setPreferences(storedData.preferences);
         setIsOnboardingCompleteState(storedData.isOnboardingComplete);
@@ -191,6 +302,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCollections(storedData.collections);
         setRecentlyViewed(storedData.recentlyViewed);
         setSearchHistory(storedData.searchHistory);
+        setSotdHistory(storedData.sotdHistory || []);
+        if (storedData.streakData) setStreakData(storedData.streakData);
+        setPerformanceLogs(storedData.performanceLogs || []);
         
         setIsDataLoaded(true);
       } catch (error) {
@@ -228,7 +342,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const toggleArrayPreference = useCallback(<K extends keyof UserPreferences>(key: K, value: string) => {
     setPreferences(prev => {
-      const currentArray = prev[key] as string[];
+      const currentArray = (prev[key] as string[]) || [];
       let newPrefs: UserPreferences;
       
       if (currentArray.includes(value)) {
@@ -265,11 +379,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const getPHAraligi = (ph: number): PHAraligi => {
-    if (ph < 5.0) return 'asidik';
-    if (ph > 6.0) return 'bazik';
-    return 'normal';
-  };
+
 
   const setKullaniciPH = useCallback((ph: number) => {
     const aralik = getPHAraligi(ph);
@@ -283,83 +393,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+
+
   const hesaplaPH = useCallback((): PHHesapSonucu => {
-    const formul = parfumData.phHesaplamaFormulu;
-    let tabanPH = formul.tabanPH;
-
-    let ciltTipiEtkisi = 0;
-    if (preferences.ciltTipi === 'kuru') {
-      ciltTipiEtkisi = 1 * formul.ciltTipiKatsayi;
-    } else if (preferences.ciltTipi === 'yagli') {
-      ciltTipiEtkisi = -1 * formul.ciltTipiKatsayi;
-    } else if (preferences.ciltTipi === 'karma') {
-      ciltTipiEtkisi = 0.5 * formul.ciltTipiKatsayi;
-    }
-
-    let terlemeEtkisi = 0;
-    if (preferences.terlemeOrani === 'normal') {
-      terlemeEtkisi = 1 * formul.terlemeKatsayi;
-    } else if (preferences.terlemeOrani === 'cok') {
-      terlemeEtkisi = 2 * formul.terlemeKatsayi;
-    }
-
-    let hassasiyetEtkisi = 0;
-    if (preferences.ciltHassasiyeti === 'hassas') {
-      hassasiyetEtkisi = 1 * formul.hassasiyetKatsayi;
-    } else if (preferences.ciltHassasiyeti === 'dayanikli') {
-      hassasiyetEtkisi = -1 * formul.hassasiyetKatsayi;
-    }
-
-    let yasEtkisi = 0;
-    if (preferences.yasGrubu === '18-24') {
-      yasEtkisi = -0.1;
-    } else if (preferences.yasGrubu === '55+') {
-      yasEtkisi = 0.15;
-    }
-
-    const tahminiPH = Number((tabanPH + ciltTipiEtkisi + terlemeEtkisi + hassasiyetEtkisi + yasEtkisi).toFixed(2));
-    const aralik = getPHAraligi(tahminiPH);
-
-    let guvenilirlik = 40;
-    if (preferences.ciltTipi) guvenilirlik += 15;
-    if (preferences.terlemeOrani) guvenilirlik += 15;
-    if (preferences.ciltHassasiyeti) guvenilirlik += 15;
-    if (preferences.yasGrubu) guvenilirlik += 10;
-    if (preferences.kokuAlmaHassasiyeti) guvenilirlik += 5;
-
-    let aciklama = '';
-    if (aralik === 'asidik') {
-      aciklama = 'Cildiniz asidik pH\'a sahip. Narenciye ve ferah notalar sizde çok iyi açılır.';
-    } else if (aralik === 'bazik') {
-      aciklama = 'Cildiniz bazik pH\'a sahip. Alt notalar sizde daha baskın olur.';
-    } else {
-      aciklama = 'Cildiniz normal pH aralığında. Çoğu parfüm sizde dengeli performans gösterir.';
-    }
-
-    const sonuc: PHHesapSonucu = {
-      tahminiPH,
-      aralik,
-      guvenilirlik,
-      aciklama,
-      faktorler: {
-        ciltTipiEtkisi,
-        terlemeEtkisi,
-        hassasiyetEtkisi,
-      }
-    };
-
+    const sonuc = hesaplaPHPure(preferences);
     setPHSonucu(sonuc);
     setPreferences(prev => {
       const newPrefs = {
         ...prev,
-        phInfo: { ...prev.phInfo, tahminiDeger: tahminiPH, aralik }
+        phInfo: { ...prev.phInfo, tahminiDeger: sonuc.tahminiPH, aralik: sonuc.aralik }
       };
       saveUserPreferences(newPrefs);
       return newPrefs;
     });
 
     return sonuc;
-  }, [preferences.ciltTipi, preferences.terlemeOrani, preferences.ciltHassasiyeti, preferences.yasGrubu, preferences.kokuAlmaHassasiyeti]);
+  }, [preferences]);
 
   // ============ FAVORİ FONKSİYONLARI ============
   const isFavorite = useCallback((parfumId: string): boolean => {
@@ -503,17 +552,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshData = useCallback(async (): Promise<void> => {
-    const [favs, cols, recent, history] = await Promise.all([
-      loadFavorites(),
-      loadCollections(),
-      loadRecentlyViewed(),
-      loadSearchHistory(),
-    ]);
+    const storedData = await loadAllUserDataExtended(defaultPreferences);
     
-    setFavorites(favs);
-    setCollections(cols);
-    setRecentlyViewed(recent);
-    setSearchHistory(history);
+    setFavorites(storedData.favorites);
+    setCollections(storedData.collections);
+    setRecentlyViewed(storedData.recentlyViewed);
+    setSearchHistory(storedData.searchHistory);
+    setSotdHistory(storedData.sotdHistory || []);
+    if (storedData.streakData) setStreakData(storedData.streakData);
+    setPerformanceLogs(storedData.performanceLogs || []);
   }, []);
 
   // ============ pH SKOR HESAPLAMA ============
@@ -610,227 +657,130 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const phSkor = hesaplaParfumPHSkoru(parfum, effectivePH);
 
-      // 1️⃣ pH UYUMU
-      maxScore += 20;
-      const phPuan = (phSkor.phUyumSkoru / 100) * 20;
-      score += phPuan;
-      if (phSkor.phUyumSkoru >= 70) {
-        matchReasons.push(`pH uyumu: %${Math.round(phSkor.phUyumSkoru)}`);
+      // --- 1. pH UYUMU VE UYGULAMA YERİ (EN KRİTİK) ---
+      maxScore += 25;
+      let phUyumPuan = (phSkor.phUyumSkoru / 100) * 25;
+      
+      // Eğer kullanıcı parfümü "sadece kıyafete" sıkıyorsa pH'ın etkisi sıfırlanır/azaltılır, 
+      // çünkü koku tenle reaksiyona girmeyecektir.
+      if (preferences.uygulamaYeri === 'sadece_kiyafet') {
+        phUyumPuan = 25; // Kıyafette tam uyum sayılır
+        matchReasons.push('Kıyafete sıktığınız için ten kimyası reaksiyonu minimumda kalır.');
+        uyumKategorileri.push({ kategori: 'pH Uyumu (Kıyafet)', uyum: true, detay: 'Kıyafette tam uyum' });
+      } else {
+        if (phSkor.phUyumSkoru >= 70) {
+          matchReasons.push(`Ten pH'ınızla %${Math.round(phSkor.phUyumSkoru)} kimyasal uyum.`);
+        }
+        uyumKategorileri.push({
+          kategori: 'Ten Kimyası (pH)',
+          uyum: phSkor.phUyumSkoru >= 50,
+          detay: `%${Math.round(phSkor.phUyumSkoru)} uyum`
+        });
       }
-      uyumKategorileri.push({
-        kategori: 'pH Uyumu',
-        uyum: phSkor.phUyumSkoru >= 50,
-        detay: `%${Math.round(phSkor.phUyumSkoru)} uyum`
-      });
+      score += phUyumPuan;
 
-      // 2️⃣ KOKU TİPİ UYUMU
-      maxScore += 18;
+      // --- 2. KOKU AİLESİ UYUMU ---
+      maxScore += 20;
       if (preferences.kokuTipleri.length > 0) {
         const tipUyumu = preferences.kokuTipleri.includes(parfum.tip as KokuTipi);
         const ikincilUyum = parfum.ikincilTip && preferences.kokuTipleri.includes(parfum.ikincilTip as KokuTipi);
         
         if (tipUyumu) {
-          score += 16;
-          matchReasons.push(`${parfum.tip} koku tercihinize uygun`);
+          score += 18;
+          matchReasons.push(`Sevdiğiniz "${parfum.tip}" koku ailesine ait.`);
         }
         if (ikincilUyum) {
           score += 2;
         }
         uyumKategorileri.push({
-          kategori: 'Koku Tipi',
+          kategori: 'Koku Ailesi',
           uyum: tipUyumu || !!ikincilUyum,
           detay: tipUyumu ? parfum.tip : 'Uyumsuz'
         });
       }
 
-      // 3️⃣ CİNSİYET UYUMU
-      maxScore += 12;
-      if (preferences.cinsiyet) {
-        const cinsiyetUyumu = parfum.cinsiyet === preferences.cinsiyet || parfum.cinsiyet === 'unisex';
-        if (cinsiyetUyumu) {
-          score += 12;
-        } else {
-          score -= 15;
-        }
-        uyumKategorileri.push({
-          kategori: 'Cinsiyet',
-          uyum: cinsiyetUyumu,
-          detay: parfum.cinsiyet
-        });
-      }
-
-      // 4️⃣ MEVSİM UYUMU
-      maxScore += 10;
-      if (preferences.mevsim && parfum.mevsim && Array.isArray(parfum.mevsim)) {
-        const mevsimUyumu = parfum.mevsim.includes(preferences.mevsim) || 
-                          parfum.mevsim.includes('Tüm Mevsimler' as Mevsim);
-        if (mevsimUyumu) {
-          score += 10;
-          matchReasons.push(`${preferences.mevsim} için uygun`);
-        }
-        uyumKategorileri.push({
-          kategori: 'Mevsim',
-          uyum: mevsimUyumu,
-          detay: parfum.mevsim.join(', ')
-        });
-      }
-
-      // 5️⃣ YOĞUNLUK UYUMU
-      maxScore += 8;
-      if (preferences.yogunluk && parfum.yogunluk === preferences.yogunluk) {
-        score += 8;
-        uyumKategorileri.push({
-          kategori: 'Yoğunluk',
-          uyum: true,
-          detay: parfum.yogunluk
-        });
-      }
-
-      // 6️⃣ KULLANIM AMACI
-      maxScore += 8;
-      if (preferences.kullanimAmaci && parfum.kullanimAmaci && Array.isArray(parfum.kullanimAmaci) && parfum.kullanimAmaci.includes(preferences.kullanimAmaci)) {
-        score += 8;
-        matchReasons.push('Kullanım amacınıza uygun');
-      }
-
-      // 7️⃣ KİŞİLİK UYUMU
-      maxScore += 6;
-      if (preferences.kisilikTipi && parfum.kisilikTipi?.includes(preferences.kisilikTipi)) {
-        score += 6;
-        matchReasons.push('Kişiliğinize uygun');
-      }
-
-      // 8️⃣ İZLENİM HEDEFİ
-      maxScore += 6;
-      if (preferences.izlenimHedefi && parfum.izlenim?.includes(preferences.izlenimHedefi)) {
-        score += 6;
-        matchReasons.push(`${preferences.izlenimHedefi} izlenimi için ideal`);
-      }
-
-      // 9️⃣ BÜTÇE UYUMU
-      maxScore += 5;
-      if (preferences.butce && parfum.fiyatAraligi) {
-        const butceSirasi = ['ekonomik', 'orta', 'premium', 'luks'];
-        const userBudgetIndex = butceSirasi.indexOf(preferences.butce);
-        const parfumBudgetIndex = butceSirasi.indexOf(parfum.fiyatAraligi);
+      // --- 3. AURA & KAREKTER (İzlenim Hedefi yerine) ---
+      maxScore += 15;
+      if (preferences.aura) {
+        // Auraları parfümün mevcut özellikleriyle eşleştirelim (izlenimHedefi veya kisilikTipi üzerinden tahmini bir eşleşme yapıyoruz)
+        const auraMap: Record<string, string[]> = {
+          temiz: ['taze', 'dogal', 'profesyonel'],
+          gizemli: ['gizemli', 'mistik', 'sofistike'],
+          cekici: ['cekici', 'sicak', 'romantik'],
+          dinamik: ['enerjik', 'dinamik', 'sportif'],
+          otoriter: ['profesyonel', 'cesur', 'sofistike']
+        };
+        const istenenOzellikler = auraMap[preferences.aura] || [];
+        const parfumOzellikleri = [...(parfum.izlenim || []), ...(parfum.kisilikTipi || [])];
         
-        if (parfumBudgetIndex <= userBudgetIndex) {
-          score += 5;
-        } else if (parfumBudgetIndex === userBudgetIndex + 1) {
-          score += 2;
+        const auraUyumu = istenenOzellikler.some(o => parfumOzellikleri.includes(o as any));
+        if (auraUyumu) {
+          score += 15;
+          matchReasons.push(`Arzuladığınız "${preferences.aura}" auraya tam uyum.`);
         }
       }
 
-      // 🔟 YAŞ GRUBU
-      maxScore += 4;
-      if (preferences.yasGrubu && parfum.yasGrubu?.includes(preferences.yasGrubu)) {
-        score += 4;
-      }
+      // --- 4. CİNSİYET ALGISI ---
+      maxScore += 10;
+      if (preferences.cinsiyetAlgisi) {
+        let cinsiyetUyumu = false;
+        if (preferences.cinsiyetAlgisi === 'feminen' && (parfum.cinsiyet === 'kadın' || parfum.cinsiyet === 'unisex')) cinsiyetUyumu = true;
+        if (preferences.cinsiyetAlgisi === 'maskulen' && (parfum.cinsiyet === 'erkek' || parfum.cinsiyet === 'unisex')) cinsiyetUyumu = true;
+        if (preferences.cinsiyetAlgisi === 'unisex' && parfum.cinsiyet === 'unisex') cinsiyetUyumu = true;
 
-      // 1️⃣1️⃣ GÜNÜN SAATİ
-      maxScore += 4;
-      if (preferences.gununSaati && parfum.gununSaati?.includes(preferences.gununSaati)) {
-        score += 4;
-      }
-
-      // 1️⃣2️⃣ KALICILIK + pH
-      maxScore += 6;
-      if (preferences.kalicilikTercihi) {
-        let efektifKalicilik = parfum.kalicilik;
-        if (phSkor.kalicilikModifikasyonu > 0.2) {
-          if (parfum.kalicilik === 'kisa') efektifKalicilik = 'orta';
-          else if (parfum.kalicilik === 'orta') efektifKalicilik = 'uzun';
-        } else if (phSkor.kalicilikModifikasyonu < -0.1) {
-          if (parfum.kalicilik === 'uzun') efektifKalicilik = 'orta';
-          else if (parfum.kalicilik === 'orta') efektifKalicilik = 'kisa';
-        }
-
-        if (efektifKalicilik === preferences.kalicilikTercihi) {
-          score += 6;
-          matchReasons.push(`Cildinizde ${preferences.kalicilikTercihi} süreli kalıcılık`);
+        if (cinsiyetUyumu) {
+          score += 10;
         }
       }
 
-      // 1️⃣3️⃣ İKLİM
-      maxScore += 4;
-      if (preferences.iklim && parfum.iklim && Array.isArray(parfum.iklim) && parfum.iklim.includes(preferences.iklim)) {
-        score += 4;
-      }
-
-      // 1️⃣4️⃣ KIYAFET STİLİ
-      maxScore += 4;
-      if (preferences.kiyafetStili && parfum.kiyafetStili && Array.isArray(parfum.kiyafetStili) && parfum.kiyafetStili.includes(preferences.kiyafetStili)) {
-        score += 4;
-      }
-
-      // 1️⃣5️⃣ ORTAM
-      maxScore += 3;
-      if (preferences.ortam && parfum.ortam && (parfum.ortam === preferences.ortam || parfum.ortam === 'her_ikisi')) {
-        score += 3;
-      }
-
-      // 1️⃣6️⃣ AKTİVİTE
-      maxScore += 3;
-      if (preferences.aktivite && parfum.aktivite && Array.isArray(parfum.aktivite) && parfum.aktivite.includes(preferences.aktivite)) {
-        score += 3;
-      }
-
-      // 1️⃣7️⃣ SEVİLEN NOTALAR
-      maxScore += 8;
-      if (preferences.sevilenNotalar.length > 0 && parfum.notalar) {
-        const ustNotalar = parfum.notalar.ust || [];
-        const ortaNotalar = parfum.notalar.orta || [];
-        const altNotalar = parfum.notalar.alt || [];
-        const tumNotalar = [...ustNotalar, ...ortaNotalar, ...altNotalar];
-        const eslesen = preferences.sevilenNotalar.filter(nota => 
-          tumNotalar.some(n => n && n.toLowerCase().includes(nota.toLowerCase()))
-        );
-        if (eslesen.length > 0) {
-          const notaPuani = Math.min(8, eslesen.length * 2);
-          score += notaPuani;
-          matchReasons.push(`Sevdiğiniz notalar: ${eslesen.slice(0, 2).join(', ')}`);
+      // --- 5. VÜCUT ISISI (YAYILIM) ---
+      maxScore += 10;
+      if (preferences.vucutIsisi) {
+        // Sıcak vücut yayılımı artırır, bu yüzden çok yoğun parfümler boğucu olabilir.
+        if (preferences.vucutIsisi === 'sicak' && parfum.yogunluk === 'yogun') {
+          score += 2; // Düşük puan
+        } else if (preferences.vucutIsisi === 'serin' && parfum.yogunluk === 'yogun') {
+          score += 10; // Yüksek puan (serin ten yayılımı yavaşlatır, yoğun koku denge sağlar)
+          matchReasons.push('Serin ten yapınız yoğun parfümü nazikçe açacaktır.');
+        } else {
+          score += 8; // Normal uyum
         }
       }
 
-      // 1️⃣8️⃣ SEVİLMEYEN NOTALAR
-      if (preferences.sevilmeyenNotalar.length > 0 && parfum.notalar) {
-        const ustNotalar = parfum.notalar.ust || [];
-        const ortaNotalar = parfum.notalar.orta || [];
-        const altNotalar = parfum.notalar.alt || [];
-        const tumNotalar = [...ustNotalar, ...ortaNotalar, ...altNotalar];
-        const sevilmeyen = preferences.sevilmeyenNotalar.filter(nota => 
-          tumNotalar.some(n => n && n.toLowerCase().includes(nota.toLowerCase()))
-        );
-        if (sevilmeyen.length > 0) {
-          score -= sevilmeyen.length * 8;
+      // --- 6. ORTAM UYUMU ---
+      maxScore += 10;
+      if (preferences.ortam) {
+        if (parfum.ortam === preferences.ortam || parfum.ortam === 'her_ikisi') {
+          score += 10;
+        } else if (preferences.ortam === 'kapali' && parfum.yogunluk === 'yogun') {
+          score -= 5; // Kapalı ortamda yoğun koku eksi puan
         }
       }
 
-      // 1️⃣9️⃣ CİLT HASSASİYETİ
-      if (preferences.ciltHassasiyeti === 'hassas') {
-        if (parfum.tip === 'Baharatlı') {
-          score -= 12;
-          uyumKategorileri.push({
-            kategori: 'Cilt Hassasiyeti',
-            uyum: false,
-            detay: 'Hassas cilt için baharatlı kokular önerilmez'
-          });
+      // --- 7. KİMAFİT STİLİ UYUMU ---
+      maxScore += 10;
+      if (preferences.kiyafetStili && parfum.kiyafetStili?.includes(preferences.kiyafetStili)) {
+        score += 10;
+      }
+
+      // --- 8. KAÇINILACAK NOTALAR (KIRMIZI ÇİZGİ) ---
+      if (preferences.kacinilacakNotalar.length > 0) {
+        const tumNotalar = [...(parfum.notalar.ust||[]), ...(parfum.notalar.orta||[]), ...(parfum.notalar.alt||[])].join(' ').toLowerCase();
+        
+        let hasBadNote = false;
+        if (preferences.kacinilacakNotalar.includes('Aşırı şekerli') && (tumNotalar.includes('vanilya') || tumNotalar.includes('karamel') || tumNotalar.includes('pralin'))) hasBadNote = true;
+        if (preferences.kacinilacakNotalar.includes('Baskın çiçek') && (tumNotalar.includes('gül') || tumNotalar.includes('yasemin') || tumNotalar.includes('sümbül'))) hasBadNote = true;
+        if (preferences.kacinilacakNotalar.includes('Deri veya tütün') && (tumNotalar.includes('deri') || tumNotalar.includes('tütün') || tumNotalar.includes('is'))) hasBadNote = true;
+        
+        if (hasBadNote) {
+          score -= 40; // Çok güçlü eksi puan
+          uyumKategorileri.push({ kategori: 'Rahatsız Edici Notalar', uyum: false, detay: 'İçeriğinde hassas olduğunuz notalar var' });
         }
       }
 
-      // 2️⃣0️⃣ ALERJİ
-      if (preferences.alerjiDurumu.length > 0 && !preferences.alerjiDurumu.includes('yok')) {
-        if (preferences.alerjiDurumu.includes('cicek') && parfum.tip === 'Çiçeksi') {
-          score -= 20;
-        }
-        if (preferences.alerjiDurumu.includes('baharat') && parfum.tip === 'Baharatlı') {
-          score -= 20;
-        }
-      }
-
-      // 2️⃣1️⃣ KOKU ALMA
+      // --- 9. KOKU HASSASİYETİ ---
       if (preferences.kokuAlmaHassasiyeti === 'cok_yuksek' && parfum.yogunluk === 'yogun') {
-        score -= 8;
+        score -= 15;
       }
 
       const matchPercentage = Math.max(0, Math.min(100, Math.round((score / maxScore) * 100)));
@@ -855,6 +805,116 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRecommendations(sortedResults);
     return sortedResults;
   }, [parfumler, preferences, kullaniciPH, hesaplaParfumPHSkoru]);
+
+  // ============ SOTD & PERFORMANS FONKSİYONLARI ============
+  const selectTodaysSotd = useCallback(async (parfumId: string, weather?: any) => {
+    const entry = await addSotdEntry(parfumId, weather);
+    setSotdHistory(prev => {
+      const today = new Date().toISOString().split('T')[0];
+      const filtered = prev.filter(e => e.date !== today);
+      return [entry, ...filtered];
+    });
+
+    // Update streak logic
+    setStreakData(prev => {
+      const today = new Date().toISOString().split('T')[0];
+      let newStreak = prev.currentStreak;
+      
+      if (prev.lastSOTDDate !== today) {
+        // Calculate days difference
+        if (prev.lastSOTDDate) {
+          const lastDate = new Date(prev.lastSOTDDate);
+          const currentDate = new Date(today);
+          const diffTime = Math.abs(currentDate.getTime() - lastDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays === 1) {
+            newStreak += 1;
+          } else {
+            newStreak = 1;
+          }
+        } else {
+          newStreak = 1;
+        }
+      }
+
+      const newData: StreakData = {
+        ...prev,
+        currentStreak: newStreak,
+        longestStreak: Math.max(prev.longestStreak, newStreak),
+        lastSOTDDate: today,
+        totalSOTDs: prev.lastSOTDDate !== today ? prev.totalSOTDs + 1 : prev.totalSOTDs
+      };
+      
+      saveStreakData(newData);
+      return newData;
+    });
+  }, []);
+
+  const logPerformance = useCallback(async (parfumId: string, data: Omit<PerformanceLog, 'id' | 'createdAt' | 'parfumId'>) => {
+    const log = await addPerformanceLog({ ...data, parfumId });
+    setPerformanceLogs(prev => {
+      const filtered = prev.filter(l => l.date !== log.date);
+      return [log, ...filtered];
+    });
+  }, []);
+
+  const getMonthlyStats = useCallback((month: number, year: number): MonthlyStats => {
+    const logsForMonth = performanceLogs.filter(log => {
+      const date = new Date(log.date);
+      return date.getMonth() + 1 === month && date.getFullYear() === year;
+    });
+
+    const totalDays = logsForMonth.length;
+    let mostUsedParfumId: string | null = null;
+    let mostComplimentedParfumId: string | null = null;
+    let averageLongevity = 0;
+    let complimentRate = 0;
+    const topParfums: { parfumId: string; count: number; compliments: number }[] = [];
+
+    if (totalDays > 0) {
+      const parfumCounts: Record<string, { count: number; compliments: number }> = {};
+      let totalLongevity = 0;
+      let totalCompliments = 0;
+
+      logsForMonth.forEach(log => {
+        totalLongevity += log.longevity;
+        if (log.compliment) totalCompliments += 1;
+
+        if (!parfumCounts[log.parfumId]) {
+          parfumCounts[log.parfumId] = { count: 0, compliments: 0 };
+        }
+        parfumCounts[log.parfumId].count += 1;
+        if (log.compliment) parfumCounts[log.parfumId].compliments += 1;
+      });
+
+      averageLongevity = Number((totalLongevity / totalDays).toFixed(1));
+      complimentRate = Math.round((totalCompliments / totalDays) * 100);
+
+      Object.entries(parfumCounts).forEach(([parfumId, data]) => {
+        topParfums.push({ parfumId, count: data.count, compliments: data.compliments });
+      });
+
+      topParfums.sort((a, b) => b.count - a.count);
+      
+      if (topParfums.length > 0) {
+        mostUsedParfumId = topParfums[0].parfumId;
+        const sortedByCompliments = [...topParfums].sort((a, b) => b.compliments - a.compliments);
+        mostComplimentedParfumId = sortedByCompliments[0].parfumId;
+      }
+    }
+
+    return {
+      month,
+      year,
+      totalDays,
+      mostUsedParfumId,
+      mostComplimentedParfumId,
+      averageLongevity,
+      complimentRate,
+      topParfums: topParfums.slice(0, 5) // Top 5
+    };
+  }, [performanceLogs]);
 
   return (
     <AppContext.Provider
@@ -924,6 +984,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Veri Yönetimi
         resetAllData,
         refreshData,
+        
+        // SOTD & Performans
+        sotdHistory,
+        streakData,
+        performanceLogs,
+        todaySotd,
+        selectTodaysSotd,
+        logPerformance,
+        getMonthlyStats,
       }}
     >
       {children}
