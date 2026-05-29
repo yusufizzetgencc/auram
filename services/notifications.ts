@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Notifications Service
+ * AURAM - Notifications Service
  * Akıllı yerel (local) bildirim yönetimi
  */
 

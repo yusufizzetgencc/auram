@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Lüks Parfüm Öneri Uygulaması
+ * AURAM - Lüks Parfüm Öneri Uygulaması
  * Global State Management + Gelişmiş pH Hesaplama Sistemi + Veri Kalıcılığı
  */
 

@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Daily Recommendation Service
+ * AURAM - Daily Recommendation Service
  * Günün parfüm önerisi ve motivasyon
  */
 

@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Lüks Parfüm Öneri Uygulaması
+ * AURAM - Lüks Parfüm Öneri Uygulaması
  * Type Tanımlamaları - Genişletilmiş
  */
 

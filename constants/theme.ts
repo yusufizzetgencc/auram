@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Lüks Parfüm Öneri Uygulaması
+ * AURAM - Lüks Parfüm Öneri Uygulaması
  * Premium Tema ve Renk Sistemi
  * Elegant Mor/Fuşya Gradient Teması
  */

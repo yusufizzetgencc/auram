@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Luxury Welcome Screen
+ * AURAM - Luxury Welcome Screen
  * Premium, elegant ve sophisticated tasarım
  */
 
@@ -259,7 +259,7 @@ export default function WelcomeScreen() {
           {/* Brand Name */}
           <Animated.View entering={FadeInDown.delay(500).duration(800)}>
             <ThemedText style={[styles.brandName, { color: isDark ? LUXURY_COLORS.ivory : LUXURY_COLORS.charcoal }]}>
-              AROMIXEN
+              AURAM
             </ThemedText>
           </Animated.View>
 

@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Weather Service
+ * AURAM - Weather Service
  * Gerçek zamanlı hava durumu ve parfüm önerileri
  */
 

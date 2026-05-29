@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Storage Service
+ * AURAM - Storage Service
  * AsyncStorage ile veri kalıcılığı
  */
 
@@ -8,21 +8,21 @@ import { UserPreferences, ScentCalendarEntry, MoodEntry, JournalEntry, Notificat
 
 // ============ STORAGE KEYS ============
 const STORAGE_KEYS = {
-  USER_PREFERENCES: '@aromixen_preferences',
-  ONBOARDING_STATUS: '@aromixen_onboarding',
-  FAVORITES: '@aromixen_favorites',
-  COLLECTIONS: '@aromixen_collections',
-  RECENTLY_VIEWED: '@aromixen_recently_viewed',
-  SEARCH_HISTORY: '@aromixen_search_history',
+  USER_PREFERENCES: '@auram_preferences',
+  ONBOARDING_STATUS: '@auram_onboarding',
+  FAVORITES: '@auram_favorites',
+  COLLECTIONS: '@auram_collections',
+  RECENTLY_VIEWED: '@auram_recently_viewed',
+  SEARCH_HISTORY: '@auram_search_history',
   // Yeni özellikler
-  SCENT_CALENDAR: '@aromixen_scent_calendar',
-  MOOD_HISTORY: '@aromixen_mood_history',
-  JOURNAL_ENTRIES: '@aromixen_journal',
-  SPIN_HISTORY: '@aromixen_spin_history',
-  NOTIFICATION_PREFS: '@aromixen_notifications',
-  SOTD_HISTORY: '@aromixen_sotd_history',
-  STREAK_DATA: '@aromixen_streak_data',
-  PERFORMANCE_LOGS: '@aromixen_performance_logs',
+  SCENT_CALENDAR: '@auram_scent_calendar',
+  MOOD_HISTORY: '@auram_mood_history',
+  JOURNAL_ENTRIES: '@auram_journal',
+  SPIN_HISTORY: '@auram_spin_history',
+  NOTIFICATION_PREFS: '@auram_notifications',
+  SOTD_HISTORY: '@auram_sotd_history',
+  STREAK_DATA: '@auram_streak_data',
+  PERFORMANCE_LOGS: '@auram_performance_logs',
 } as const;
 
 // ============ TYPES ============

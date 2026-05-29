@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Aromixen",
-    "slug": "aromixen",
+    "name": "Auram",
+    "slug": "auram",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "aromixen",
+    "scheme": "auram",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.aromixen.app"
+      "bundleIdentifier": "com.auram.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +21,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.aromixen.app"
+      "package": "com.auram.app"
     },
     "web": {
       "output": "static",

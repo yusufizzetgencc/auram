@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Radar Chart Component
+ * AURAM - Radar Chart Component
  * Koku DNA profili için animasyonlu SVG radar/spider chart
  */
 
