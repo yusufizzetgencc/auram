@@ -57,6 +57,7 @@ function RootLayoutContent() {
         <Stack.Screen name="index" />
         <Stack.Screen name="welcome" />
         <Stack.Screen name="onboarding" />
+        <Stack.Screen name="ad-loading" options={{ gestureEnabled: false }} />
         <Stack.Screen name="results" />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="calendar" />

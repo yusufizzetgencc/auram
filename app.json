@@ -10,7 +10,13 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.auram.app"
+      "bundleIdentifier": "com.auram.app",
+      "buildNumber": "2",
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "Auram, size kişiselleştirilmiş parfüm önerileri sunabilmek için reklam tercihlerinizi analiz etmek amacıyla cihaz tanımlayıcınızı kullanmak istiyor.",
+        "GADApplicationIdentifier": "ca-app-pub-1731461024871182~9770094099",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -40,11 +46,25 @@
             "backgroundColor": "#1A1A26"
           }
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-1731461024871182~1620940090",
+          "iosAppId": "ca-app-pub-1731461024871182~9770094099"
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6014341b-6267-4d19-a435-936ae2dda0ab"
+      }
+    },
+    "owner": "yusufizzetgenc"
   }
 }

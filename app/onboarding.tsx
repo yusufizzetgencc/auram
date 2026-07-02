@@ -354,7 +354,7 @@ export default function OnboardingScreen() {
       hesaplaPH();
       getRecommendations();
       setIsOnboardingComplete(true);
-      router.replace('/results');
+      router.replace('/ad-loading');
     }
   };
 
