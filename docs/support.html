@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auram - Destek</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #0D0D1A 0%, #1A0A2E 50%, #2D1B4E 100%);
+            color: #E0D6EB;
+            min-height: 100vh;
+            line-height: 1.7;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 60px 24px;
+            text-align: center;
+        }
+        .logo { font-size: 64px; margin-bottom: 16px; }
+        h1 {
+            font-size: 36px;
+            font-weight: 800;
+            color: #FFFFFF;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 48px;
+        }
+        .support-card {
+            background: rgba(157, 78, 221, 0.1);
+            border: 1px solid rgba(157, 78, 221, 0.25);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+        .support-card h2 {
+            font-size: 20px;
+            color: #C77DFF;
+            margin-bottom: 12px;
+        }
+        .support-card p {
+            font-size: 15px;
+            margin-bottom: 8px;
+        }
+        a { color: #C77DFF; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .email-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #9D4EDD, #C77DFF);
+            color: #FFFFFF;
+            padding: 14px 36px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            margin-top: 32px;
+            transition: transform 0.2s;
+        }
+        .email-btn:hover {
+            transform: scale(1.05);
+            text-decoration: none;
+        }
+        .faq { text-align: left; margin-top: 48px; }
+        .faq h2 {
+            font-size: 24px;
+            color: #FFFFFF;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .faq-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+        }
+        .faq-item h3 {
+            font-size: 16px;
+            color: #E0AAFF;
+            margin-bottom: 8px;
+        }
+        .faq-item p {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .footer {
+            margin-top: 60px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.3);
+        }
+        .footer a { color: rgba(199, 125, 255, 0.6); }
+        @media (max-width: 600px) {
+            .container { padding: 40px 16px; }
+            h1 { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🌸</div>
+        <h1>Auram Destek</h1>
+        <p class="subtitle">Size Yardımcı Olmak İçin Buradayız</p>
+
+        <div class="support-card">
+            <h2>📧 Bize Ulaşın</h2>
+            <p>Sorularınız, önerileriniz veya yaşadığınız sorunlar için bize e-posta gönderin. En kısa sürede yanıt vereceğiz.</p>
+            <p><strong>E-posta:</strong> <a href="mailto:yusuf.izzet.genc00@gmail.com">yusuf.izzet.genc00@gmail.com</a></p>
+        </div>
+
+        <div class="support-card">
+            <h2>⏱️ Yanıt Süresi</h2>
+            <p>E-postanıza genellikle 24-48 saat içinde yanıt veriyoruz. Hafta sonları yanıt süreleri biraz uzayabilir.</p>
+        </div>
+
+        <a href="mailto:yusuf.izzet.genc00@gmail.com?subject=Auram%20Destek%20Talebi" class="email-btn">📧 E-posta Gönder</a>
+
+        <div class="faq">
+            <h2>Sıkça Sorulan Sorular</h2>
+            
+            <div class="faq-item">
+                <h3>pH değerim nasıl hesaplanıyor?</h3>
+                <p>Onboarding sırasında verdiğiniz cevaplara (cilt tipi, beslenme, su tüketimi, terleme oranı vb.) dayalı olarak tahmini bir pH değeri hesaplanır. Bu değer, parfümlerin teninizde nasıl performans göstereceğini tahmin etmemize yardımcı olur.</p>
+            </div>
+
+            <div class="faq-item">
+                <h3>Verilerim güvende mi?</h3>
+                <p>Evet! Tüm verileriniz yalnızca cihazınızda saklanır. Hiçbir kişisel veriniz sunucularımıza gönderilmez. Uygulamayı sildiğinizde tüm verileriniz kalıcı olarak silinir.</p>
+            </div>
+
+            <div class="faq-item">
+                <h3>Önerilerimi sıfırlayabilir miyim?</h3>
+                <p>Evet, Profil sayfasından "Profili Sıfırla" seçeneğini kullanarak onboarding sürecini baştan başlatabilir ve yeni öneriler alabilirsiniz.</p>
+            </div>
+
+            <div class="faq-item">
+                <h3>Reklamları kaldırabilir miyim?</h3>
+                <p>Şu anda uygulama ücretsiz olarak sunulmakta olup, reklam kaldırma seçeneği bulunmamaktadır. İlerleyen sürümlerde bu özellik eklenebilir.</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2025 Auram. Tüm hakları saklıdır.</p>
+            <p><a href="privacy-policy.html">Gizlilik Politikası</a></p>
+        </div>
+    </div>
+</body>
+</html>
