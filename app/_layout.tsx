@@ -6,6 +6,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
@@ -50,6 +51,17 @@ function RootLayoutContent() {
       SplashScreen.hideAsync();
     }
   }, [isDataLoaded]);
+
+  useEffect(() => {
+    const requestTracking = async () => {
+      try {
+        await requestTrackingPermissionsAsync();
+      } catch (error) {
+        console.warn('Tracking permission request error:', error);
+      }
+    };
+    requestTracking();
+  }, []);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? KokuDarkTheme : KokuLightTheme}>

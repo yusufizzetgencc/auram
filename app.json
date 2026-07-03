@@ -2,18 +2,20 @@
   "expo": {
     "name": "Auram",
     "slug": "auram",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "auram",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.auram.app",
-      "buildNumber": "3",
+      "buildNumber": "7",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "Auram, size kişiselleştirilmiş parfüm önerileri sunabilmek için reklam tercihlerinizi analiz etmek amacıyla cihaz tanımlayıcınızı kullanmak istiyor.",
+        "NSUserTrackingUsageDescription": "Sizin ilgi alanlarınıza göre kişiselleştirilmiş reklamlar sunabilmek için bu izne ihtiyacımız var.",
+        "NSLocationWhenInUseUsageDescription": "Auram, bulunduğunuz bölgenin hava durumuna ve mevsime en uygun parfüm önerilerini sunabilmek için konum verinize ihtiyaç duyar.",
+        "NSLocationAlwaysUsageDescription": "Auram, bulunduğunuz bölgenin hava durumuna ve mevsime en uygun parfüm önerilerini sunabilmek için konum verinize ihtiyaç duyar.",
         "GADApplicationIdentifier": "ca-app-pub-1731461024871182~9770094099",
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -21,9 +23,9 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#D4A574",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/images/logo.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -53,7 +55,8 @@
           "androidAppId": "ca-app-pub-1731461024871182~1620940090",
           "iosAppId": "ca-app-pub-1731461024871182~9770094099"
         }
-      ]
+      ],
+      "expo-tracking-transparency"
     ],
     "experiments": {
       "typedRoutes": true,
