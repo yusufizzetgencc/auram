@@ -9,10 +9,6 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
-import { requestTrackingPermissionsAsync, getTrackingPermissionsAsync } from 'expo-tracking-transparency';
-import { trackingPermission } from '@/services/trackingPermission';
-import { Platform } from 'react-native';
-
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -23,37 +19,9 @@ export default function EntryScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { isDataLoaded, isOnboardingComplete } = useApp();
-  const [attHandled, setAttHandled] = useState(false);
 
   useEffect(() => {
-    const handleATT = async () => {
-      try {
-        if (Platform.OS === 'ios') {
-          // İzin daha önce istenmiş mi kontrol et
-          const { status: existingStatus } = await getTrackingPermissionsAsync();
-          if (existingStatus === 'undetermined') {
-            // İlk kez isteniyorsa sor
-            const { status } = await requestTrackingPermissionsAsync();
-            trackingPermission.setPermission(status === 'granted');
-          } else {
-            trackingPermission.setPermission(existingStatus === 'granted');
-          }
-        } else {
-          trackingPermission.setPermission(true);
-        }
-      } catch (error) {
-        console.warn('[ATT] Permission check failed:', error);
-        trackingPermission.setPermission(false);
-      } finally {
-        setAttHandled(true);
-      }
-    };
-    
-    handleATT();
-  }, []);
-
-  useEffect(() => {
-    if (isDataLoaded && attHandled) {
+    if (isDataLoaded) {
       // Kullanıcı daha önce testi tamamladıysa direkt keşfet'e git
       if (isOnboardingComplete) {
         router.replace('/(tabs)');
@@ -62,7 +30,7 @@ export default function EntryScreen() {
         router.replace('/welcome');
       }
     }
-  }, [isDataLoaded, isOnboardingComplete, attHandled]);
+  }, [isDataLoaded, isOnboardingComplete]);
 
   // Loading ekranı
   return (
