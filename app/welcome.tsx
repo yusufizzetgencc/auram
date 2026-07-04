@@ -1,13 +1,15 @@
 /**
  * AURAM - Luxury Welcome Screen
  * Premium, elegant ve sophisticated tasarım - Velvet & Amber
+ * ATT (App Tracking Transparency) izin talebi burada yapılır.
  */
 
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions, Pressable, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Dimensions, Pressable, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import Animated, { 
   FadeIn, 
   FadeInDown, 
@@ -27,6 +29,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing, BorderRadius, FontSizes } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useApp } from '@/context/AppContext';
+import { trackingPermission } from '@/services/trackingPermission';
 
 const { width, height } = Dimensions.get('window');
 
@@ -85,6 +88,35 @@ export default function WelcomeScreen() {
   const colors = Colors[colorScheme ?? 'light'];
   const isDark = colorScheme === 'dark';
   const { parfumler } = useApp();
+  const [isLoading, setIsLoading] = useState(false);
+
+  /**
+   * Kullanıcı "Yolculuğa Başla" butonuna basınca:
+   * iOS → Standart iOS sistem ATT izin penceresi gösterilir
+   *        (konum izni gibi normal iOS penceresi)
+   *        Mesaj app.json > NSUserTrackingUsageDescription'dan gelir
+   * Android → Direkt onboarding'e geçilir
+   */
+  const handleStart = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+
+    try {
+      if (Platform.OS === 'ios') {
+        const { status } = await requestTrackingPermissionsAsync();
+        console.log('[ATT] Tracking izin durumu:', status);
+        trackingPermission.setPermission(status === 'granted');
+      } else {
+        trackingPermission.setPermission(true);
+      }
+    } catch (error) {
+      console.warn('[ATT] Tracking permission error:', error);
+      trackingPermission.setPermission(false);
+    }
+
+    router.push('/onboarding');
+    setIsLoading(false);
+  };
 
   return (
     <View style={styles.container}>
@@ -157,8 +189,10 @@ export default function WelcomeScreen() {
               styles.ctaButton,
               { backgroundColor: colors.primary },
               pressed && styles.ctaButtonPressed,
+              isLoading && { opacity: 0.7 },
             ]}
-            onPress={() => router.push('/onboarding')}
+            onPress={handleStart}
+            disabled={isLoading}
           >
             <ThemedText style={styles.ctaText}>Yolculuğa Başla</ThemedText>
             <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.ctaIcon} />

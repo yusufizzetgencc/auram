@@ -2,7 +2,7 @@
   "expo": {
     "name": "Auram",
     "slug": "auram",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "auram",
@@ -11,9 +11,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.auram.app",
-      "buildNumber": "7",
+      "buildNumber": "9",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "Sizin ilgi alanlarınıza göre kişiselleştirilmiş reklamlar sunabilmek için bu izne ihtiyacımız var.",
+        "NSUserTrackingUsageDescription": "Auram, size özel içerik ve deneyim sunabilmek için bu izne ihtiyaç duyar. Verileriniz güvende tutulur ve üçüncü taraflarla paylaşılmaz.",
         "NSLocationWhenInUseUsageDescription": "Auram, bulunduğunuz bölgenin hava durumuna ve mevsime en uygun parfüm önerilerini sunabilmek için konum verinize ihtiyaç duyar.",
         "NSLocationAlwaysUsageDescription": "Auram, bulunduğunuz bölgenin hava durumuna ve mevsime en uygun parfüm önerilerini sunabilmek için konum verinize ihtiyaç duyar.",
         "GADApplicationIdentifier": "ca-app-pub-1731461024871182~9770094099",

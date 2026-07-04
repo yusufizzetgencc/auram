@@ -1,20 +1,35 @@
 /**
  * Auram - AdMob Rewarded Ad Service
  * Reklam yükleme, gösterme ve event yönetimi
+ * ATT izin durumunu trackingPermission store'dan okur.
+ *
+ * Not: react-native-google-mobile-ads native modül gerektirdiğinden,
+ * Expo Go'da çalışmaz. Bu dosya bunu güvenli bir şekilde ele alır —
+ * modül yoksa reklamlar devre dışı kalır ama uygulama çökmez.
  */
 
-import {
-  RewardedAd,
-  RewardedAdEventType,
-  AdEventType,
-  TestIds,
-} from 'react-native-google-mobile-ads';
+import { trackingPermission } from './trackingPermission';
+
+// ============ NATIVE MODÜL — GÜVENLİ YÜKLEME ============
+// Expo Go'da react-native-google-mobile-ads mevcut değildir.
+// try-catch ile yükleme yapılır, yoksa null kalır.
+let RNAds: any = null;
+try {
+  RNAds = require('react-native-google-mobile-ads');
+} catch (e) {
+  console.warn('[AdService] react-native-google-mobile-ads yüklenemedi (Expo Go ortamında normal).');
+}
+
+const RewardedAd = RNAds?.RewardedAd ?? null;
+const RewardedAdEventType = RNAds?.RewardedAdEventType ?? { LOADED: 'loaded', EARNED_REWARD: 'earned_reward' };
+const AdEventType = RNAds?.AdEventType ?? { ERROR: 'error', CLOSED: 'closed' };
+const TestIds = RNAds?.TestIds ?? { REWARDED: 'test-rewarded-id' };
+
+// Native modül kullanılabilir mi?
+const isAdsAvailable = RNAds !== null;
 
 // ============ REKLAM BİRİMİ ID'LERİ ============
-// Gerçek ID (production)
 const REAL_REWARDED_ID = 'ca-app-pub-1731461024871182/1891604076';
-
-// Geliştirme sırasında __DEV__ true ise test ID kullan
 const AD_UNIT_ID = __DEV__
   ? TestIds.REWARDED
   : REAL_REWARDED_ID;
@@ -28,20 +43,33 @@ export interface AdResult {
 
 // ============ REKLAM SERVİSİ ============
 class AdService {
-  private rewardedAd: RewardedAd | null = null;
+  private rewardedAd: any = null;
   private isLoaded: boolean = false;
   private isLoading: boolean = false;
 
   /**
+   * ATT izin süreci tamamlandı mı? (trackingPermission store'dan okur)
+   */
+  isTrackingPermissionHandled(): boolean {
+    return trackingPermission.isHandled();
+  }
+
+  /**
    * Uygulamanın başında çağrılır — arka planda reklam yüklemeye başlar.
+   * Not: ATT izni alındıktan sonra çağrılmalıdır.
    */
   preloadAd(): void {
+    if (!isAdsAvailable) {
+      console.warn('[AdService] Native modül yok, reklam yüklenemez.');
+      return;
+    }
     if (this.isLoading || this.isLoaded) return;
 
     try {
       this.isLoading = true;
       this.rewardedAd = RewardedAd.createForAdRequest(AD_UNIT_ID, {
-        requestNonPersonalizedAdsOnly: false,
+        // ATT izni reddedildiyse kişiselleştirilmemiş reklam iste
+        requestNonPersonalizedAdsOnly: !trackingPermission.isAuthorized(),
         keywords: ['perfume', 'luxury', 'beauty', 'fragrance', 'lifestyle'],
       });
 
@@ -51,7 +79,7 @@ class AdService {
         console.log('[AdService] Rewarded ad yüklendi ✅');
       });
 
-      this.rewardedAd.addAdEventListener(AdEventType.ERROR, (error) => {
+      this.rewardedAd.addAdEventListener(AdEventType.ERROR, (error: any) => {
         console.warn('[AdService] Reklam yükleme hatası:', error);
         this.isLoaded = false;
         this.isLoading = false;
@@ -78,7 +106,7 @@ class AdService {
    */
   showRewardedAd(): Promise<AdResult> {
     return new Promise((resolve) => {
-      if (!this.rewardedAd || !this.isLoaded) {
+      if (!isAdsAvailable || !this.rewardedAd || !this.isLoaded) {
         console.warn('[AdService] Reklam hazır değil, direkt geçiliyor.');
         resolve({ watched: false, skipped: false, failed: true });
         return;
@@ -142,3 +170,5 @@ class AdService {
 
 // Singleton instance
 export const adService = new AdService();
+
+

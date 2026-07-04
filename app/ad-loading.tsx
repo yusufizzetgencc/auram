@@ -47,6 +47,7 @@ export default function AdLoadingScreen() {
   const dotAnim2 = useRef(new Animated.Value(0)).current;
   const dotAnim3 = useRef(new Animated.Value(0)).current;
   const messageAnim = useRef(new Animated.Value(1)).current;
+  const progressWidthAnim = useRef(new Animated.Value(1)).current;
 
   // Giriş animasyonu
   useEffect(() => {
@@ -120,17 +121,31 @@ export default function AdLoadingScreen() {
   // Mesaj döngüsü
   useEffect(() => {
     const interval = setInterval(() => {
-      Animated.timing(messageAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
+      Animated.parallel([
         Animated.timing(messageAnim, {
-          toValue: 1,
-          duration: 300,
+          toValue: 0,
+          duration: 200,
           useNativeDriver: true,
-        }).start();
+        }),
+        Animated.timing(progressWidthAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false,
+        }),
+      ]).start(() => {
+        setMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length);
+        Animated.parallel([
+          Animated.timing(messageAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(progressWidthAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: false,
+          }),
+        ]).start();
       });
     }, 1800);
     return () => clearInterval(interval);
@@ -141,7 +156,23 @@ export default function AdLoadingScreen() {
     let isMounted = true;
 
     const loadAndShow = async () => {
-      // Reklamı yükle
+      // ATT izin süreci tamamlanana kadar bekle (max 5 saniye)
+      // Bu, iOS'ta kullanıcının izin penceresine yanıt vermesini bekler
+      const waitForTracking = new Promise<void>((resolve) => {
+        let elapsed = 0;
+        const check = setInterval(() => {
+          elapsed += 200;
+          if (adService.isTrackingPermissionHandled() || elapsed >= 5000) {
+            clearInterval(check);
+            resolve();
+          }
+        }, 200);
+      });
+
+      await waitForTracking;
+      if (!isMounted) return;
+
+      // Reklamı yükle (artık tracking izni biliniyor)
       adService.preloadAd();
 
       // Minimum 2 saniye animasyon göster (UX için)
@@ -270,7 +301,7 @@ export default function AdLoadingScreen() {
             style={[
               styles.progressFill,
               {
-                width: messageAnim.interpolate({
+                width: progressWidthAnim.interpolate({
                   inputRange: [0, 1],
                   outputRange: ['0%', '100%'],
                 }),
