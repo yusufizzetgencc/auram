@@ -5,11 +5,10 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Dimensions, Pressable, Image, Platform } from 'react-native';
+import { View, StyleSheet, Dimensions, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { requestTrackingPermissionsAsync, getTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import Animated, { 
   FadeIn, 
   FadeInDown, 
@@ -29,7 +28,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useApp } from '@/context/AppContext';
-import { trackingPermission } from '@/services/trackingPermission';
 
 const { width, height } = Dimensions.get('window');
 
@@ -90,27 +88,9 @@ export default function WelcomeScreen() {
   const { parfumler } = useApp();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleStart = async () => {
+  const handleStart = () => {
     if (isLoading) return;
     setIsLoading(true);
-
-    try {
-      if (Platform.OS === 'ios') {
-        const { status: existingStatus } = await getTrackingPermissionsAsync();
-        if (existingStatus === 'undetermined') {
-          const { status } = await requestTrackingPermissionsAsync();
-          trackingPermission.setPermission(status === 'granted');
-        } else {
-          trackingPermission.setPermission(existingStatus === 'granted');
-        }
-      } else {
-        trackingPermission.setPermission(true);
-      }
-    } catch (error) {
-      console.warn('[ATT] Tracking permission error:', error);
-      trackingPermission.setPermission(false);
-    }
-
     router.push('/onboarding');
     setIsLoading(false);
   };
