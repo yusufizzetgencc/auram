@@ -11,14 +11,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Animated,
-    Dimensions,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  Dimensions,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -169,6 +169,16 @@ export default function ResultsScreen() {
                 <Ionicons name="calendar-outline" size={12} color={colors.textSecondary} />
                 <Text style={[styles.tagText, { color: colors.textSecondary }]}>{(parfum.mevsim || []).join(', ') || 'Tüm Mevsimler'}</Text>
               </View>
+              {parfum.fiyatAraligi && (
+                <View style={[styles.tag, { backgroundColor: colors.border, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }]}>
+                  <Text style={[styles.tagText, { color: colors.textSecondary, fontSize: 10 }]}>
+                    {parfum.fiyatAraligi === 'ekonomik' ? 'Ekonomik' :
+                     parfum.fiyatAraligi === 'orta' ? 'Orta Segment' :
+                     parfum.fiyatAraligi === 'premium' ? 'Premium' :
+                     parfum.fiyatAraligi === 'luks' ? 'Lüks' : ''}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* pH Uyumu */}
