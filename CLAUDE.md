@@ -68,10 +68,11 @@ Sonuç yorumlaması:
 | %15 | Toplam Performans (Üst, Orta, Alt notaların pH ve cilt tipine göre kalıcılığı/yayılımı) |
 | %15 | Seçilen koku ailesi ile eşleşme |
 | %15 | Hedeflenen "Aura" etkisi ile eşleşme |
-| %10 | Cinsiyet algısı tercihi |
+| %10 | Mevsim Uyumu |
 | %10 | Vücut ısısı × yoğunluk kombinasyonu (örn. serin ten + yoğun parfüm = nazikçe açılır) |
-| %10 | Yaşam/çalışma ortamı uyumu (kapalı ofis + ağır parfüm = ceza puanı) |
-| %5  | Kıyafet stili uyumu |
+| %8  | Yaşam/çalışma ortamı uyumu (kapalı ofis + ağır parfüm = ceza puanı) |
+| %5  | Cinsiyet algısı tercihi |
+| %2  | Kıyafet stili uyumu |
 
 ### 3.3 Kırmızı Çizgiler (Ceza Puanları)
 - Kullanıcı "aşırı şekerli olmasın" dediyse ve parfümde vanilya/karamel notası varsa → **-40 puan**, öneri listesinden pratik olarak elenir.

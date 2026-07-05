@@ -242,6 +242,21 @@ const onboardingSteps: OnboardingStep[] = [
       { id: 'sportif', title: 'Sportif / Aktif', subtitle: 'Eşofman, rahat giyim', icon: 'fitness-outline', color: '#2ECC71', emoji: '👟' },
     ],
   },
+  {
+    id: 'mevsim_tercihi',
+    kategori: 'Yaşam Dinamikleri',
+    title: 'Bu Öneriyi Hangi Mevsim İçin İstiyorsunuz?',
+    subtitle: 'Parfümün mevsimsel uyumunu belirler',
+    type: 'single',
+    field: 'mevsim',
+    options: [
+      { id: 'İlkbahar', title: 'İlkbahar', subtitle: 'Ilıman, çiçek açan günler', icon: 'flower-outline', color: '#FFB6C1', emoji: '🌷' },
+      { id: 'Yaz', title: 'Yaz', subtitle: 'Sıcak ve açık hava günleri', icon: 'sunny-outline', color: '#FFD700', emoji: '☀️' },
+      { id: 'Sonbahar', title: 'Sonbahar', subtitle: 'Serinleyen, yumuşak günler', icon: 'leaf-outline', color: '#D2691E', emoji: '🍂' },
+      { id: 'Kış', title: 'Kış', subtitle: 'Soğuk ve kapalı mekan günleri', icon: 'snow-outline', color: '#87CEFA', emoji: '❄️' },
+      { id: 'Tüm Mevsimler', title: 'Fark Etmez / Tüm Yıl', subtitle: 'Mevsim filtrelemesi olmasın', icon: 'infinite-outline', color: '#9370DB', emoji: '🔄' },
+    ],
+  }
 ];
 
 export default function OnboardingScreen() {

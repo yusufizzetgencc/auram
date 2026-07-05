@@ -595,7 +595,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       // --- 4. CİNSİYET ALGISI ---
-      maxScore += 10;
+      maxScore += 5;
       if (preferences.cinsiyetAlgisi) {
         let cinsiyetUyumu = false;
         if (preferences.cinsiyetAlgisi === 'feminen' && (parfum.cinsiyet === 'kadın' || parfum.cinsiyet === 'unisex')) cinsiyetUyumu = true;
@@ -603,7 +603,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (preferences.cinsiyetAlgisi === 'unisex' && parfum.cinsiyet === 'unisex') cinsiyetUyumu = true;
 
         if (cinsiyetUyumu) {
-          score += 10;
+          score += 5;
         }
       }
 
@@ -625,23 +625,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // --- 6. ORTAM UYUMU ---
+      // --- 6. MEVSİM UYUMU ---
       maxScore += 10;
+      if (!preferences.mevsim || preferences.mevsim === 'Tüm Mevsimler') {
+        score += 10;
+      } else {
+        if (parfum.mevsim?.includes(preferences.mevsim)) {
+          score += 10;
+          matchReasons.push(`${preferences.mevsim} mevsimi için ideal bir seçim.`);
+        } else {
+          score += 2;
+          uyumKategorileri.push({ kategori: 'Mevsim', uyum: false, detay: `${preferences.mevsim} mevsimi için en uygun seçenek olmayabilir` });
+        }
+      }
+
+      // --- 7. ORTAM UYUMU ---
+      maxScore += 8;
       if (preferences.ortam) {
         if (parfum.ortam === preferences.ortam || parfum.ortam === 'her_ikisi') {
-          score += 10;
+          score += 8;
         } else if (preferences.ortam === 'kapali' && parfum.yogunluk === 'yogun') {
           score -= 5; // Kapalı ortamda yoğun koku eksi puan
         }
       }
 
-      // --- 7. KİMAFİT STİLİ UYUMU ---
-      maxScore += 5;
+      // --- 8. KİMAFİT STİLİ UYUMU ---
+      maxScore += 2;
       if (preferences.kiyafetStili && parfum.kiyafetStili?.includes(preferences.kiyafetStili)) {
-        score += 5;
+        score += 2;
       }
 
-      // --- 8. KAÇINILACAK NOTALAR (KIRMIZI ÇİZGİ) ---
+      // --- 9. KAÇINILACAK NOTALAR (KIRMIZI ÇİZGİ) ---
       if (preferences.kacinilacakNotalar.length > 0) {
         const tumNotalar = [...(parfum.notalar.ust||[]), ...(parfum.notalar.orta||[]), ...(parfum.notalar.alt||[])].join(' ').toLowerCase();
         
