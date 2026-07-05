@@ -416,8 +416,8 @@ export default function OnboardingScreen() {
 
   // Atlama kontrolü
   const canSkip = () => {
-    if (currentStepData.type === 'multi-select-notes') return true;
-    if (currentStepData.type === 'multi-select' && currentStepData.id === 'alerji') return true;
+    // Opsiyonel çoklu seçim adımlarında her zaman "Şimdilik atla" butonu görünsün
+    if (currentStepData.type === 'multiple' && currentStepData.required !== true) return true;
     return false;
   };
 
@@ -427,14 +427,14 @@ export default function OnboardingScreen() {
       case 'single':
         return preferences[currentStepData.field as keyof UserPreferences] !== null && preferences[currentStepData.field as keyof UserPreferences] !== undefined;
       case 'multiple':
-        const arr = preferences[currentStepData.field as keyof UserPreferences] as string[];
-        return arr && arr.length > 0;
+        if (currentStepData.required === true) {
+          const arr = preferences[currentStepData.field as keyof UserPreferences] as string[];
+          return arr && arr.length > 0;
+        }
+        return true;
       case 'ph-input':
         const ph = parseFloat(phInput);
         return !isNaN(ph) && ph >= 3.0 && ph <= 8.0;
-      case 'multi-select-notes':
-      case 'multi-select':
-        return true;
       default:
         return true;
     }
@@ -693,11 +693,15 @@ export default function OnboardingScreen() {
 
       {/* Footer */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.md, backgroundColor: colors.card, borderTopColor: colors.border }]}>
-        {canSkip() && (
-          <TouchableOpacity onPress={handleNext} style={styles.skipButton}>
-            <Text style={[styles.skipText, { color: colors.textSecondary }]}>Atla</Text>
+        {canSkip() ? (
+          <TouchableOpacity 
+            onPress={handleNext} 
+            style={[styles.skipButton, { borderColor: colors.border, borderWidth: 1, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginRight: 'auto' }]}
+          >
+            <Text style={[styles.skipText, { color: colors.textSecondary }]}>Şimdilik atla</Text>
+            <Ionicons name="play-skip-forward-outline" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
-        )}
+        ) : null}
         
         <TouchableOpacity
           style={[
