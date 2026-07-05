@@ -16,6 +16,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Button, Card } from '@/components/ui';
 import { BorderRadius, Colors, FontSizes, FontWeights, Spacing, ScentTypeColors } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { hesaplaPHPure, hesaplaParfumPHSkoruPure, buildTemporaryProfile } from '@/engine';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Butce, CiltTipi, Cinsiyet, GiftOccasion, GiftRecipient, KisilikTipi, Parfum, TerlemeOrani, YasGrubu } from '@/types';
 
@@ -87,26 +88,7 @@ const AGE_GROUPS: { id: YasGrubu; label: string }[] = [
   { id: '55+', label: '55+' },
 ];
 
-// Alıcı pH hesaplama fonksiyonu
-function calculateRecipientPH(skinType: CiltTipi | null, sweatRate: TerlemeOrani | null, age: YasGrubu | null): number {
-  let basePH = 5.5; // Ortalama cilt pH'ı
-  
-  // Cilt tipi etkisi
-  if (skinType === 'kuru') basePH += 0.3;
-  else if (skinType === 'yagli') basePH -= 0.3;
-  else if (skinType === 'karma') basePH += 0.1;
-  
-  // Terleme etkisi
-  if (sweatRate === 'az') basePH += 0.2;
-  else if (sweatRate === 'cok') basePH -= 0.3;
-  
-  // Yaş etkisi (yaş arttıkça pH düşer)
-  if (age === '45-54') basePH += 0.1;
-  else if (age === '55+') basePH += 0.2;
-  else if (age === '18-24') basePH -= 0.1;
-  
-  return Math.max(4.5, Math.min(7.0, basePH));
-}
+
 
 // Hediye mesajları
 const GIFT_MESSAGES: Record<GiftRecipient, string[]> = {
@@ -168,7 +150,8 @@ export default function GiftScreen() {
   
   // Hesaplanan alıcı pH değeri
   const recipientPH = useMemo(() => {
-    return calculateRecipientPH(recipientSkinType, recipientSweatRate, recipientAge);
+    const tempProfile = buildTemporaryProfile(recipientSkinType, recipientSweatRate, recipientAge);
+    return hesaplaPHPure(tempProfile).tahminiPH;
   }, [recipientSkinType, recipientSweatRate, recipientAge]);
 
   // Önerileri hesapla - pH uyumu ile
@@ -205,16 +188,16 @@ export default function GiftScreen() {
 
         // pH Uyumu Hesaplama (en önemli faktör)
         if (recipientSkinType) {
-          const phInRange = recipientPH >= parfum.phUyumu.minPH && recipientPH <= parfum.phUyumu.maxPH;
-          const phDiff = Math.abs(recipientPH - parfum.phUyumu.idealPH);
+          const phSkor = hesaplaParfumPHSkoruPure(parfum, recipientPH, recipientSkinType);
           
-          if (phInRange) {
-            const phScore = Math.round(30 - phDiff * 10);
-            score += Math.max(0, phScore);
-            if (phDiff < 0.3) {
-              reasons.push(`pH uyumu mükemmel (%${Math.round(100 - phDiff * 50)})`);
+          if (phSkor.phUyumSkoru >= 50) {
+            const phScoreContribution = Math.round(phSkor.phUyumSkoru * 0.3);
+            score += phScoreContribution;
+            
+            if (phSkor.phUyumSkoru >= 80) {
+              reasons.push(`pH uyumu mükemmel (%${Math.round(phSkor.phUyumSkoru)})`);
             } else {
-              reasons.push(`pH uyumu iyi (%${Math.round(100 - phDiff * 30)})`);
+              reasons.push(`pH uyumu iyi (%${Math.round(phSkor.phUyumSkoru)})`);
             }
           } else {
             score -= 15;
