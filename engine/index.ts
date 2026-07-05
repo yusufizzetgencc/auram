@@ -1,4 +1,64 @@
-import { UserPreferences, PHHesapSonucu, PHAraligi, Parfum, ParfumPHSkor, CiltTipi } from '../types';
+import { UserPreferences, PHHesapSonucu, PHAraligi, Parfum, ParfumPHSkor, CiltTipi, TerlemeOrani, YasGrubu } from '../types';
+
+export const buildTemporaryProfile = (
+  ciltTipi: CiltTipi | null,
+  terlemeOrani: TerlemeOrani | null,
+  yasGrubu: YasGrubu | null
+): UserPreferences => {
+  return {
+    phInfo: {
+      deger: 5.5,
+      aralik: 'normal',
+      sonGuncelleme: new Date().toISOString(),
+      hesaplamaYontemi: 'test',
+      guvenilirlik: 50,
+      aciklama: '',
+      faktorler: {
+        ciltTipiEtkisi: 0,
+        gumusEtkisi: 0,
+        suTuketimiCarpani: 1,
+        beslenmeEtkisi: 0,
+        terlemeEtkisi: 0,
+        reaksiyonEtkisi: 0
+      }
+    },
+    ciltTipi,
+    terlemeOrani,
+    yasGrubu,
+    gumusOksitlenme: null,
+    suTuketimi: null,
+    beslenmeAliskanligi: null,
+    vucutIsisi: null,
+    parfumReaksiyonu: null,
+    uygulamaYeri: null,
+    kokuAlmaHassasiyeti: null,
+    aura: null,
+    kokuTipleri: [],
+    kacinilacakNotalar: [],
+    cinsiyetAlgisi: null,
+    ortam: null,
+    kiyafetStili: null,
+    kisilikTipi: null,
+    deneyimSeviyesi: null,
+    kullanimSikligi: null,
+    butce: null,
+    markaTercihi: null,
+    konsantrasyonTercihi: null,
+    yogunluk: null,
+    izlenimHedefi: null,
+    kullanimAmaci: [],
+    gununSaati: null,
+    cinsiyet: null,
+    ciltHassasiyeti: null,
+    alerjiDurumu: [],
+    mevsim: null,
+    iklim: null,
+    aktivite: null,
+    sevilenNotalar: [],
+    sevilmeyenNotalar: [],
+    kalicilikTercihi: null,
+  };
+};
 
 export const getPHAraligi = (ph: number): PHAraligi => {
   if (ph < 5.0) return 'asidik';
