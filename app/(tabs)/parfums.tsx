@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
   Dimensions,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,8 +20,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Card } from '@/components/ui';
-import { BorderRadius, Colors, FontSizes, FontWeights, Spacing, ScentTypeColors } from '@/constants/theme';
+import { Button, Card } from '@/components/ui';
+import { BorderRadius, Colors, FontSizes, FontWeights, ScentTypeColors, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Parfum } from '@/types';
@@ -47,6 +48,9 @@ export default function ParfumsScreen() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortType>('name');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState<string | null>(null);
 
   // Koku tipleri
   const scentTypes = useMemo(() => {
@@ -76,6 +80,11 @@ export default function ParfumsScreen() {
       result = result.filter(p => p.tip === selectedType);
     }
     
+    // Bütçe filtresi
+    if (selectedBudget) {
+      result = result.filter(p => p.fiyatAraligi === selectedBudget);
+    }
+    
     // Sıralama
     switch (sortBy) {
       case 'name':
@@ -90,7 +99,7 @@ export default function ParfumsScreen() {
     }
     
     return result;
-  }, [parfumler, searchQuery, selectedType, sortBy]);
+  }, [parfumler, searchQuery, selectedType, sortBy, selectedBudget]);
 
   const handleOpenParfum = (parfum: Parfum) => {
     addToRecentlyViewedList(parfum.id);
@@ -118,14 +127,13 @@ export default function ParfumsScreen() {
                 <Ionicons name={viewMode === 'grid' ? 'list' : 'grid'} size={18} color={colors.text} />
               </Pressable>
               <Pressable 
-                onPress={() => {
-                  const sorts: SortType[] = ['name', 'type', 'brand'];
-                  const idx = sorts.indexOf(sortBy);
-                  setSortBy(sorts[(idx + 1) % sorts.length]);
-                }}
-                style={[styles.actionBtn, { backgroundColor: colors.backgroundTertiary }]}
+                onPress={() => setIsFilterModalVisible(true)}
+                style={[styles.actionBtn, { backgroundColor: colors.backgroundTertiary, width: 'auto', paddingHorizontal: Spacing.sm, flexDirection: 'row', gap: 6 }]}
               >
-                <Ionicons name="swap-vertical" size={18} color={colors.text} />
+                <Ionicons name="options-outline" size={18} color={colors.text} />
+                <ThemedText style={{ fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold }}>
+                  {sortBy === 'name' ? 'İsim' : sortBy === 'type' ? 'Tip' : 'Marka'}
+                </ThemedText>
               </Pressable>
             </View>
           </View>
@@ -147,16 +155,24 @@ export default function ParfumsScreen() {
             )}
           </View>
           
-          {/* Sort indicator */}
-          <View style={styles.sortRow}>
-            <ThemedText type="caption" style={{ color: colors.textMuted }}>
-              Sıralama: {sortBy === 'name' ? 'İsim' : sortBy === 'type' ? 'Tip' : 'Marka'}
-            </ThemedText>
-          </View>
         </Animated.View>
 
         {/* Filters */}
         <View style={styles.filtersWrapper}>
+          {selectedBudget && (
+            <View style={{ paddingHorizontal: Spacing.xl, paddingBottom: Spacing.sm }}>
+              <Pressable 
+                onPress={() => setSelectedBudget(null)} 
+                style={[styles.budgetActiveChip, { backgroundColor: colors.tint + '15', borderColor: colors.tint }]}
+              >
+                <ThemedText style={{ color: colors.tint, fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold }}>
+                  Fiyat: {selectedBudget.charAt(0).toUpperCase() + selectedBudget.slice(1)}
+                </ThemedText>
+                <Ionicons name="close" size={16} color={colors.tint} style={{ marginLeft: 4 }} />
+              </Pressable>
+            </View>
+          )}
+
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -236,6 +252,74 @@ export default function ParfumsScreen() {
           <View style={{ height: 120 }} />
         </ScrollView>
       </SafeAreaView>
+
+      <Modal visible={isFilterModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsFilterModalVisible(false)}>
+        <ThemedView style={styles.modalContainer}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={styles.modalHeader}>
+              <ThemedText type="heading">Sırala ve Filtrele</ThemedText>
+              <Pressable onPress={() => setIsFilterModalVisible(false)} hitSlop={10}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              {/* Sıralama */}
+              <View style={styles.filterSection}>
+                <ThemedText type="subtitle" style={styles.filterSectionTitle}>Sıralama</ThemedText>
+                <View style={styles.radioGroup}>
+                  {[
+                    { id: 'name', label: 'İsim (A-Z)' },
+                    { id: 'type', label: 'Koku Tipi (A-Z)' },
+                    { id: 'brand', label: 'Marka (A-Z)' }
+                  ].map(option => (
+                    <Pressable 
+                      key={option.id} 
+                      style={styles.radioRow}
+                      onPress={() => {
+                        setSortBy(option.id as SortType);
+                        // setIsFilterModalVisible(false); // Let user select budget too before closing
+                      }}
+                    >
+                      <ThemedText>{option.label}</ThemedText>
+                      {sortBy === option.id && <Ionicons name="checkmark" size={20} color={colors.tint} />}
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Fiyat Aralığı */}
+              <View style={[styles.filterSection, { borderBottomWidth: 0 }]}>
+                <ThemedText type="subtitle" style={styles.filterSectionTitle}>Fiyat Aralığı</ThemedText>
+                <View style={styles.budgetGrid}>
+                  {['Tümü', 'ekonomik', 'orta', 'premium', 'luks'].map(budget => {
+                    const isSelected = budget === 'Tümü' ? selectedBudget === null : selectedBudget === budget;
+                    return (
+                      <Pressable
+                        key={budget}
+                        onPress={() => setSelectedBudget(budget === 'Tümü' ? null : budget)}
+                        style={[
+                          styles.budgetChip,
+                          { backgroundColor: colors.backgroundTertiary },
+                          isSelected && { backgroundColor: colors.tint, borderColor: colors.tint }
+                        ]}
+                      >
+                        <ThemedText style={{ color: isSelected ? '#FFF' : colors.text }}>
+                          {budget.charAt(0).toUpperCase() + budget.slice(1)}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <Button title="Sonuçları Göster" onPress={() => setIsFilterModalVisible(false)} fullWidth />
+            </View>
+          </SafeAreaView>
+        </ThemedView>
+      </Modal>
     </ThemedView>
   );
 }
@@ -359,6 +443,17 @@ const styles = StyleSheet.create({
   listMeta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 },
   typeBadgeSmall: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3 },
   typeTextSmall: { fontSize: 9, fontWeight: FontWeights.semiBold },
+  budgetActiveChip: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.full, borderWidth: 1 },
+  modalContainer: { flex: 1 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  modalContent: { flex: 1, paddingHorizontal: Spacing.xl },
+  modalFooter: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg },
+  filterSection: { paddingVertical: Spacing.lg, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  filterSectionTitle: { marginBottom: Spacing.md },
+  radioGroup: { gap: Spacing.sm },
+  radioRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm },
+  budgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  budgetChip: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: 'transparent' },
 });
 
 

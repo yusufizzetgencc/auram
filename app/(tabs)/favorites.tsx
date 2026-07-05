@@ -394,7 +394,7 @@ export default function FavoritesScreen() {
                 <View style={{ flex: 1 }}>
                   <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: Spacing.xl }}>
                     {collectionParfums.length === 0 ? (
-                      <View style={{ alignItems: 'center', paddingVertical: Spacing.xxl }}>
+                      <View style={{ alignItems: 'center', paddingVertical: Spacing['2xl'] }}>
                         <Ionicons name="flask-outline" size={48} color={colors.textMuted} />
                         <ThemedText type="body" style={{ color: colors.textMuted, marginTop: Spacing.md }}>Bu koleksiyon boş.</ThemedText>
                       </View>
@@ -450,7 +450,7 @@ export default function FavoritesScreen() {
                   </View>
                   <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: Spacing.xl }}>
                     {addableParfums.length === 0 ? (
-                      <View style={{ alignItems: 'center', paddingVertical: Spacing.xxl }}>
+                      <View style={{ alignItems: 'center', paddingVertical: Spacing['2xl'] }}>
                         <ThemedText type="body" style={{ color: colors.textMuted }}>Sonuç bulunamadı.</ThemedText>
                       </View>
                     ) : (

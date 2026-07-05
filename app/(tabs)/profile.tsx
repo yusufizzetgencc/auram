@@ -683,5 +683,5 @@ const styles = StyleSheet.create({
   emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   emojiBtn: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
   emojiText: { fontSize: 24 },
-  modalFooter: { padding: Spacing.xl, paddingBottom: Spacing.xxl, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' },
+  modalFooter: { padding: Spacing.xl, paddingBottom: Spacing['2xl'], borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' },
 });

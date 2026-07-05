@@ -4,30 +4,28 @@
  * ATT (App Tracking Transparency) izin talebi burada yapılır.
  */
 
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Dimensions, Pressable, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { 
-  FadeIn, 
-  FadeInDown, 
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, Image, Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  FadeInDown,
   FadeInUp,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
-  withTiming,
-  withSequence,
   withDelay,
-  Easing,
-  interpolate,
+  withRepeat,
+  withSequence,
+  withTiming
 } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -177,7 +175,7 @@ export default function WelcomeScreen() {
 
           {/* Info Note */}
           <ThemedText style={[styles.bottomNote, { color: colors.textSecondary }]}>
-            15 kısa soru • Sadece size özel parfüm eşleşmeleri
+            18 kısa soru • Sadece size özel parfüm eşleşmeleri
           </ThemedText>
         </Animated.View>
 
