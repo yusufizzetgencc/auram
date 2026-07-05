@@ -198,6 +198,9 @@ const onboardingSteps: OnboardingStep[] = [
       { id: 'Aşırı şekerli', title: 'Aşırı Şekerli', subtitle: 'Bayıcı tatlılık', icon: 'close-circle-outline', color: '#FFB4D1', emoji: '🍬' },
       { id: 'Baskın çiçek', title: 'Baskın Çiçek', subtitle: 'Yoğun çiçeksi kokular', icon: 'close-circle-outline', color: '#FF6B9D', emoji: '💐' },
       { id: 'Deri veya tütün', title: 'Deri, Tütün veya İs', subtitle: 'Karanlık/Ağır notalar', icon: 'close-circle-outline', color: '#5A189A', emoji: '🚬' },
+      { id: 'Ağır hayvansi misk', title: 'Ağır/Hayvansi Misk', subtitle: 'Yoğun, deri gibi hissettiren misk notaları', icon: 'close-circle-outline', color: '#8B4513', emoji: '🦫' },
+      { id: 'Yoğun baharat', title: 'Yoğun Baharat', subtitle: 'Keskin tarçın, karanfil, biber ağırlıklı notalar', icon: 'close-circle-outline', color: '#D2691E', emoji: '🌶️' },
+      { id: 'Odunsu dumanlı', title: 'Odunsu/Dumanlı', subtitle: 'Toz gibi, kuru, dumanlı ağaç notaları', icon: 'close-circle-outline', color: '#696969', emoji: '🪵' },
     ],
   },
   {

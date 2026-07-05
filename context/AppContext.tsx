@@ -657,12 +657,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // --- 9. KAÇINILACAK NOTALAR (KIRMIZI ÇİZGİ) ---
       if (preferences.kacinilacakNotalar.length > 0) {
-        const tumNotalar = [...(parfum.notalar.ust||[]), ...(parfum.notalar.orta||[]), ...(parfum.notalar.alt||[])].join(' ').toLowerCase();
+        const tumNotalarArr = [...(parfum.notalar.ust||[]), ...(parfum.notalar.orta||[]), ...(parfum.notalar.alt||[])].map(n => n.toLowerCase());
         
+        const hasNote = (keywords: string[]) => {
+          return tumNotalarArr.some(nota => 
+            keywords.some(k => nota === k || nota.includes(k + ' ') || nota.includes(' ' + k))
+          );
+        };
+
         let hasBadNote = false;
-        if (preferences.kacinilacakNotalar.includes('Aşırı şekerli') && (tumNotalar.includes('vanilya') || tumNotalar.includes('karamel') || tumNotalar.includes('pralin'))) hasBadNote = true;
-        if (preferences.kacinilacakNotalar.includes('Baskın çiçek') && (tumNotalar.includes('gül') || tumNotalar.includes('yasemin') || tumNotalar.includes('sümbül'))) hasBadNote = true;
-        if (preferences.kacinilacakNotalar.includes('Deri veya tütün') && (tumNotalar.includes('deri') || tumNotalar.includes('tütün') || tumNotalar.includes('is'))) hasBadNote = true;
+        if (preferences.kacinilacakNotalar.includes('Aşırı şekerli') && hasNote(['vanilya', 'karamel', 'pralin'])) hasBadNote = true;
+        if (preferences.kacinilacakNotalar.includes('Baskın çiçek') && hasNote(['gül', 'yasemin', 'sümbül'])) hasBadNote = true;
+        if (preferences.kacinilacakNotalar.includes('Deri veya tütün') && hasNote(['deri', 'tütün', 'is', 'isli'])) hasBadNote = true;
+        if (preferences.kacinilacakNotalar.includes('Ağır hayvansi misk') && hasNote(['misk', 'amber', 'paçuli'])) hasBadNote = true;
+        if (preferences.kacinilacakNotalar.includes('Yoğun baharat') && hasNote(['biber', 'tarçın', 'karanfil', 'kakule'])) hasBadNote = true;
+        if (preferences.kacinilacakNotalar.includes('Odunsu dumanlı') && hasNote(['vetiver', 'sedir', 'sandal ağacı'])) hasBadNote = true;
         
         if (hasBadNote) {
           score -= 40; // Çok güçlü eksi puan
@@ -670,7 +679,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // --- 9. KOKU HASSASİYETİ ---
+      // --- 10. KOKU HASSASİYETİ ---
       if (preferences.kokuAlmaHassasiyeti === 'cok_yuksek' && parfum.yogunluk === 'yogun') {
         score -= 15;
       }
