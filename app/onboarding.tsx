@@ -153,6 +153,20 @@ const onboardingSteps: OnboardingStep[] = [
       { id: 'dusuk', title: 'Düşük', subtitle: 'Kendi kokumu hemen alamam', icon: 'remove-circle-outline', color: '#8A7A9C', emoji: '👃' },
     ],
   },
+  {
+    id: 'konsantrasyon_tercihi',
+    kategori: 'Koku Reaksiyonu',
+    title: 'Ne Kadar Kalıcı ve Yoğun Bir Koku İstersiniz?',
+    subtitle: 'Konsantrasyon, kalıcılık ve yoğunluğu belirler',
+    type: 'single',
+    field: 'konsantrasyonTercihi',
+    options: [
+      { id: 'eau_de_toilette', title: 'Hafif ve Günlük (EDT)', subtitle: 'Ferah, 3-5 saat kalıcı', icon: 'sunny-outline', color: '#4CAF50', emoji: '🌤️' },
+      { id: 'eau_de_parfum', title: 'Dengeli ve Belirgin (EDP)', subtitle: 'Orta-uzun kalıcılık, 6-8 saat', icon: 'water-outline', color: '#2196F3', emoji: '💧' },
+      { id: 'parfum', title: 'Yoğun ve Çok Kalıcı (Parfum)', subtitle: 'En uzun kalıcılık, 8+ saat', icon: 'flame-outline', color: '#FF5722', emoji: '🔥' },
+      { id: 'fark_etmez', title: 'Fark Etmez', subtitle: 'Konsantrasyon filtrelemesi olmasın', icon: 'infinite-outline', color: '#9E9E9E', emoji: '🔄' },
+    ],
+  },
 
   // ========== BÖLÜM 3: AURA & KARAKTER ==========
   {
@@ -258,6 +272,22 @@ const onboardingSteps: OnboardingStep[] = [
       { id: 'Sonbahar', title: 'Sonbahar', subtitle: 'Serinleyen, yumuşak günler', icon: 'leaf-outline', color: '#D2691E', emoji: '🍂' },
       { id: 'Kış', title: 'Kış', subtitle: 'Soğuk ve kapalı mekan günleri', icon: 'snow-outline', color: '#87CEFA', emoji: '❄️' },
       { id: 'Tüm Mevsimler', title: 'Fark Etmez / Tüm Yıl', subtitle: 'Mevsim filtrelemesi olmasın', icon: 'infinite-outline', color: '#9370DB', emoji: '🔄' },
+    ],
+  },
+  {
+    id: 'kullanim_amaci',
+    kategori: 'Yaşam Dinamikleri',
+    title: 'Bu Parfümü En Çok Ne İçin Kullanacaksınız?',
+    subtitle: 'Birden fazla seçebilirsiniz',
+    type: 'multiple',
+    field: 'kullanimAmaci',
+    options: [
+      { id: 'gunluk', title: 'Günlük Kullanım', subtitle: 'Her gün rahatça', icon: 'sunny-outline', color: '#4CAF50', emoji: '☀️' },
+      { id: 'is', title: 'İş / Ofis', subtitle: 'Profesyonel ortamlar', icon: 'briefcase-outline', color: '#607D8B', emoji: '💼' },
+      { id: 'aksam', title: 'Akşam Kullanımı', subtitle: 'Akşam etkinlikleri', icon: 'moon-outline', color: '#3F51B5', emoji: '🌙' },
+      { id: 'ozel', title: 'Özel Günler', subtitle: 'Davetler, kutlamalar', icon: 'sparkles-outline', color: '#FFC107', emoji: '✨' },
+      { id: 'romantik', title: 'Romantik Anlar', subtitle: 'Özel buluşmalar', icon: 'heart-outline', color: '#E91E63', emoji: '💕' },
+      { id: 'spor', title: 'Spor / Aktif Yaşam', subtitle: 'Hareketli günler', icon: 'fitness-outline', color: '#FF9800', emoji: '🏃' },
     ],
   }
 ];

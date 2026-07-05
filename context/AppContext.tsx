@@ -165,7 +165,7 @@ const defaultPreferences: UserPreferences = {
   konsantrasyonTercihi: null,
   yogunluk: null,
   izlenimHedefi: null,
-  kullanimAmaci: null,
+  kullanimAmaci: [],
   gununSaati: null,
   cinsiyet: null,
   ciltHassasiyeti: null,
@@ -595,7 +595,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       // --- 4. CİNSİYET ALGISI ---
-      maxScore += 5;
+      maxScore += 1;
       if (preferences.cinsiyetAlgisi) {
         let cinsiyetUyumu = false;
         if (preferences.cinsiyetAlgisi === 'feminen' && (parfum.cinsiyet === 'kadın' || parfum.cinsiyet === 'unisex')) cinsiyetUyumu = true;
@@ -603,7 +603,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (preferences.cinsiyetAlgisi === 'unisex' && parfum.cinsiyet === 'unisex') cinsiyetUyumu = true;
 
         if (cinsiyetUyumu) {
-          score += 5;
+          score += 1;
         }
       }
 
@@ -640,22 +640,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       // --- 7. ORTAM UYUMU ---
-      maxScore += 8;
+      maxScore += 3;
       if (preferences.ortam) {
         if (parfum.ortam === preferences.ortam || parfum.ortam === 'her_ikisi') {
-          score += 8;
+          score += 3;
         } else if (preferences.ortam === 'kapali' && parfum.yogunluk === 'yogun') {
           score -= 5; // Kapalı ortamda yoğun koku eksi puan
         }
       }
 
       // --- 8. KİMAFİT STİLİ UYUMU ---
-      maxScore += 2;
+      maxScore += 1;
       if (preferences.kiyafetStili && parfum.kiyafetStili?.includes(preferences.kiyafetStili)) {
-        score += 2;
+        score += 1;
       }
 
-      // --- 9. KAÇINILACAK NOTALAR (KIRMIZI ÇİZGİ) ---
+      // --- 9. KONSANTRASYON UYUMU ---
+      maxScore += 5;
+      if (!preferences.konsantrasyonTercihi || preferences.konsantrasyonTercihi === 'fark_etmez') {
+        score += 5;
+      } else if (parfum.konsantrasyon) {
+        if (parfum.konsantrasyon === preferences.konsantrasyonTercihi) {
+          score += 5;
+          matchReasons.push("Aradığınız yoğunluk ve kalıcılık seviyesine tam uyum.");
+        } else {
+          score += 1;
+        }
+      } else {
+        score += 1; // Tanımsızsa düşük puan ver
+      }
+
+      // --- 10. KULLANIM AMACI UYUMU ---
+      maxScore += 5;
+      if (!preferences.kullanimAmaci || preferences.kullanimAmaci.length === 0) {
+        score += 5;
+      } else {
+        const hasIntersection = preferences.kullanimAmaci.some(amac => parfum.kullanimAmaci?.includes(amac));
+        if (hasIntersection) {
+          score += 5;
+          matchReasons.push("Belirttiğiniz kullanım amaçlarına uygun bir seçim.");
+        } else {
+          score += 1;
+        }
+      }
+
+      // --- 11. KAÇINILACAK NOTALAR (KIRMIZI ÇİZGİ) ---
       if (preferences.kacinilacakNotalar.length > 0) {
         const tumNotalarArr = [...(parfum.notalar.ust||[]), ...(parfum.notalar.orta||[]), ...(parfum.notalar.alt||[])].map(n => n.toLowerCase());
         
@@ -679,7 +708,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // --- 10. KOKU HASSASİYETİ ---
+      // --- 12. KOKU HASSASİYETİ ---
       if (preferences.kokuAlmaHassasiyeti === 'cok_yuksek' && parfum.yogunluk === 'yogun') {
         score -= 15;
       }

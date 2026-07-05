@@ -1,5 +1,4 @@
 /**
- * AROMIXEN - Entry Point
  * Kullanıcı durumuna göre yönlendirme
  */
 

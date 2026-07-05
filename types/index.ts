@@ -69,7 +69,7 @@ export type KokuAlmaHassasiyeti = 'dusuk' | 'normal' | 'yuksek' | 'cok_yuksek';
 export type AlerjiDurumu = 'yok' | 'alkol' | 'cicek' | 'baharat' | 'diger';
 
 // Parfüm Konsantrasyonu Tercihi
-export type KonsantrasyonTercihi = 'eau_fraiche' | 'eau_de_cologne' | 'eau_de_toilette' | 'eau_de_parfum' | 'parfum';
+export type KonsantrasyonTercihi = 'eau_fraiche' | 'eau_de_cologne' | 'eau_de_toilette' | 'eau_de_parfum' | 'parfum' | 'fark_etmez';
 
 // Kişilik Tipi
 export type KisilikTipi = 'romantik' | 'dinamik' | 'sofistike' | 'dogal' | 'cesur' | 'mistik';
@@ -227,7 +227,7 @@ export interface UserPreferences {
   konsantrasyonTercihi?: KonsantrasyonTercihi | null;
   yogunluk?: KokuYogunlugu | null;
   izlenimHedefi?: IzlenimHedefi | null;
-  kullanimAmaci?: KullanimAmaci | null;
+  kullanimAmaci?: KullanimAmaci[];
   gununSaati?: GununSaati | null;
   cinsiyet?: Cinsiyet | null;
   ciltHassasiyeti?: CiltHassasiyeti | null;
