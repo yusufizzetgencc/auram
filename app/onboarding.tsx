@@ -5,7 +5,8 @@
  */
 
 import { BorderRadius, Colors, Shadows, Spacing } from '@/constants/theme';
-import { useApp, hesaplaPHPure } from '@/context/AppContext';
+import { useApp } from '@/context/AppContext';
+import { hesaplaPHPure } from '@/engine';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
     OnboardingStep,
@@ -590,7 +591,7 @@ export default function OnboardingScreen() {
         <View style={[styles.livePHContainer, { backgroundColor: colors.card, borderColor: livePHData.tahminiPH < 5 ? colors.error : livePHData.tahminiPH > 6 ? colors.primary : colors.success }]}>
           <Text style={[styles.livePHLabel, { color: colors.textSecondary }]}>pH</Text>
           <Text style={[styles.livePHValue, { color: livePHData.tahminiPH < 5 ? colors.error : livePHData.tahminiPH > 6 ? colors.primary : colors.success }]}>
-            {livePHData.tahminiPH.toFixed(1)}
+            {livePHData.tahminiPH.toFixed(1)} <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>(%{Math.max(0, Math.min(100, livePHData.guvenilirlik))})</Text>
           </Text>
         </View>
       </View>

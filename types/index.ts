@@ -248,8 +248,11 @@ export interface PHHesapSonucu {
   aciklama: string;
   faktorler: {
     ciltTipiEtkisi: number;
+    gumusEtkisi: number;
+    suTuketimiCarpani: number;
+    beslenmeEtkisi: number;
     terlemeEtkisi: number;
-    hassasiyetEtkisi: number;
+    reaksiyonEtkisi: number;
   };
 }
 
