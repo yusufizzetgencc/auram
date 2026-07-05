@@ -173,6 +173,12 @@ export default function FavoritesScreen() {
           
           <View style={styles.toolbarActions}>
             <Pressable
+              onPress={() => router.push('/compare-select')}
+              style={[styles.actionBtn, { marginRight: 8 }]}
+            >
+              <Ionicons name="search" size={18} color={colors.textMuted} />
+            </Pressable>
+            <Pressable
               onPress={() => { setCompareMode(!compareMode); setSelectedForCompare([]); }}
               style={[styles.actionBtn, compareMode && { backgroundColor: colors.tint + '15' }]}
             >

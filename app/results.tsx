@@ -143,6 +143,7 @@ export default function ResultsScreen() {
         <TouchableOpacity
           style={[styles.recommendationCard, { backgroundColor: colors.card }, shadows.sm]}
           onPress={() => openParfumDetail(result)}
+          onLongPress={() => router.push(`/compare-select?initialId=${parfum.id}`)}
           activeOpacity={0.8}
         >
           {/* Sıra Numarası */}
@@ -153,9 +154,18 @@ export default function ResultsScreen() {
           {/* Ana İçerik */}
           <View style={styles.cardContent}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.parfumName, { color: colors.text }]}>{parfum.isim}</Text>
-              <View style={[styles.matchBadge, { backgroundColor: `${matchColor}20` }]}>
-                <Text style={[styles.matchText, { color: matchColor }]}>%{matchPercentage}</Text>
+              <Text style={[styles.parfumName, { color: colors.text }]} numberOfLines={1}>{parfum.isim}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <TouchableOpacity 
+                  onPress={() => router.push(`/compare-select?initialId=${parfum.id}`)}
+                  style={{ padding: 4 }}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="git-compare-outline" size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+                <View style={[styles.matchBadge, { backgroundColor: `${matchColor}20` }]}>
+                  <Text style={[styles.matchText, { color: matchColor }]}>%{matchPercentage}</Text>
+                </View>
               </View>
             </View>
 
