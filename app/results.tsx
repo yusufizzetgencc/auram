@@ -8,6 +8,7 @@ import { useApp } from '@/context/AppContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { RecommendationResult } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
+import { hapticLight } from '@/utils/haptics';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -57,6 +58,7 @@ export default function ResultsScreen() {
   }, []);
 
   const openParfumDetail = (result: RecommendationResult) => {
+    hapticLight();
     setSelectedParfum(result);
     setModalVisible(true);
   };

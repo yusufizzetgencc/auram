@@ -26,7 +26,9 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Pressable,
 } from 'react-native';
+import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -313,6 +315,7 @@ export default function OnboardingScreen() {
   } = useApp();
 
   const [phInput, setPHInput] = useState('');
+  const [showPHTooltip, setShowPHTooltip] = useState(false);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -374,6 +377,7 @@ export default function OnboardingScreen() {
 
   // Seçim işleyicileri
   const handleSingleSelect = (value: string) => {
+    hapticLight();
     if (currentStepData.id === 'ph_bilgi') {
       setPHBilgiDurumu(value as PHBilgiDurumu);
     } else {
@@ -382,6 +386,7 @@ export default function OnboardingScreen() {
   };
 
   const handleMultiSelect = (value: string) => {
+    hapticLight();
     toggleArrayPreference(currentStepData.field as keyof UserPreferences, value);
   };
 
@@ -397,6 +402,7 @@ export default function OnboardingScreen() {
 
   // İleri git
   const handleNext = () => {
+    hapticMedium();
     if (currentStep < visibleSteps.length - 1) {
       animateTransition(1, () => setCurrentStep(currentStep + 1));
     } else {
@@ -605,42 +611,72 @@ export default function OnboardingScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + Spacing.sm }]}>
-        {currentStep > 0 && (
-          <TouchableOpacity 
-            onPress={handleBack} 
-            style={[styles.backButton, { backgroundColor: colors.card }, shadows.sm]}
-          >
-            <Ionicons name="chevron-back" size={24} color={colors.tint} />
-          </TouchableOpacity>
-        )}
-        <View style={styles.progressContainer}>
-          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-            <Animated.View 
-              style={[
-                styles.progressFill, 
-                { 
-                  backgroundColor: colors.tint,
-                  width: progressAnim.interpolate({
-                    inputRange: [0, 100],
-                    outputRange: ['0%', '100%'],
-                  }),
-                }
-              ]} 
-            />
+      {/* Header Container */}
+      <View style={[styles.headerContainer, { paddingTop: insets.top + Spacing.sm }]}>
+        
+        {/* Top Row: Back Button, Step Indicator, pH Badge */}
+        <View style={styles.headerTopRow}>
+          {/* Back Button Placeholder or Button */}
+          {currentStep > 0 ? (
+            <TouchableOpacity 
+              onPress={handleBack} 
+              style={[styles.backButton, { backgroundColor: colors.card }, shadows.sm]}
+            >
+              <Ionicons name="chevron-back" size={20} color={colors.tint} />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 40, height: 40 }} />
+          )}
+
+          {/* Center Indicator */}
+          <View style={styles.centerIndicator}>
+            <Text style={[styles.centerIndicatorText, { color: getCategoryColor(currentStepData.kategori) }]}>
+              {currentStepData.kategori} <Text style={{ color: colors.textSecondary }}>· {currentStep + 1}/{visibleSteps.length}</Text>
+            </Text>
           </View>
-          <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-            {currentStep + 1} / {visibleSteps.length}
-          </Text>
+
+          {/* Minimal pH Badge */}
+          <View style={{ position: 'relative', zIndex: 10 }}>
+            <Pressable 
+              onPress={() => setShowPHTooltip(!showPHTooltip)}
+              style={[styles.minimalPHBadge, { 
+                backgroundColor: colors.card, 
+                borderColor: livePHData.tahminiPH < 5 ? colors.error : livePHData.tahminiPH > 6 ? colors.primary : colors.success 
+              }]}
+            >
+              <Text style={[styles.minimalPHLabel, { color: colors.textSecondary }]}>pH</Text>
+              <Text style={[styles.minimalPHValue, { color: livePHData.tahminiPH < 5 ? colors.error : livePHData.tahminiPH > 6 ? colors.primary : colors.success }]}>
+                {livePHData.tahminiPH.toFixed(1)}
+              </Text>
+            </Pressable>
+
+            {/* Tooltip Overlay */}
+            {showPHTooltip && (
+              <View style={[styles.phTooltip, { backgroundColor: colors.card, borderColor: colors.border }, shadows.md]}>
+                <View style={[styles.phTooltipArrow, { borderBottomColor: colors.card }]} />
+                <Text style={[styles.phTooltipTitle, { color: colors.text }]}>pH Güvenilirliği: %{Math.max(0, Math.min(100, livePHData.guvenilirlik))}</Text>
+                <Text style={[styles.phTooltipDesc, { color: colors.textSecondary }]}>
+                  {livePHData.aciklama || 'Seçimlerinize göre tahmini cilt pH değeriniz.'}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
-        {/* Canlı pH Göstergesi */}
-        <View style={[styles.livePHContainer, { backgroundColor: colors.card, borderColor: livePHData.tahminiPH < 5 ? colors.error : livePHData.tahminiPH > 6 ? colors.primary : colors.success }]}>
-          <Text style={[styles.livePHLabel, { color: colors.textSecondary }]}>pH</Text>
-          <Text style={[styles.livePHValue, { color: livePHData.tahminiPH < 5 ? colors.error : livePHData.tahminiPH > 6 ? colors.primary : colors.success }]}>
-            {livePHData.tahminiPH.toFixed(1)} <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textSecondary }}>(%{Math.max(0, Math.min(100, livePHData.guvenilirlik))})</Text>
-          </Text>
+        {/* Bottom Row: Progress Bar */}
+        <View style={[styles.progressBarFull, { backgroundColor: colors.border }]}>
+          <Animated.View 
+            style={[
+              styles.progressFillFull, 
+              { 
+                backgroundColor: colors.tint,
+                width: progressAnim.interpolate({
+                  inputRange: [0, 100],
+                  outputRange: ['0%', '100%'],
+                }),
+              }
+            ]} 
+          />
         </View>
       </View>
 
@@ -654,13 +690,6 @@ export default function OnboardingScreen() {
           }
         ]}
       >
-        {/* Kategori Badge */}
-        <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(currentStepData.kategori) + '20' }]}>
-          <Text style={[styles.categoryText, { color: getCategoryColor(currentStepData.kategori) }]}>
-            {currentStepData.kategori}
-          </Text>
-        </View>
-
         {/* Title */}
         <Text style={[styles.title, { color: colors.text }]}>{currentStepData.title}</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{currentStepData.subtitle}</Text>
@@ -733,47 +762,101 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
+  headerContainer: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+    gap: Spacing.md,
+    zIndex: 10,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    gap: Spacing.md,
+    justifyContent: 'space-between',
+    zIndex: 10,
   },
   backButton: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: BorderRadius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  progressContainer: {
+  centerIndicator: {
     flex: 1,
-    gap: Spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  progressBar: {
-    height: 6,
-    borderRadius: BorderRadius.full,
-    overflow: 'hidden',
+  centerIndicatorText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: BorderRadius.full,
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'right',
-  },
-  livePHContainer: {
-    marginLeft: Spacing.md,
+  minimalPHBadge: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  minimalPHLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  minimalPHValue: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  phTooltip: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: 12,
+    width: 220,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  phTooltipArrow: {
+    position: 'absolute',
+    top: -8,
+    right: 18,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  phTooltipTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  phTooltipDesc: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  progressBarFull: {
+    height: 4,
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  progressFillFull: {
+    height: '100%',
+    borderRadius: BorderRadius.full,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -788,10 +871,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: Spacing.lg,
-  },
+
   categoryBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: Spacing.md,

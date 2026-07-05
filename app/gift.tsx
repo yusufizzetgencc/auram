@@ -17,6 +17,7 @@ import { Button, Card } from '@/components/ui';
 import { BorderRadius, Colors, FontSizes, FontWeights, Spacing, ScentTypeColors } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
 import { hesaplaPHPure, hesaplaParfumPHSkoruPure, buildTemporaryProfile } from '@/engine';
+import { hapticLight, hapticMedium } from '@/utils/haptics';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Butce, CiltTipi, Cinsiyet, GiftOccasion, GiftRecipient, KisilikTipi, Parfum, TerlemeOrani, YasGrubu } from '@/types';
 

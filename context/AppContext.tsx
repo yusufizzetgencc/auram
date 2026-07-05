@@ -5,6 +5,7 @@
 
 import parfumData from '@/data/parfumler.json';
 import { getPHAraligi, hesaplaParfumPHSkoruPure, hesaplaPHPure } from '@/engine';
+import { hapticSuccess } from '@/utils/haptics';
 import {
   addPerformanceLog,
   addSotdEntry,

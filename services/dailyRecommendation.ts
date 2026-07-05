@@ -174,7 +174,7 @@ export function getDailyRecommendation(
     }
     
     // 8. Kullanım amacı
-    if (safePreferences.kullanimAmaci && parfum.kullanimAmaci && Array.isArray(parfum.kullanimAmaci) && parfum.kullanimAmaci.includes(safePreferences.kullanimAmaci)) {
+    if (safePreferences.kullanimAmaci && parfum.kullanimAmaci && Array.isArray(parfum.kullanimAmaci) && (Array.isArray(safePreferences.kullanimAmaci) ? safePreferences.kullanimAmaci.some(amaci => parfum.kullanimAmaci.includes(amaci)) : parfum.kullanimAmaci.includes(safePreferences.kullanimAmaci as any))) {
       score += 10;
       reasons.push('Kullanım amacına uygun');
     }

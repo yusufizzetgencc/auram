@@ -7,20 +7,10 @@ export const buildTemporaryProfile = (
 ): UserPreferences => {
   return {
     phInfo: {
-      deger: 5.5,
-      aralik: 'normal',
-      sonGuncelleme: new Date().toISOString(),
-      hesaplamaYontemi: 'test',
-      guvenilirlik: 50,
-      aciklama: '',
-      faktorler: {
-        ciltTipiEtkisi: 0,
-        gumusEtkisi: 0,
-        suTuketimiCarpani: 1,
-        beslenmeEtkisi: 0,
-        terlemeEtkisi: 0,
-        reaksiyonEtkisi: 0
-      }
+      biliyorMu: 'bilmiyorum',
+      deger: null,
+      tahminiDeger: 5.5,
+      aralik: 'normal'
     },
     ciltTipi,
     terlemeOrani,
