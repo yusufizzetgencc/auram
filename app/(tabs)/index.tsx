@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Ana Sayfa (Dashboard)
+ * AURAM - Ana Sayfa (Dashboard)
  * Hava durumu, günün önerisi, koku aileleri, favoriler, son görüntülenenler
  */
 

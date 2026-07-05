@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Tab Navigation Layout
+ * AURAM - Tab Navigation Layout
  * 4 Tab: Ana Sayfa, Parfümler, Favoriler, Profil
  */
 

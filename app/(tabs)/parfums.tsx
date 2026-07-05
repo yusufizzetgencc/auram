@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Parfümler Sayfası
+ * AURAM - Parfümler Sayfası
  * Tüm parfümlerin listesi, arama ve filtreleme
  */
 

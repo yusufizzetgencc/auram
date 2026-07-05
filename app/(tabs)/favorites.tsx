@@ -1,5 +1,5 @@
 /**
- * AROMIXEN - Favoriler
+ * AURAM - Favoriler
  * Favori parfümler, koleksiyonlar ve son görüntülenenler
  */
 

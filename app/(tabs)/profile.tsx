@@ -1,23 +1,23 @@
 /**
- * AROMIXEN - Profil
+ * AURAM - Profil
  * Kullanıcı profili, Koku DNA, istatistikler
  */
 
-import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, Share, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useMemo } from 'react';
+import { Alert, Dimensions, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Card, Button } from '@/components/ui';
+import { Button, Card } from '@/components/ui';
 import { RadarChart } from '@/components/ui/RadarChart';
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeights } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { BorderRadius, Colors, FontSizes, FontWeights, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -42,7 +42,21 @@ export default function ProfileScreen() {
     resetAllData,
     kullaniciPH,
     phSonucu,
+    streakData,
+    performanceLogs,
+    sotdHistory,
+    getMonthlyStats,
   } = useApp();
+
+  // İstatistiklerim verisi
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+  const monthlyStats = useMemo(() => getMonthlyStats(currentMonth, currentYear), [getMonthlyStats, currentMonth, currentYear]);
+
+  const mostUsedParfumName = useMemo(() => {
+    if (!monthlyStats.mostUsedParfumId) return null;
+    return parfumler.find(p => p.id === monthlyStats.mostUsedParfumId)?.isim || null;
+  }, [monthlyStats.mostUsedParfumId, parfumler]);
 
   // Koku DNA Profili
   const scentDNA = useMemo(() => {
@@ -225,6 +239,81 @@ export default function ProfileScreen() {
             </Animated.View>
           )}
 
+          {/* İstatistiklerim */}
+          <Animated.View entering={FadeInUp.delay(350).duration(400)}>
+            <Card variant="elevated" style={styles.statsDetailsCard}>
+              <View style={styles.cardHeader}>
+                <View style={[styles.iconBg, { backgroundColor: colors.accent + '15' }]}>
+                  <Ionicons name="bar-chart" size={18} color={colors.accent} />
+                </View>
+                <ThemedText type="heading">İstatistiklerim</ThemedText>
+              </View>
+
+              {sotdHistory.length === 0 ? (
+                <View style={styles.emptyStatsContainer}>
+                  <Ionicons name="flask-outline" size={32} color={colors.textMuted} style={{ marginBottom: Spacing.sm }} />
+                  <ThemedText style={{ textAlign: 'center', color: colors.textMuted, marginBottom: Spacing.md }}>
+                    Henüz bir parfüm kaydetmedin. Günün kokusunu (SOTD) kullanarak serini başlat!
+                  </ThemedText>
+                  <Button 
+                    title="Günün Kokusunu Seç" 
+                    onPress={() => router.push('/(tabs)')}
+                    variant="outline"
+                    style={{ width: '100%' }}
+                  />
+                </View>
+              ) : (
+                <>
+                  <View style={styles.statsGridRow}>
+                    <View style={styles.statsGridItem}>
+                      <ThemedText style={styles.statsGridValue}>🔥 {streakData.currentStreak}</ThemedText>
+                      <ThemedText type="caption" style={{ color: colors.textMuted }}>Seri (En Uzun: {streakData.longestStreak})</ThemedText>
+                    </View>
+                    <View style={styles.statsGridItem}>
+                      <ThemedText style={[styles.statsGridValue, { color: colors.tint }]}>{monthlyStats.totalDays}</ThemedText>
+                      <ThemedText type="caption" style={{ color: colors.textMuted }}>Bu Ay SOTD</ThemedText>
+                    </View>
+                  </View>
+
+                  <View style={styles.statsGridRow}>
+                    <View style={styles.statsGridItem}>
+                      <ThemedText style={[styles.statsGridValue, { color: colors.success }]}>{monthlyStats.averageLongevity.toFixed(1)}s</ThemedText>
+                      <ThemedText type="caption" style={{ color: colors.textMuted }}>Ortalama Kalıcılık</ThemedText>
+                    </View>
+                    {mostUsedParfumName && (
+                      <View style={styles.statsGridItem}>
+                        <ThemedText style={[styles.statsGridValue, { fontSize: FontSizes.md, color: colors.primary }]} numberOfLines={1}>{mostUsedParfumName}</ThemedText>
+                        <ThemedText type="caption" style={{ color: colors.textMuted }}>Bu Ay En Çok</ThemedText>
+                      </View>
+                    )}
+                  </View>
+
+                  {streakData.badges && streakData.badges.length > 0 && (
+                    <View style={styles.badgesContainer}>
+                      <ThemedText type="caption" style={{ color: colors.textMuted, marginBottom: Spacing.sm }}>Rozetlerim</ThemedText>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesScroll}>
+                        {streakData.badges.map((badge: any, index: number) => (
+                          <View key={index} style={[styles.badgeItem, { backgroundColor: colors.background }]}>
+                            <ThemedText style={styles.badgeEmoji}>{badge.emoji || '🏅'}</ThemedText>
+                            <ThemedText type="caption" style={{ fontSize: 10 }}>{badge.name}</ThemedText>
+                          </View>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+
+                  <Pressable 
+                    style={[styles.performanceLink, { borderTopColor: colors.border }]} 
+                    onPress={() => router.push('/performance')}
+                  >
+                    <ThemedText style={{ color: colors.tint, fontWeight: '600' }}>Tüm Performans Geçmişini Gör</ThemedText>
+                    <Ionicons name="chevron-forward" size={16} color={colors.tint} />
+                  </Pressable>
+                </>
+              )}
+            </Card>
+          </Animated.View>
+
           {/* pH Bilgisi */}
           {kullaniciPH && (
             <Animated.View entering={FadeInUp.delay(400).duration(400)}>
@@ -343,7 +432,7 @@ export default function ProfileScreen() {
             <View style={[styles.appLogo, { backgroundColor: colors.tint + '15' }]}>
               <Ionicons name="sparkles" size={16} color={colors.tint} />
             </View>
-            <ThemedText type="caption" style={{ color: colors.textMuted }}>AURAM v1.0.0</ThemedText>
+            <ThemedText type="caption" style={{ color: colors.textMuted }}>AURAM v1.0.3</ThemedText>
           </View>
 
           <View style={{ height: 120 }} />
@@ -376,6 +465,16 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
   statCard: { flex: 1, alignItems: 'center', padding: Spacing.md, borderRadius: BorderRadius.lg },
   statNumber: { fontSize: FontSizes.lg, fontWeight: FontWeights.bold },
+  statsDetailsCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
+  emptyStatsContainer: { alignItems: 'center', paddingVertical: Spacing.md },
+  statsGridRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.md },
+  statsGridItem: { flex: 1, backgroundColor: 'rgba(0,0,0,0.02)', padding: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center' },
+  statsGridValue: { fontSize: FontSizes.xl, fontWeight: FontWeights.bold, marginBottom: 2 },
+  badgesContainer: { marginTop: Spacing.xs, marginBottom: Spacing.md },
+  badgesScroll: { gap: Spacing.sm },
+  badgeItem: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  badgeEmoji: { fontSize: 24, marginBottom: 2 },
+  performanceLink: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm, paddingTop: Spacing.md, borderTopWidth: 1 },
   dnaCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
   dnaHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
   dnaHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
