@@ -129,7 +129,7 @@ export default function CompareSelectScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.cardInfo}>
-                    <ThemedText type="defaultSemiBold" style={{ color: colors.text }}>
+                    <ThemedText style={{ color: colors.text, fontWeight: '600' }}>
                       {parfum.isim}
                     </ThemedText>
                     {parfum.marka && (
