@@ -50,7 +50,13 @@ export default function FavoritesScreen() {
   const [selectedColor, setSelectedColor] = useState(COLLECTION_COLORS[0]);
   const [selectedIcon, setSelectedIcon] = useState(COLLECTION_ICONS[0]);
   
+  // Koleksiyon Detay Modal
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [showAddParfumMode, setShowAddParfumMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   const { 
+    parfumler,
     favorites,
     collections,
     recentlyViewed,
@@ -60,7 +66,27 @@ export default function FavoritesScreen() {
     createNewCollection,
     removeCollection,
     addToRecentlyViewedList,
+    getCollectionParfums,
+    addParfumToCollection,
+    removeParfumFromCollection,
   } = useApp();
+
+  const selectedCollection = useMemo(() => 
+    collections.find(c => c.id === selectedCollectionId), 
+  [collections, selectedCollectionId]);
+
+  const collectionParfums = useMemo(() => 
+    selectedCollectionId ? getCollectionParfums(selectedCollectionId) : [],
+  [getCollectionParfums, selectedCollectionId]);
+
+  const addableParfums = useMemo(() => {
+    if (!showAddParfumMode || !selectedCollection) return [];
+    const query = searchQuery.toLowerCase();
+    return parfumler.filter(p => 
+      !selectedCollection.parfumIds.includes(p.id) && 
+      (p.isim.toLowerCase().includes(query) || (p.marka && p.marka.toLowerCase().includes(query)))
+    );
+  }, [parfumler, showAddParfumMode, selectedCollection, searchQuery]);
 
   const favoriteParfums = getFavoriteParfums();
   const recentParfums = getRecentlyViewedParfums();
@@ -239,20 +265,22 @@ export default function FavoritesScreen() {
       ) : (
         collections.map((collection, index) => (
           <Animated.View key={collection.id} entering={FadeInDown.delay(index * 50).duration(300)}>
-            <Card variant="elevated" style={styles.collectionCard}>
-              <View style={styles.collectionHeader}>
-                <View style={[styles.collectionIcon, { backgroundColor: collection.color + '20' }]}>
-                  <Ionicons name={collection.icon as keyof typeof Ionicons.glyphMap} size={22} color={collection.color} />
+            <Pressable onPress={() => { setSelectedCollectionId(collection.id); setShowAddParfumMode(false); }}>
+              <Card variant="elevated" style={styles.collectionCard}>
+                <View style={styles.collectionHeader}>
+                  <View style={[styles.collectionIcon, { backgroundColor: collection.color + '20' }]}>
+                    <Ionicons name={collection.icon as keyof typeof Ionicons.glyphMap} size={22} color={collection.color} />
+                  </View>
+                  <View style={styles.collectionInfo}>
+                    <ThemedText type="subtitle">{collection.name}</ThemedText>
+                    <ThemedText type="caption" style={{ color: colors.textMuted }}>{collection.parfumIds.length} parfüm</ThemedText>
+                  </View>
+                  <Pressable onPress={() => handleDeleteCollection(collection.id, collection.name)} hitSlop={10}>
+                    <Ionicons name="trash-outline" size={18} color={colors.error} />
+                  </Pressable>
                 </View>
-                <View style={styles.collectionInfo}>
-                  <ThemedText type="subtitle">{collection.name}</ThemedText>
-                  <ThemedText type="caption" style={{ color: colors.textMuted }}>{collection.parfumIds.length} parfüm</ThemedText>
-                </View>
-                <Pressable onPress={() => handleDeleteCollection(collection.id, collection.name)} hitSlop={10}>
-                  <Ionicons name="trash-outline" size={18} color={colors.error} />
-                </Pressable>
-              </View>
-            </Card>
+              </Card>
+            </Pressable>
           </Animated.View>
         ))
       )}
@@ -337,6 +365,123 @@ export default function FavoritesScreen() {
           <View style={{ height: 120 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* Koleksiyon Detay / Parfüm Ekleme Modalı */}
+      <Modal visible={!!selectedCollectionId} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedCollectionId(null)}>
+        {selectedCollection && (
+          <ThemedView style={styles.modalContainer}>
+            <SafeAreaView style={{ flex: 1 }}>
+              <View style={styles.modalHeader}>
+                <Pressable onPress={() => {
+                  if (showAddParfumMode) {
+                    setShowAddParfumMode(false);
+                    setSearchQuery('');
+                  } else {
+                    setSelectedCollectionId(null);
+                  }
+                }} hitSlop={10}>
+                  <Ionicons name={showAddParfumMode ? "arrow-back" : "close"} size={24} color={colors.text} />
+                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                  <Ionicons name={selectedCollection.icon as any} size={20} color={selectedCollection.color} />
+                  <ThemedText type="heading">{showAddParfumMode ? 'Parfüm Ekle' : selectedCollection.name}</ThemedText>
+                </View>
+                <View style={{ width: 24 }} />
+              </View>
+
+              {!showAddParfumMode ? (
+                // Detay Görünümü
+                <View style={{ flex: 1 }}>
+                  <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: Spacing.xl }}>
+                    {collectionParfums.length === 0 ? (
+                      <View style={{ alignItems: 'center', paddingVertical: Spacing.xxl }}>
+                        <Ionicons name="flask-outline" size={48} color={colors.textMuted} />
+                        <ThemedText type="body" style={{ color: colors.textMuted, marginTop: Spacing.md }}>Bu koleksiyon boş.</ThemedText>
+                      </View>
+                    ) : (
+                      <View style={styles.listContainer}>
+                        {collectionParfums.map((parfum, index) => (
+                          <ParfumCard 
+                            key={parfum.id} 
+                            parfum={parfum} 
+                            colors={colors}
+                            isSelected={false}
+                            compareMode={false}
+                            onPress={() => {
+                              setSelectedCollectionId(null);
+                              router.push(`/parfum/${parfum.id}`);
+                            }}
+                            customActionIcon="close-circle-outline"
+                            onCustomAction={() => removeParfumFromCollection(selectedCollection.id, parfum.id)}
+                            delay={index * 40}
+                          />
+                        ))}
+                      </View>
+                    )}
+                  </ScrollView>
+                  <View style={styles.modalFooter}>
+                    <Button 
+                      title="Parfüm Ekle" 
+                      icon={<Ionicons name="add" size={18} color="#FFF" style={{ marginRight: 8 }} />}
+                      onPress={() => setShowAddParfumMode(true)} 
+                      fullWidth 
+                    />
+                  </View>
+                </View>
+              ) : (
+                // Parfüm Ekleme Görünümü
+                <View style={{ flex: 1 }}>
+                  <View style={{ padding: Spacing.xl, paddingBottom: 0 }}>
+                    <View style={[styles.searchBar, { backgroundColor: colors.backgroundTertiary }]}>
+                      <Ionicons name="search" size={20} color={colors.textMuted} />
+                      <TextInput
+                        style={[styles.searchInput, { color: colors.text }]}
+                        placeholder="Parfüm veya marka ara..."
+                        placeholderTextColor={colors.textMuted}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                      />
+                      {searchQuery ? (
+                        <Pressable onPress={() => setSearchQuery('')} hitSlop={10}>
+                          <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  </View>
+                  <ScrollView style={styles.modalContent} contentContainerStyle={{ paddingBottom: Spacing.xl }}>
+                    {addableParfums.length === 0 ? (
+                      <View style={{ alignItems: 'center', paddingVertical: Spacing.xxl }}>
+                        <ThemedText type="body" style={{ color: colors.textMuted }}>Sonuç bulunamadı.</ThemedText>
+                      </View>
+                    ) : (
+                      <View style={styles.listContainer}>
+                        {addableParfums.map((parfum, index) => (
+                          <ParfumCard 
+                            key={parfum.id} 
+                            parfum={parfum} 
+                            colors={colors}
+                            isSelected={false}
+                            compareMode={false}
+                            onPress={() => {
+                              setSelectedCollectionId(null);
+                              router.push(`/parfum/${parfum.id}`);
+                            }}
+                            customActionIcon="add-circle-outline"
+                            onCustomAction={() => {
+                              addParfumToCollection(selectedCollection.id, parfum.id);
+                            }}
+                            delay={Math.min(index * 20, 300)}
+                          />
+                        ))}
+                      </View>
+                    )}
+                  </ScrollView>
+                </View>
+              )}
+            </SafeAreaView>
+          </ThemedView>
+        )}
+      </Modal>
 
       {/* Koleksiyon Oluşturma Modal */}
       <Modal visible={showNewCollectionModal} animationType="slide" presentationStyle="pageSheet">
@@ -426,15 +571,17 @@ export default function FavoritesScreen() {
 }
 
 // Parfüm Kartı
-function ParfumCard({ parfum, colors, isSelected, compareMode, isFavorite = true, onPress, onToggleFavorite, delay = 0 }: {
+function ParfumCard({ parfum, colors, isSelected, compareMode, isFavorite = true, onPress, onToggleFavorite, delay = 0, customActionIcon, onCustomAction }: {
   parfum: Parfum;
   colors: typeof Colors.light;
   isSelected: boolean;
   compareMode: boolean;
   isFavorite?: boolean;
   onPress: () => void;
-  onToggleFavorite: () => void;
+  onToggleFavorite?: () => void;
   delay?: number;
+  customActionIcon?: string;
+  onCustomAction?: () => void;
 }) {
   const typeColor = ScentTypeColors[parfum.tip] || colors.tint;
 
@@ -466,8 +613,8 @@ function ParfumCard({ parfum, colors, isSelected, compareMode, isFavorite = true
             </View>
             
             {!compareMode && (
-              <Pressable onPress={onToggleFavorite} hitSlop={10}>
-                <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? colors.accent : colors.textMuted} />
+              <Pressable onPress={customActionIcon ? onCustomAction : onToggleFavorite} hitSlop={10}>
+                <Ionicons name={(customActionIcon as any) || (isFavorite ? 'heart' : 'heart-outline')} size={22} color={customActionIcon ? colors.textMuted : (isFavorite ? colors.accent : colors.textMuted)} />
               </Pressable>
             )}
           </View>
@@ -535,4 +682,6 @@ const styles = StyleSheet.create({
   previewSection: { marginTop: Spacing.lg },
   previewCard: { flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, borderRadius: BorderRadius.xl, marginTop: Spacing.sm, gap: Spacing.md },
   previewIcon: { width: 48, height: 48, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: BorderRadius.lg, paddingHorizontal: Spacing.md, height: 44, marginBottom: Spacing.md },
+  searchInput: { flex: 1, marginLeft: Spacing.sm, fontSize: FontSizes.base },
 });
