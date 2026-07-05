@@ -6,8 +6,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
-import { Alert, Dimensions, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, Dimensions, Linking, Platform, Pressable, ScrollView, Share, StyleSheet, TextInput, View, Modal } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,13 +21,21 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const PROFILE_EMOJIS = ['🌸', '🔥', '💧', '🌙', '✨', '🦋', '🌿', '💎', '🦄', '⭐'];
+
 export default function ProfileScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   
+  const [devTapCount, setDevTapCount] = useState(0);
+  const [isEditProfileModalVisible, setIsEditProfileModalVisible] = useState(false);
+  const [tempUserName, setTempUserName] = useState('');
+  const [tempAvatarEmoji, setTempAvatarEmoji] = useState('🌸');
+
   const { 
-    preferences, 
+    preferences,
+    setPreference,
     resetPreferences, 
     isOnboardingComplete, 
     parfumler,
@@ -140,6 +148,49 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleOpenLink = async (url: string) => {
+    try {
+      // TODO: Gerçek URL'ler geldiğinde değiştirilecek (örn. .env'den)
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Hata', 'Bağlantı açılamadı.');
+      }
+    } catch (error) {
+      Alert.alert('Hata', 'Bağlantı açılırken bir sorun oluştu.');
+    }
+  };
+
+  const handleRateApp = () => {
+    const url = Platform.OS === 'ios' 
+      ? 'itms-apps://itunes.apple.com/app/id123456789?action=write-review' 
+      : 'market://details?id=com.auram.app';
+    handleOpenLink(url);
+  };
+
+  const handleShareApp = async () => {
+    try {
+      await Share.share({
+        title: 'AURAM - Kişisel Koku Asistanı',
+        message: 'Koku DNA\'nı keşfet ve sana en uygun parfümleri bul! Hemen indir: https://auram.app',
+      });
+    } catch (error) {
+      console.error('Share error:', error);
+    }
+  };
+
+  const handleDevTap = () => {
+    setDevTapCount(prev => {
+      const next = prev + 1;
+      if (next === 5) {
+        Alert.alert('Geliştirici Modu', 'AURAM Debug: AdMob Aktif, pH Engine v2.1\nApp ID: ca-app-pub-1731461024871182');
+        return 0;
+      }
+      return next;
+    });
+  };
+
   const handleStartNewQuiz = async () => {
     await resetPreferences();
     router.push('/onboarding');
@@ -185,10 +236,20 @@ export default function ProfileScreen() {
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* Header */}
           <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.header}>
-            <View style={[styles.avatarContainer, { backgroundColor: colors.tint + '15' }]}>
-              <Ionicons name="person" size={32} color={colors.tint} />
-            </View>
-            <ThemedText type="title" style={styles.headerTitle}>Profilim</ThemedText>
+            <Pressable onPress={() => {
+              setTempUserName(preferences.userName || '');
+              setTempAvatarEmoji(preferences.avatarEmoji || '🌸');
+              setIsEditProfileModalVisible(true);
+            }} style={[styles.avatarContainer, { backgroundColor: colors.tint + '15' }]}>
+              {preferences.avatarEmoji ? (
+                <ThemedText style={{ fontSize: 32 }}>{preferences.avatarEmoji}</ThemedText>
+              ) : (
+                <Ionicons name="person" size={32} color={colors.tint} />
+              )}
+            </Pressable>
+            <ThemedText type="title" style={styles.headerTitle}>
+              {preferences.userName ? `Merhaba, ${preferences.userName}` : 'Profilim'}
+            </ThemedText>
           </Animated.View>
 
           {/* Stats */}
@@ -389,6 +450,53 @@ export default function ProfileScreen() {
             </Card>
           </Animated.View>
 
+          {/* Uygulama ve Destek */}
+          <Animated.View entering={FadeInUp.delay(650).duration(400)}>
+            <Card variant="elevated" style={styles.settingsCard}>
+              <ThemedText type="heading" style={styles.settingsTitle}>Uygulama ve Destek</ThemedText>
+
+              <Pressable onPress={() => handleOpenLink('https://auram.app/privacy')} style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color={colors.textMuted} />
+                  <ThemedText style={{ marginLeft: Spacing.sm }}>Gizlilik Politikası</ThemedText>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+
+              <Pressable onPress={() => handleOpenLink('https://auram.app/terms')} style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
+                  <ThemedText style={{ marginLeft: Spacing.sm }}>Kullanım Şartları</ThemedText>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+
+              <Pressable onPress={handleRateApp} style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <Ionicons name="star-outline" size={18} color={colors.textMuted} />
+                  <ThemedText style={{ marginLeft: Spacing.sm }}>Bizi Değerlendirin</ThemedText>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+
+              <Pressable onPress={handleShareApp} style={styles.settingRow}>
+                <View style={styles.settingLeft}>
+                  <Ionicons name="share-social-outline" size={18} color={colors.textMuted} />
+                  <ThemedText style={{ marginLeft: Spacing.sm }}>Uygulamayı Paylaş</ThemedText>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+
+              <Pressable onPress={() => handleOpenLink('mailto:support@auram.app')} style={[styles.settingRow, { borderBottomWidth: 0 }]}>
+                <View style={styles.settingLeft}>
+                  <Ionicons name="mail-outline" size={18} color={colors.textMuted} />
+                  <ThemedText style={{ marginLeft: Spacing.sm }}>Bize Ulaşın</ThemedText>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+            </Card>
+          </Animated.View>
+
           {/* Veri Yönetimi */}
           <Animated.View entering={FadeInUp.delay(700).duration(400)}>
             <Card variant="elevated" style={styles.settingsCard}>
@@ -432,12 +540,70 @@ export default function ProfileScreen() {
             <View style={[styles.appLogo, { backgroundColor: colors.tint + '15' }]}>
               <Ionicons name="sparkles" size={16} color={colors.tint} />
             </View>
-            <ThemedText type="caption" style={{ color: colors.textMuted }}>AURAM v1.0.3</ThemedText>
+            <Pressable onPress={handleDevTap}>
+              <ThemedText type="caption" style={{ color: colors.textMuted }}>AURAM v1.0.3</ThemedText>
+            </Pressable>
           </View>
 
           <View style={{ height: 120 }} />
         </ScrollView>
       </SafeAreaView>
+
+      {/* Profil Düzenleme Modalı */}
+      <Modal
+        visible={isEditProfileModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setIsEditProfileModalVisible(false)}
+      >
+        <ThemedView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <ThemedText type="subtitle">Profili Düzenle</ThemedText>
+            <Pressable onPress={() => setIsEditProfileModalVisible(false)} style={styles.modalCloseBtn}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </Pressable>
+          </View>
+
+          <View style={styles.modalContent}>
+            <ThemedText style={styles.modalLabel}>İsminiz</ThemedText>
+            <TextInput
+              style={[styles.textInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.backgroundTertiary }]}
+              placeholder="İsminizi girin..."
+              placeholderTextColor={colors.textMuted}
+              value={tempUserName}
+              onChangeText={setTempUserName}
+            />
+
+            <ThemedText style={[styles.modalLabel, { marginTop: Spacing.xl }]}>Avatar Seçimi</ThemedText>
+            <View style={styles.emojiGrid}>
+              {PROFILE_EMOJIS.map(emoji => (
+                <Pressable
+                  key={emoji}
+                  onPress={() => setTempAvatarEmoji(emoji)}
+                  style={[
+                    styles.emojiBtn,
+                    tempAvatarEmoji === emoji && { backgroundColor: colors.tint + '30', borderColor: colors.tint }
+                  ]}
+                >
+                  <ThemedText style={styles.emojiText}>{emoji}</ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.modalFooter}>
+            <Button 
+              title="Kaydet" 
+              onPress={() => {
+                setPreference('userName', tempUserName.trim() || null);
+                setPreference('avatarEmoji', tempAvatarEmoji);
+                setIsEditProfileModalVisible(false);
+              }}
+              fullWidth 
+            />
+          </View>
+        </ThemedView>
+      </Modal>
     </ThemedView>
   );
 }
@@ -508,4 +674,14 @@ const styles = StyleSheet.create({
   settingLeft: { flexDirection: 'row', alignItems: 'center' },
   appInfo: { alignItems: 'center', paddingVertical: Spacing.xl, gap: Spacing.xs },
   appLogo: { width: 32, height: 32, borderRadius: BorderRadius.md, justifyContent: 'center', alignItems: 'center' },
+  modalContainer: { flex: 1 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.xl, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
+  modalCloseBtn: { padding: Spacing.xs },
+  modalContent: { padding: Spacing.xl, flex: 1 },
+  modalLabel: { fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold, marginBottom: Spacing.sm },
+  textInput: { borderWidth: 1, borderRadius: BorderRadius.md, padding: Spacing.md, fontSize: FontSizes.md },
+  emojiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  emojiBtn: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'transparent' },
+  emojiText: { fontSize: 24 },
+  modalFooter: { padding: Spacing.xl, paddingBottom: Spacing.xxl, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' },
 });

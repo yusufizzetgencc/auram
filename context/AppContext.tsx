@@ -131,6 +131,8 @@ const defaultPHInfo: UserPHInfo = {
 };
 
 const defaultPreferences: UserPreferences = {
+  userName: null,
+  avatarEmoji: null,
   phInfo: defaultPHInfo,
   
   // 🧬 Bölüm 1: Biyolojik İmza ve pH Analizi

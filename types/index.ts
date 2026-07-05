@@ -191,6 +191,9 @@ export type CinsiyetAlgisi = 'feminen' | 'maskulen' | 'unisex';
 
 // Kullanıcı Tercihleri - Biyolojik Odaklı YENİ Yapı
 export interface UserPreferences {
+  userName?: string | null;
+  avatarEmoji?: string | null;
+
   // 0️⃣ Temel / Zorunlu pH (Eğer formülle hesaplanacaksa burada tutulur)
   phInfo: UserPHInfo;
   
