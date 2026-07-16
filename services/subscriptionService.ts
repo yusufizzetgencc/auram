@@ -7,26 +7,29 @@
  * modül yoksa abonelik özellikleri devre dışı kalır ama uygulama çökmez.
  */
 
-import { Platform } from 'react-native';
+import { Platform } from "react-native";
 
 // ============ NATIVE MODÜL — GÜVENLİ YÜKLEME ============
 let RNPurchases: any = null;
 try {
-  RNPurchases = require('react-native-purchases').default;
+  RNPurchases = require("react-native-purchases").default;
 } catch (e) {
-  console.warn('[SubscriptionService] react-native-purchases yüklenemedi (Expo Go ortamında normal).');
+  console.warn(
+    "[SubscriptionService] react-native-purchases yüklenemedi (Expo Go ortamında normal).",
+  );
 }
 
 const isPurchasesAvailable = RNPurchases !== null;
 
 // ============ API KEY'LERİ ============
-// RevenueCat Dashboard > Project Settings > API Keys içinden alınacak.
+// RevenueCat Dashboard > Project Settings > API Keys içinden alınıp .env dosyasına yazılır.
+// Expo, EXPO_PUBLIC_ önekli değişkenleri build zamanında otomatik inline eder.
 const REVENUECAT_API_KEYS = {
-  ios: 'appl_YOUR_IOS_API_KEY',
-  android: 'goog_YOUR_ANDROID_API_KEY',
+  ios: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? "",
+  android: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY ?? "",
 };
 
-const PREMIUM_ENTITLEMENT_ID = 'premium';
+const PREMIUM_ENTITLEMENT_ID = "premium";
 
 // ============ TİPLER ============
 export interface PurchaseResult {
@@ -46,21 +49,24 @@ class SubscriptionService {
     if (!isPurchasesAvailable || this.configured) return;
 
     try {
-      const apiKey = Platform.OS === 'ios' ? REVENUECAT_API_KEYS.ios : REVENUECAT_API_KEYS.android;
+      const apiKey =
+        Platform.OS === "ios"
+          ? REVENUECAT_API_KEYS.ios
+          : REVENUECAT_API_KEYS.android;
 
-      if (!apiKey || apiKey.includes('YOUR_')) {
+      if (!apiKey || apiKey.includes("YOUR_")) {
         console.warn(
-          '[SubscriptionService] RevenueCat API key ayarlanmamış — abonelik özellikleri devre dışı kalacak. ' +
-          'services/subscriptionService.ts içindeki REVENUECAT_API_KEYS değerlerini güncelleyin.'
+          `[SubscriptionService] RevenueCat API key ayarlanmamış (${Platform.OS}) — abonelik özellikleri devre dışı kalacak. ` +
+            ".env dosyasındaki EXPO_PUBLIC_REVENUECAT_IOS_KEY / EXPO_PUBLIC_REVENUECAT_ANDROID_KEY değerlerini kontrol edin.",
         );
         return;
       }
 
       RNPurchases.configure({ apiKey });
       this.configured = true;
-      console.log('[SubscriptionService] RevenueCat yapılandırıldı ✅');
+      console.log("[SubscriptionService] RevenueCat yapılandırıldı ✅");
     } catch (error) {
-      console.warn('[SubscriptionService] configure() hatası:', error);
+      console.warn("[SubscriptionService] configure() hatası:", error);
     }
   }
 
@@ -74,7 +80,7 @@ class SubscriptionService {
       const offerings = await RNPurchases.getOfferings();
       return offerings.current ?? null;
     } catch (error) {
-      console.warn('[SubscriptionService] getOfferings() hatası:', error);
+      console.warn("[SubscriptionService] getOfferings() hatası:", error);
       return null;
     }
   }
@@ -84,7 +90,11 @@ class SubscriptionService {
    */
   async purchasePackage(pkg: any): Promise<PurchaseResult> {
     if (!isPurchasesAvailable) {
-      return { success: false, cancelled: false, error: 'Satın alma modülü kullanılamıyor.' };
+      return {
+        success: false,
+        cancelled: false,
+        error: "Satın alma modülü kullanılamıyor.",
+      };
     }
 
     try {
@@ -95,8 +105,12 @@ class SubscriptionService {
       if (error?.userCancelled) {
         return { success: false, cancelled: true };
       }
-      console.warn('[SubscriptionService] purchasePackage() hatası:', error);
-      return { success: false, cancelled: false, error: error?.message ?? 'Satın alma başarısız oldu.' };
+      console.warn("[SubscriptionService] purchasePackage() hatası:", error);
+      return {
+        success: false,
+        cancelled: false,
+        error: error?.message ?? "Satın alma başarısız oldu.",
+      };
     }
   }
 
@@ -112,7 +126,7 @@ class SubscriptionService {
       const customerInfo = await RNPurchases.restorePurchases();
       return { success: true, isPremium: this.isPremium(customerInfo) };
     } catch (error) {
-      console.warn('[SubscriptionService] restorePurchases() hatası:', error);
+      console.warn("[SubscriptionService] restorePurchases() hatası:", error);
       return { success: false, isPremium: false };
     }
   }
@@ -126,7 +140,7 @@ class SubscriptionService {
     try {
       return await RNPurchases.getCustomerInfo();
     } catch (error) {
-      console.warn('[SubscriptionService] getCustomerInfo() hatası:', error);
+      console.warn("[SubscriptionService] getCustomerInfo() hatası:", error);
       return null;
     }
   }
@@ -136,7 +150,9 @@ class SubscriptionService {
    */
   isPremium(customerInfo: any | null): boolean {
     if (!customerInfo) return false;
-    return customerInfo.entitlements?.active?.[PREMIUM_ENTITLEMENT_ID] !== undefined;
+    return (
+      customerInfo.entitlements?.active?.[PREMIUM_ENTITLEMENT_ID] !== undefined
+    );
   }
 
   /**
@@ -158,7 +174,10 @@ class SubscriptionService {
         }
       };
     } catch (error) {
-      console.warn('[SubscriptionService] addCustomerInfoListener() hatası:', error);
+      console.warn(
+        "[SubscriptionService] addCustomerInfoListener() hatası:",
+        error,
+      );
       return () => {};
     }
   }
