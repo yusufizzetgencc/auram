@@ -14,10 +14,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
+import { LockedFeatureOverlay, PaywallScreen } from '@/components/paywall';
 import { BorderRadius, Colors, FontSizes, FontWeights, Spacing, ScentTypeColors } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { LayeringRule, Parfum } from '@/types';
+
+// İlk önerilen kombinasyon her zaman açık (teaser), gerisi Premium'a kilitli.
+const FREE_SUGGESTION_COUNT = 1;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -108,6 +113,7 @@ export default function LayeringScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const { parfumler, getFavoriteParfums, addToRecentlyViewedList } = useApp();
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
 
   const [selectedBase, setSelectedBase] = useState<Parfum | null>(null);
   const [suggestions, setSuggestions] = useState<{ parfum: Parfum; score: number; reasons: string[] }[]>([]);
@@ -289,64 +295,86 @@ export default function LayeringScreen() {
                 Önerilen Katmanlar
               </ThemedText>
               <View style={styles.suggestionsGrid}>
-                {suggestions.map((item, index) => (
-                  <Animated.View 
-                    key={item.parfum.id}
-                    entering={SlideInRight.delay(index * 80).duration(400)}
-                  >
-                    <Pressable onPress={() => handleParfumPress(item.parfum)}>
-                      <Card variant="elevated" style={styles.suggestionCard}>
-                        <View style={styles.suggestionHeader}>
-                          <View style={[styles.suggestionIcon, { 
-                            backgroundColor: (ScentTypeColors[item.parfum.tip] || colors.tint) + '15' 
-                          }]}>
-                            <Ionicons 
-                              name="sparkles" 
-                              size={18} 
-                              color={ScentTypeColors[item.parfum.tip] || colors.tint} 
-                            />
+                {suggestions.map((item, index) => {
+                  const isLocked = !isPremium && index >= FREE_SUGGESTION_COUNT;
+
+                  return (
+                    <Animated.View
+                      key={item.parfum.id}
+                      entering={SlideInRight.delay(index * 80).duration(400)}
+                    >
+                      <Pressable onPress={() => (isLocked ? setPaywallVisible(true) : handleParfumPress(item.parfum))}>
+                        <Card variant="elevated" style={styles.suggestionCard}>
+                          <View style={styles.suggestionHeader}>
+                            <View style={[styles.suggestionIcon, {
+                              backgroundColor: (ScentTypeColors[item.parfum.tip] || colors.tint) + '15'
+                            }]}>
+                              <Ionicons
+                                name="sparkles"
+                                size={18}
+                                color={ScentTypeColors[item.parfum.tip] || colors.tint}
+                              />
+                            </View>
+                            <View style={styles.scoreCircle}>
+                              <ThemedText style={styles.scoreText}>
+                                {Math.min(100, item.score)}%
+                              </ThemedText>
+                            </View>
                           </View>
-                          <View style={styles.scoreCircle}>
-                            <ThemedText style={styles.scoreText}>
-                              {Math.min(100, item.score)}%
+
+                          {isLocked ? (
+                            <LockedFeatureOverlay
+                              onUnlock={() => setPaywallVisible(true)}
+                              title="Kombinasyonu aç"
+                              subtitle="Hangi parfüm olduğunu gör"
+                              blurIntensity={35}
+                            >
+                              <ThemedText type="subtitle" numberOfLines={1} style={styles.suggestionName}>
+                                {item.parfum.isim}
+                              </ThemedText>
+                              <ThemedText type="caption" style={{ color: colors.textMuted }} numberOfLines={1}>
+                                {item.parfum.marka}
+                              </ThemedText>
+                            </LockedFeatureOverlay>
+                          ) : (
+                            <>
+                              <ThemedText type="subtitle" numberOfLines={1} style={styles.suggestionName}>
+                                {item.parfum.isim}
+                              </ThemedText>
+                              <ThemedText type="caption" style={{ color: colors.textMuted }} numberOfLines={1}>
+                                {item.parfum.marka}
+                              </ThemedText>
+                            </>
+                          )}
+
+                          <View style={[styles.suggestionType, {
+                            backgroundColor: (ScentTypeColors[item.parfum.tip] || colors.tint) + '10'
+                          }]}>
+                            <ThemedText style={{
+                              color: ScentTypeColors[item.parfum.tip] || colors.tint,
+                              fontSize: 10
+                            }}>
+                              {item.parfum.tip}
                             </ThemedText>
                           </View>
-                        </View>
-                        
-                        <ThemedText type="subtitle" numberOfLines={1} style={styles.suggestionName}>
-                          {item.parfum.isim}
-                        </ThemedText>
-                        <ThemedText type="caption" style={{ color: colors.textMuted }} numberOfLines={1}>
-                          {item.parfum.marka}
-                        </ThemedText>
-                        
-                        <View style={[styles.suggestionType, { 
-                          backgroundColor: (ScentTypeColors[item.parfum.tip] || colors.tint) + '10' 
-                        }]}>
-                          <ThemedText style={{ 
-                            color: ScentTypeColors[item.parfum.tip] || colors.tint, 
-                            fontSize: 10 
-                          }}>
-                            {item.parfum.tip}
-                          </ThemedText>
-                        </View>
 
-                        {item.reasons.length > 0 && (
-                          <View style={styles.reasonsList}>
-                            {item.reasons.slice(0, 2).map((reason, i) => (
-                              <View key={i} style={styles.reasonItem}>
-                                <Ionicons name="checkmark" size={10} color={colors.tint} />
-                                <ThemedText style={styles.reasonText} numberOfLines={1}>
-                                  {reason}
-                                </ThemedText>
-                              </View>
-                            ))}
-                          </View>
-                        )}
-                      </Card>
-                    </Pressable>
-                  </Animated.View>
-                ))}
+                          {!isLocked && item.reasons.length > 0 && (
+                            <View style={styles.reasonsList}>
+                              {item.reasons.slice(0, 2).map((reason, i) => (
+                                <View key={i} style={styles.reasonItem}>
+                                  <Ionicons name="checkmark" size={10} color={colors.tint} />
+                                  <ThemedText style={styles.reasonText} numberOfLines={1}>
+                                    {reason}
+                                  </ThemedText>
+                                </View>
+                              ))}
+                            </View>
+                          )}
+                        </Card>
+                      </Pressable>
+                    </Animated.View>
+                  );
+                })}
               </View>
             </Animated.View>
           )}
@@ -459,6 +487,13 @@ export default function LayeringScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Katmanlama Önerilerini Aç"
+        subtitle="Tüm uyumlu kombinasyonları ve gerekçelerini keşfet."
+      />
     </ThemedView>
   );
 }

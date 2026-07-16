@@ -14,9 +14,12 @@ import Animated, { FadeInDown, FadeIn, FadeInUp } from 'react-native-reanimated'
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card, Button } from '@/components/ui';
+import { PaywallScreen } from '@/components/paywall';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, ScentTypeColors } from '@/constants/theme';
+import { FREE_FAVORITE_LIMIT, FREE_COLLECTION_LIMIT, FREE_COLLECTION_PARFUM_LIMIT } from '@/constants/premiumLimits';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { Parfum } from '@/types';
 
 type TabType = 'favorites' | 'collections' | 'recent';
@@ -70,8 +73,9 @@ export default function FavoritesScreen() {
     addParfumToCollection,
     removeParfumFromCollection,
   } = useApp();
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
 
-  const selectedCollection = useMemo(() => 
+  const selectedCollection = useMemo(() =>
     collections.find(c => c.id === selectedCollectionId), 
   [collections, selectedCollectionId]);
 
@@ -139,9 +143,31 @@ export default function FavoritesScreen() {
     router.push(`/parfum/${parfum.id}`);
   };
 
+  const handleToggleFavorite = (parfumId: string) => {
+    const currentlyFavorite = favorites.includes(parfumId);
+    if (!currentlyFavorite && !isPremium && favorites.length >= FREE_FAVORITE_LIMIT) {
+      setPaywallVisible(true);
+      return;
+    }
+    toggleFavoriteParfum(parfumId);
+  };
+
+  const handleOpenNewCollectionModal = () => {
+    if (!isPremium && collections.length >= FREE_COLLECTION_LIMIT) {
+      setPaywallVisible(true);
+      return;
+    }
+    setShowNewCollectionModal(true);
+  };
+
   const handleCreateCollection = async () => {
     if (!newCollectionName.trim()) {
       Alert.alert('Hata', 'Koleksiyon adı gerekli');
+      return;
+    }
+    if (!isPremium && collections.length >= FREE_COLLECTION_LIMIT) {
+      setShowNewCollectionModal(false);
+      setPaywallVisible(true);
       return;
     }
     await createNewCollection(newCollectionName.trim(), selectedIcon, selectedColor);
@@ -149,6 +175,15 @@ export default function FavoritesScreen() {
     setNewCollectionName('');
     setSelectedColor(COLLECTION_COLORS[0]);
     setSelectedIcon(COLLECTION_ICONS[0]);
+  };
+
+  const handleAddParfumToCollection = (parfumId: string) => {
+    if (!selectedCollection) return;
+    if (!isPremium && selectedCollection.parfumIds.length >= FREE_COLLECTION_PARFUM_LIMIT) {
+      setPaywallVisible(true);
+      return;
+    }
+    addParfumToCollection(selectedCollection.id, parfumId);
   };
 
   const handleDeleteCollection = (id: string, name: string) => {
@@ -236,7 +271,7 @@ export default function FavoritesScreen() {
               isSelected={selectedForCompare.includes(parfum.id)}
               compareMode={compareMode}
               onPress={() => compareMode ? toggleCompareSelection(parfum.id) : handleOpenParfum(parfum)}
-              onToggleFavorite={() => toggleFavoriteParfum(parfum.id)}
+              onToggleFavorite={() => handleToggleFavorite(parfum.id)}
               delay={index * 40}
             />
           ))}
@@ -250,7 +285,7 @@ export default function FavoritesScreen() {
     <View style={styles.collectionsContainer}>
       {/* Add Button */}
       <Animated.View entering={FadeIn.duration(300)}>
-        <Pressable onPress={() => setShowNewCollectionModal(true)} style={[styles.addCollectionBtn, { borderColor: colors.tint + '40' }]}>
+        <Pressable onPress={handleOpenNewCollectionModal} style={[styles.addCollectionBtn, { borderColor: colors.tint + '40' }]}>
           <View style={[styles.addIcon, { backgroundColor: colors.tint + '15' }]}>
             <Ionicons name="add" size={24} color={colors.tint} />
           </View>
@@ -314,7 +349,7 @@ export default function FavoritesScreen() {
             compareMode={false}
             isFavorite={favorites.includes(parfum.id)}
             onPress={() => handleOpenParfum(parfum)}
-            onToggleFavorite={() => toggleFavoriteParfum(parfum.id)}
+            onToggleFavorite={() => handleToggleFavorite(parfum.id)}
             delay={index * 40}
           />
         ))}
@@ -468,7 +503,7 @@ export default function FavoritesScreen() {
                             }}
                             customActionIcon="add-circle-outline"
                             onCustomAction={() => {
-                              addParfumToCollection(selectedCollection.id, parfum.id);
+                              handleAddParfumToCollection(parfum.id);
                             }}
                             delay={Math.min(index * 20, 300)}
                           />
@@ -566,6 +601,13 @@ export default function FavoritesScreen() {
           </SafeAreaView>
         </ThemedView>
       </Modal>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Sınırsız Favori ve Koleksiyon"
+        subtitle="Daha fazla favori ekle, daha fazla koleksiyon oluştur, her koleksiyona daha fazla parfüm koy."
+      />
     </ThemedView>
   );
 }

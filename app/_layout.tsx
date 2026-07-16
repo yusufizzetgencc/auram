@@ -3,6 +3,8 @@
  */
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -13,6 +15,7 @@ import { requestTrackingPermissionsAsync, getTrackingPermissionsAsync } from 'ex
 
 import { Colors } from '@/constants/theme';
 import { AppProvider, useApp } from '@/context/AppContext';
+import { SubscriptionProvider } from '@/context/SubscriptionContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { trackingPermission } from '@/services/trackingPermission';
 
@@ -48,14 +51,18 @@ function RootLayoutContent() {
   const colorScheme = useColorScheme();
   const { isDataLoaded } = useApp();
   const [splashHidden, setSplashHidden] = useState(false);
+  const [fontsLoaded] = useFonts({
+    ...Ionicons.font,
+    ...MaterialIcons.font,
+  });
 
   useEffect(() => {
-    if (isDataLoaded) {
+    if (isDataLoaded && fontsLoaded) {
       SplashScreen.hideAsync().then(() => {
         setSplashHidden(true);
       });
     }
-  }, [isDataLoaded]);
+  }, [isDataLoaded, fontsLoaded]);
 
   // Splash kapandıktan sonra izin iste (App aktif olduktan sonra)
   useEffect(() => {
@@ -112,7 +119,9 @@ function RootLayoutContent() {
 export default function RootLayout() {
   return (
     <AppProvider>
-      <RootLayoutContent />
+      <SubscriptionProvider>
+        <RootLayoutContent />
+      </SubscriptionProvider>
     </AppProvider>
   );
 }

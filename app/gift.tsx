@@ -14,10 +14,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Button, Card } from '@/components/ui';
+import { PaywallScreen } from '@/components/paywall';
 import { BorderRadius, Colors, FontSizes, FontWeights, Spacing, ScentTypeColors } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
 import { hesaplaPHPure, hesaplaParfumPHSkoruPure, buildTemporaryProfile } from '@/engine';
 import { hapticLight, hapticMedium } from '@/utils/haptics';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Butce, CiltTipi, Cinsiyet, GiftOccasion, GiftRecipient, KisilikTipi, Parfum, TerlemeOrani, YasGrubu } from '@/types';
 
@@ -135,6 +137,7 @@ export default function GiftScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const { parfumler, addToRecentlyViewedList } = useApp();
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
 
   const [step, setStep] = useState<Step>('recipient');
   const [selectedRecipient, setSelectedRecipient] = useState<GiftRecipient | null>(null);
@@ -274,7 +277,13 @@ export default function GiftScreen() {
     const steps: Step[] = ['recipient', 'style', 'occasion', 'skin_info', 'budget', 'results'];
     const currentIndex = steps.indexOf(step);
     if (currentIndex < steps.length - 1) {
-      setStep(steps[currentIndex + 1]);
+      const nextStep = steps[currentIndex + 1];
+      // Hediye önerileri (sonuç ekranı) Premium'a kilitli — asistanın kendisi ücretsiz gezilebilir.
+      if (nextStep === 'results' && !isPremium) {
+        setPaywallVisible(true);
+        return;
+      }
+      setStep(nextStep);
     }
   };
 
@@ -760,6 +769,14 @@ export default function GiftScreen() {
           </Animated.View>
         )}
       </SafeAreaView>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        onPurchaseSuccess={() => setStep('results')}
+        title="Hediye Önerilerini Aç"
+        subtitle="Kişiye özel en uyumlu hediye önerilerini gör."
+      />
     </ThemedView>
   );
 }

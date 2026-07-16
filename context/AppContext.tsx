@@ -226,8 +226,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         
         const storedData = await loadAllUserDataExtended(defaultPreferences);
-        
-        setPreferences(storedData.preferences);
+
+        // Eski sürümlerden kalan storage verisinde yeni eklenen alanlar (örn. phInfo)
+        // eksik olabilir — bu yüzden default değerlerle güvenli birleştirme yapılır.
+        setPreferences({
+          ...defaultPreferences,
+          ...storedData.preferences,
+          phInfo: { ...defaultPHInfo, ...storedData.preferences?.phInfo },
+        });
         setIsOnboardingCompleteState(storedData.isOnboardingComplete);
         setCurrentStepState(storedData.currentStep);
         setFavorites(storedData.favorites);

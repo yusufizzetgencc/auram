@@ -23,8 +23,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
+import { PaywallScreen } from '@/components/paywall';
 import { BorderRadius, Colors, FontSizes, FontWeights, Spacing, ScentTypeColors } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Confetti, ConfettiRef } from '@/components/confetti';
 import { DailyRecommendation, getDailyMotivation, getMultipleDailyRecommendations } from '@/services/dailyRecommendation';
@@ -53,6 +55,7 @@ export default function HomeScreen() {
     selectTodaysSotd,
     performanceLogs,
   } = useApp();
+  const { requirePremium, paywallVisible, setPaywallVisible } = usePremiumGate();
 
   const confettiRef = useRef<ConfettiRef>(null);
 
@@ -305,9 +308,9 @@ export default function HomeScreen() {
                 { id: 'journal', title: 'Günlük', desc: 'Deneyim kaydı', icon: 'camera-outline', color: '#00D4AA' },
                 { id: 'spin', title: 'Çark', desc: 'Şansını dene', icon: 'aperture-outline', color: '#FF6B6B' },
               ].map((item, index) => (
-                <Pressable 
+                <Pressable
                   key={item.id}
-                  onPress={() => router.push(`/${item.id}` as any)} 
+                  onPress={() => requirePremium(() => router.push(`/${item.id}` as any))}
                   style={[styles.premiumPill, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
                 >
                   <View style={[styles.premiumIconBox, { backgroundColor: item.color + '15' }]}>
@@ -317,6 +320,7 @@ export default function HomeScreen() {
                     <ThemedText style={styles.premiumTitle}>{item.title}</ThemedText>
                     <ThemedText style={styles.premiumDesc}>{item.desc}</ThemedText>
                   </View>
+                  <Ionicons name="lock-closed" size={14} color={colors.textMuted} />
                 </Pressable>
               ))}
             </ScrollView>
@@ -523,6 +527,13 @@ export default function HomeScreen() {
         </View>
           </ScrollView>
       <Confetti ref={confettiRef} />
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Premium Özellikleri Aç"
+        subtitle="Mood Tracker, Takvim, Katmanlama, Hediye Asistanı, Günlük ve Şans Çarkı'nı kullanmaya başla."
+      />
     </ThemedView>
   );
 }

@@ -18,8 +18,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
+import { LockedFeatureOverlay, PaywallScreen } from '@/components/paywall';
 import { Colors, Spacing, BorderRadius, FontSizes } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function PerformanceScreen() {
@@ -32,8 +34,9 @@ export default function PerformanceScreen() {
     performanceLogs, 
     logPerformance, 
     getMonthlyStats,
-    parfumler 
+    parfumler
   } = useApp();
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
 
   const [activeTab, setActiveTab] = useState<'review' | 'history' | 'stats'>('review');
 
@@ -199,10 +202,10 @@ export default function PerformanceScreen() {
     const mostUsed = parfumler.find(p => p.id === currentMonthStats.mostUsedParfumId);
     const mostComplimented = parfumler.find(p => p.id === currentMonthStats.mostComplimentedParfumId);
 
-    return (
+    const statsContent = (
       <View style={styles.tabContent}>
         <ThemedText type="subtitle" style={styles.sectionTitle}>Bu Ayın Özeti</ThemedText>
-        
+
         <View style={styles.statsGrid}>
           <Card style={styles.statBox}>
             <ThemedText style={styles.statValue}>{currentMonthStats.totalDays}</ThemedText>
@@ -229,6 +232,20 @@ export default function PerformanceScreen() {
         )}
       </View>
     );
+
+    if (!isPremium) {
+      return (
+        <LockedFeatureOverlay
+          onUnlock={() => setPaywallVisible(true)}
+          title="Detaylı Analizi Aç"
+          subtitle="Aylık istatistiklerini ve en iyi eşleşmelerini gör"
+        >
+          {statsContent}
+        </LockedFeatureOverlay>
+      );
+    }
+
+    return statsContent;
   };
 
   return (
@@ -261,6 +278,13 @@ export default function PerformanceScreen() {
         {activeTab === 'stats' && renderStatsTab()}
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Detaylı Performans Analizi"
+        subtitle="Aylık istatistiklerini ve en iyi eşleşmelerini Premium ile aç."
+      />
     </ThemedView>
   );
 }

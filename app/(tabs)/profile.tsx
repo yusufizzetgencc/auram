@@ -15,8 +15,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Button, Card } from '@/components/ui';
 import { RadarChart } from '@/components/ui/RadarChart';
+import { PaywallScreen } from '@/components/paywall';
 import { BorderRadius, Colors, FontSizes, FontWeights, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -28,6 +30,7 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
   const [devTapCount, setDevTapCount] = useState(0);
   const [isEditProfileModalVisible, setIsEditProfileModalVisible] = useState(false);
   const [tempUserName, setTempUserName] = useState('');
@@ -160,6 +163,13 @@ export default function ProfileScreen() {
     } catch (error) {
       Alert.alert('Hata', 'Bağlantı açılırken bir sorun oluştu.');
     }
+  };
+
+  const handleManageSubscription = () => {
+    const url = Platform.OS === 'ios'
+      ? 'itms-apps://apps.apple.com/account/subscriptions'
+      : 'https://play.google.com/store/account/subscriptions';
+    handleOpenLink(url);
   };
 
   const handleRateApp = () => {
@@ -450,10 +460,45 @@ export default function ProfileScreen() {
             </Card>
           </Animated.View>
 
+          {/* Premium CTA */}
+          {!isPremium && (
+            <Animated.View entering={FadeInUp.delay(625).duration(400)}>
+              <Pressable onPress={() => setPaywallVisible(true)}>
+                <LinearGradient
+                  colors={['#9D4EDD', '#7B2CBF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.premiumCta}
+                >
+                  <View style={styles.premiumCtaIcon}>
+                    <Ionicons name="sparkles" size={22} color="#FFF" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.premiumCtaTitle}>Premium'a Geç</ThemedText>
+                    <ThemedText style={styles.premiumCtaDesc}>
+                      Tüm eşleşmeleri, gerekçeleri ve premium modülleri aç
+                    </ThemedText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
+                </LinearGradient>
+              </Pressable>
+            </Animated.View>
+          )}
+
           {/* Uygulama ve Destek */}
           <Animated.View entering={FadeInUp.delay(650).duration(400)}>
             <Card variant="elevated" style={styles.settingsCard}>
               <ThemedText type="heading" style={styles.settingsTitle}>Uygulama ve Destek</ThemedText>
+
+              {isPremium && (
+                <Pressable onPress={handleManageSubscription} style={styles.settingRow}>
+                  <View style={styles.settingLeft}>
+                    <Ionicons name="card-outline" size={18} color={colors.textMuted} />
+                    <ThemedText style={{ marginLeft: Spacing.sm }}>Aboneliği Yönet</ThemedText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </Pressable>
+              )}
 
               <Pressable onPress={() => handleOpenLink('https://auram.app/privacy')} style={styles.settingRow}>
                 <View style={styles.settingLeft}>
@@ -604,6 +649,13 @@ export default function ProfileScreen() {
           </View>
         </ThemedView>
       </Modal>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Auram Premium'a Geç"
+        subtitle="Tüm eşleşmelerini, gerekçelerini ve premium modülleri aç."
+      />
     </ThemedView>
   );
 }
@@ -668,6 +720,24 @@ const styles = StyleSheet.create({
   prefLabel: { marginLeft: Spacing.sm },
   prefValue: { fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold, textTransform: 'capitalize', maxWidth: '50%' },
   actionsCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
+  premiumCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.xl,
+    marginBottom: Spacing.lg,
+    gap: Spacing.md,
+  },
+  premiumCtaIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  premiumCtaTitle: { color: '#FFF', fontSize: FontSizes.base, fontWeight: FontWeights.bold },
+  premiumCtaDesc: { color: 'rgba(255,255,255,0.85)', fontSize: FontSizes.xs, marginTop: 2 },
   settingsCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
   settingsTitle: { marginBottom: Spacing.md },
   settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },

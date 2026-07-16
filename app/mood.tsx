@@ -22,8 +22,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
+import { PaywallScreen } from '@/components/paywall';
 import { BorderRadius, Colors, FontSizes, FontWeights, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { addMoodEntry, getTodaysMood } from '@/services/storage';
 import { MoodParfumMatch, MoodType, Parfum } from '@/types';
@@ -113,6 +115,7 @@ export default function MoodTrackerScreen() {
   const isDark = colorScheme === 'dark';
 
   const { parfumler, preferences, addToRecentlyViewedList } = useApp();
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
 
   const [selectedMood, setSelectedMood] = useState<MoodType | null>(null);
   const [recommendations, setRecommendations] = useState<Parfum[]>([]);
@@ -132,8 +135,14 @@ export default function MoodTrackerScreen() {
 
   // Mood seçildiğinde önerileri hesapla
   const handleMoodSelect = async (mood: MoodType) => {
+    // Günde 1 ücretsiz mood seçimi — aynı gün farklı bir mood denemek Premium gerektirir.
+    if (!isPremium && todaysMood && mood !== todaysMood) {
+      setPaywallVisible(true);
+      return;
+    }
+
     setSelectedMood(mood);
-    
+
     const moodData = MOODS.find(m => m.mood === mood);
     if (!moodData) return;
 
@@ -352,6 +361,13 @@ export default function MoodTrackerScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </SafeAreaView>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Sınırsız Ruh Hali Takibi"
+        subtitle="Günde birden fazla ruh haline göre öneri al."
+      />
     </ThemedView>
   );
 }

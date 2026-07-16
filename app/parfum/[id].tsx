@@ -3,8 +3,8 @@
  * Detaylı parfüm analizi + Koleksiyona ekleme + Gelişmiş özellikler
  */
 
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Dimensions, Share, Modal, Alert } from 'react-native';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Dimensions, Share, Modal, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,9 +14,13 @@ import Animated, { FadeInDown, FadeInUp, FadeIn, SlideInRight, SlideInUp } from 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card, Button } from '@/components/ui';
+import { PaywallScreen } from '@/components/paywall';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, ScentTypeColors } from '@/constants/theme';
+import { FREE_PARFUM_DETAIL_LIMIT, FREE_FAVORITE_LIMIT, FREE_COLLECTION_PARFUM_LIMIT } from '@/constants/premiumLimits';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
+import { getFreeViewedParfumIds, addFreeViewedParfumId } from '@/services/storage';
 import { Parfum } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -40,11 +44,13 @@ export default function ParfumDetailScreen() {
   
   const [activeNotaTab, setActiveNotaTab] = useState<NotaTab>('ust');
   const [showCollectionModal, setShowCollectionModal] = useState(false);
-  
-  const { 
-    parfumler, 
-    kullaniciPH, 
+  const [detailAccess, setDetailAccess] = useState<'checking' | 'allowed' | 'locked'>('checking');
+
+  const {
+    parfumler,
+    kullaniciPH,
     preferences,
+    favorites,
     isFavorite,
     toggleFavoriteParfum,
     addToRecentlyViewedList,
@@ -52,12 +58,59 @@ export default function ParfumDetailScreen() {
     addParfumToCollection,
     removeParfumFromCollection,
   } = useApp();
-  
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
+
   const parfum = useMemo(() => {
-    const found = parfumler.find(p => p.id === id);
-    if (found) addToRecentlyViewedList(found.id);
-    return found;
+    return parfumler.find(p => p.id === id);
   }, [id, parfumler]);
+
+  // Son görüntülenenlere ekleme bir yan etkidir, render fazında (useMemo içinde) değil
+  // useEffect içinde tetiklenmeli.
+  useEffect(() => {
+    if (parfum && detailAccess === 'allowed') addToRecentlyViewedList(parfum.id);
+  }, [parfum?.id, detailAccess]);
+
+  // Ücretsiz kullanıcı en fazla FREE_PARFUM_DETAIL_LIMIT kadar farklı parfüm detayı görebilir;
+  // daha önce görülenler cihazda hafızada kalır ve her zaman ücretsiz açık kalır.
+  useEffect(() => {
+    let mounted = true;
+    if (!parfum) return;
+    if (isPremium) {
+      setDetailAccess('allowed');
+      return;
+    }
+
+    (async () => {
+      const viewedIds = await getFreeViewedParfumIds();
+      if (!mounted) return;
+
+      if (viewedIds.includes(parfum.id)) {
+        setDetailAccess('allowed');
+        return;
+      }
+
+      if (viewedIds.length < FREE_PARFUM_DETAIL_LIMIT) {
+        await addFreeViewedParfumId(parfum.id);
+        if (mounted) setDetailAccess('allowed');
+      } else {
+        setDetailAccess('locked');
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [parfum?.id, isPremium]);
+
+  const handleToggleFavorite = () => {
+    if (!parfum) return;
+    const currentlyFavorite = isFavorite(parfum.id);
+    if (!currentlyFavorite && !isPremium && favorites.length >= FREE_FAVORITE_LIMIT) {
+      setPaywallVisible(true);
+      return;
+    }
+    toggleFavoriteParfum(parfum.id);
+  };
 
   const phScore = useMemo(() => {
     if (!parfum || !kullaniciPH) return null;
@@ -111,6 +164,11 @@ export default function ParfumDetailScreen() {
       await removeParfumFromCollection(collectionId, parfum.id);
       Alert.alert('Çıkarıldı', `"${collection.name}" koleksiyonundan çıkarıldı`);
     } else {
+      if (!isPremium && (collection?.parfumIds.length ?? 0) >= FREE_COLLECTION_PARFUM_LIMIT) {
+        setShowCollectionModal(false);
+        setPaywallVisible(true);
+        return;
+      }
       await addParfumToCollection(collectionId, parfum.id);
       Alert.alert('Eklendi', `"${collection?.name}" koleksiyonuna eklendi`);
     }
@@ -133,6 +191,52 @@ export default function ParfumDetailScreen() {
   const tipColor = ScentTypeColors[parfum.tip] || colors.tint;
   const isFav = isFavorite(parfum.id);
 
+  if (detailAccess !== 'allowed') {
+    return (
+      <ThemedView style={styles.container}>
+        <LinearGradient colors={[tipColor + '30', 'transparent']} style={styles.headerGradient} />
+        <SafeAreaView style={styles.safeArea}>
+          <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
+            <Pressable onPress={() => router.back()} style={[styles.headerBtn, { backgroundColor: colors.card }]}>
+              <Ionicons name="arrow-back" size={22} color={colors.text} />
+            </Pressable>
+          </Animated.View>
+
+          {detailAccess === 'checking' ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator color={colors.tint} />
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <View style={[styles.typeBadge, { backgroundColor: tipColor + '20' }]}>
+                <ThemedText style={[styles.typeText, { color: tipColor }]}>{parfum.tip}</ThemedText>
+              </View>
+              <ThemedText type="title" center style={{ marginTop: Spacing.md }}>{parfum.isim}</ThemedText>
+              <ThemedText type="subtitle" center style={{ color: colors.textMuted, marginTop: 4 }}>{parfum.marka}</ThemedText>
+
+              <Ionicons name="lock-closed-outline" size={40} color={colors.textMuted} style={{ marginTop: Spacing.xl }} />
+              <ThemedText type="subtitle" center style={{ marginTop: Spacing.lg }}>
+                Detayları görmek için Premium'a geç
+              </ThemedText>
+              <ThemedText type="body" center style={{ color: colors.textMuted, marginTop: Spacing.xs }}>
+                Ücretsiz {FREE_PARFUM_DETAIL_LIMIT} parfüm inceleme hakkını kullandın. Sınırsız erişim için Premium'a geç.
+              </ThemedText>
+              <Button title="Premium'a Geç" onPress={() => setPaywallVisible(true)} style={{ marginTop: Spacing.xl }} />
+            </View>
+          )}
+        </SafeAreaView>
+
+        <PaywallScreen
+          visible={paywallVisible}
+          onClose={() => setPaywallVisible(false)}
+          onPurchaseSuccess={() => setDetailAccess('allowed')}
+          title="Sınırsız Parfüm Detayı"
+          subtitle="Tüm parfümlerin detaylı pH analizini ve notalarını aç."
+        />
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={styles.container}>
       <LinearGradient colors={[tipColor + '30', 'transparent']} style={styles.headerGradient} />
@@ -147,7 +251,7 @@ export default function ParfumDetailScreen() {
             <Pressable onPress={() => setShowCollectionModal(true)} style={[styles.headerBtn, { backgroundColor: colors.card }]}>
               <Ionicons name="folder-outline" size={22} color={colors.text} />
             </Pressable>
-            <Pressable onPress={() => toggleFavoriteParfum(parfum.id)} style={[styles.headerBtn, { backgroundColor: colors.card }]}>
+            <Pressable onPress={handleToggleFavorite} style={[styles.headerBtn, { backgroundColor: colors.card }]}>
               <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={22} color={isFav ? colors.accent : colors.text} />
             </Pressable>
             <Pressable onPress={handleShare} style={[styles.headerBtn, { backgroundColor: colors.card }]}>
@@ -554,6 +658,13 @@ export default function ParfumDetailScreen() {
           </SafeAreaView>
         </ThemedView>
       </Modal>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Auram Premium'a Geç"
+        subtitle="Sınırsız favori, koleksiyon ve parfüm detayına eriş."
+      />
     </ThemedView>
   );
 }

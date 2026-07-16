@@ -4,7 +4,10 @@
  */
 
 import { BorderRadius, Colors, Shadows, Spacing } from '@/constants/theme';
+import { FREE_RESULT_COUNT } from '@/constants/premiumLimits';
 import { useApp } from '@/context/AppContext';
+import { LockedFeatureOverlay, PaywallScreen } from '@/components/paywall';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { RecommendationResult } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +46,7 @@ export default function ResultsScreen() {
   const [selectedParfum, setSelectedParfum] = useState<RecommendationResult | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
 
   useEffect(() => {
     // Eğer öneri yoksa yeniden hesapla
@@ -123,7 +127,8 @@ export default function ResultsScreen() {
   // Öneri Kartı
   const renderRecommendationCard = (result: RecommendationResult, index: number) => {
     const { parfum, matchPercentage, phSkor } = result;
-    
+    const isLocked = !isPremium && index >= FREE_RESULT_COUNT;
+
     // Uyum seviyesine göre renk
     let matchColor = '#4CAF50';
     if (matchPercentage < 60) matchColor = '#FF9800';
@@ -144,8 +149,14 @@ export default function ResultsScreen() {
       >
         <TouchableOpacity
           style={[styles.recommendationCard, { backgroundColor: colors.card }, shadows.sm]}
-          onPress={() => openParfumDetail(result)}
-          onLongPress={() => router.push(`/compare-select?initialId=${parfum.id}`)}
+          onPress={() => (isLocked ? setPaywallVisible(true) : openParfumDetail(result))}
+          onLongPress={() => {
+            if (isLocked) {
+              setPaywallVisible(true);
+              return;
+            }
+            router.push(`/compare-select?initialId=${parfum.id}`);
+          }}
           activeOpacity={0.8}
         >
           {/* Sıra Numarası */}
@@ -156,10 +167,27 @@ export default function ResultsScreen() {
           {/* Ana İçerik */}
           <View style={styles.cardContent}>
             <View style={styles.cardHeader}>
-              <Text style={[styles.parfumName, { color: colors.text }]} numberOfLines={1}>{parfum.isim}</Text>
+              {isLocked ? (
+                <LockedFeatureOverlay
+                  onUnlock={() => setPaywallVisible(true)}
+                  title="Bu eşleşmeyi aç"
+                  subtitle="İsmi ve gerekçeyi gör"
+                  blurIntensity={35}
+                >
+                  <Text style={[styles.parfumName, { color: colors.text }]} numberOfLines={1}>{parfum.isim}</Text>
+                </LockedFeatureOverlay>
+              ) : (
+                <Text style={[styles.parfumName, { color: colors.text }]} numberOfLines={1}>{parfum.isim}</Text>
+              )}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <TouchableOpacity 
-                  onPress={() => router.push(`/compare-select?initialId=${parfum.id}`)}
+                <TouchableOpacity
+                  onPress={() => {
+                    if (isLocked) {
+                      setPaywallVisible(true);
+                      return;
+                    }
+                    router.push(`/compare-select?initialId=${parfum.id}`);
+                  }}
                   style={{ padding: 4 }}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -197,14 +225,14 @@ export default function ResultsScreen() {
             <View style={styles.phScoreRow}>
               <Text style={[styles.phScoreLabel, { color: colors.textSecondary }]}>pH Uyumu:</Text>
               <View style={[styles.phScoreBar, { backgroundColor: colors.border }]}>
-                <View 
+                <View
                   style={[
-                    styles.phScoreFill, 
-                    { 
+                    styles.phScoreFill,
+                    {
                       width: `${phSkor.phUyumSkoru}%`,
                       backgroundColor: phSkor.phUyumSkoru >= 70 ? '#4CAF50' : phSkor.phUyumSkoru >= 50 ? '#FF9800' : '#F44336'
                     }
-                  ]} 
+                  ]}
                 />
               </View>
               <Text style={[styles.phScoreValue, { color: colors.textSecondary }]}>%{Math.round(phSkor.phUyumSkoru)}</Text>
@@ -212,14 +240,32 @@ export default function ResultsScreen() {
 
             {/* Uyum Sebepleri */}
             {result.matchReasons.length > 0 && (
-              <View style={styles.reasonsContainer}>
-                {result.matchReasons.slice(0, 2).map((reason, i) => (
-                  <View key={i} style={styles.reasonItem}>
-                    <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
-                    <Text style={[styles.reasonText, { color: colors.textSecondary }]} numberOfLines={1}>{reason}</Text>
+              isLocked ? (
+                <LockedFeatureOverlay
+                  onUnlock={() => setPaywallVisible(true)}
+                  title="Gerekçeyi keşfet"
+                  subtitle="Neden bu kadar uyumlu olduğunu gör"
+                  blurIntensity={35}
+                >
+                  <View style={styles.reasonsContainer}>
+                    {result.matchReasons.slice(0, 2).map((reason, i) => (
+                      <View key={i} style={styles.reasonItem}>
+                        <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
+                        <Text style={[styles.reasonText, { color: colors.textSecondary }]} numberOfLines={1}>{reason}</Text>
+                      </View>
+                    ))}
                   </View>
-                ))}
-              </View>
+                </LockedFeatureOverlay>
+              ) : (
+                <View style={styles.reasonsContainer}>
+                  {result.matchReasons.slice(0, 2).map((reason, i) => (
+                    <View key={i} style={styles.reasonItem}>
+                      <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
+                      <Text style={[styles.reasonText, { color: colors.textSecondary }]} numberOfLines={1}>{reason}</Text>
+                    </View>
+                  ))}
+                </View>
+              )
             )}
           </View>
 
@@ -446,6 +492,13 @@ export default function ResultsScreen() {
 
       {/* Detail Modal */}
       {renderDetailModal()}
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Tüm Eşleşmelerini Keşfet"
+        subtitle="Geri kalan uyumlu parfümleri ve gerekçelerini aç."
+      />
     </View>
   );
 }

@@ -5,7 +5,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,9 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
+import { LockedFeatureOverlay, PaywallScreen } from '@/components/paywall';
 import { BorderRadius, Colors, FontSizes, FontWeights, Spacing, ScentTypeColors } from '@/constants/theme';
+import { FREE_COMPARE_COUNT } from '@/constants/premiumLimits';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { incrementCompareCount } from '@/services/storage';
 import { Parfum } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -28,7 +32,9 @@ export default function CompareScreen() {
   const isDark = colorScheme === 'dark';
   
   const { parfumler, kullaniciPH } = useApp();
-  
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
+  const [isLocked, setIsLocked] = useState(false);
+
   // URL'den parfüm ID'lerini al
   const parfumIds = useMemo(() => {
     const ids = params.ids;
@@ -45,6 +51,18 @@ export default function CompareScreen() {
       .filter((p): p is Parfum => p !== undefined)
       .slice(0, 3);
   }, [parfumIds, parfumler]);
+
+  // Kullanım sayacı: ilk karşılaştırma ücretsiz, sonrası Premium'a kilitli.
+  useEffect(() => {
+    if (compareParfums.length === 0 || isPremium) return;
+    (async () => {
+      const count = await incrementCompareCount();
+      if (count > FREE_COMPARE_COUNT) {
+        setIsLocked(true);
+        setPaywallVisible(true);
+      }
+    })();
+  }, [compareParfums.length, isPremium]);
 
   // Ortak notaları bul
   const commonNotes = useMemo(() => {
@@ -111,7 +129,18 @@ export default function CompareScreen() {
           <View style={{ width: 40 }} />
         </Animated.View>
 
-        <ScrollView 
+        {isLocked ? (
+          <View style={styles.lockedContainer}>
+            <LockedFeatureOverlay
+              onUnlock={() => setPaywallVisible(true)}
+              title="Karşılaştırmayı Aç"
+              subtitle="Sınırsız karşılaştırma için Premium'a geç"
+            >
+              <View style={styles.lockedPreview} />
+            </LockedFeatureOverlay>
+          </View>
+        ) : (
+        <ScrollView
           style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
@@ -282,7 +311,19 @@ export default function CompareScreen() {
 
           <View style={{ height: 40 }} />
         </ScrollView>
+        )}
       </SafeAreaView>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => {
+          setPaywallVisible(false);
+          if (isLocked) router.back();
+        }}
+        onPurchaseSuccess={() => setIsLocked(false)}
+        title="Sınırsız Karşılaştırma"
+        subtitle="Tüm parfüm karşılaştırmalarını Premium ile aç."
+      />
     </ThemedView>
   );
 }
@@ -379,6 +420,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: Spacing['2xl'],
+  },
+  lockedContainer: {
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+  },
+  lockedPreview: {
+    flex: 1,
+    minHeight: 400,
   },
   backButton: {
     marginTop: Spacing.xl,

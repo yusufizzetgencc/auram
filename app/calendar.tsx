@@ -13,8 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui';
+import { PaywallScreen } from '@/components/paywall';
 import { BorderRadius, Colors, FontSizes, FontWeights, Spacing, ScentTypeColors } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
     addCalendarEntry,
@@ -47,6 +49,7 @@ export default function CalendarScreen() {
   const isDark = colorScheme === 'dark';
 
   const { parfumler, getFavoriteParfums, getRecentlyViewedParfums } = useApp();
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -104,7 +107,18 @@ export default function CalendarScreen() {
 
   // Önceki/sonraki ay
   const goToPrevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+    const prevDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const now = new Date();
+    const isPastMonth =
+      prevDate.getFullYear() < now.getFullYear() ||
+      (prevDate.getFullYear() === now.getFullYear() && prevDate.getMonth() < now.getMonth());
+
+    // Geçmiş aylar Premium'a kilitli — güncel ay her zaman ücretsiz.
+    if (isPastMonth && !isPremium) {
+      setPaywallVisible(true);
+      return;
+    }
+    setCurrentDate(prevDate);
   };
 
   const goToNextMonth = () => {
@@ -570,6 +584,13 @@ export default function CalendarScreen() {
           </SafeAreaView>
         </ThemedView>
       </Modal>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Geçmiş Takvimini Aç"
+        subtitle="Önceki aylardaki kullanım geçmişini ve istatistiklerini gör."
+      />
     </ThemedView>
   );
 }

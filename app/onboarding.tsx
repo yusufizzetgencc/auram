@@ -325,9 +325,18 @@ export default function OnboardingScreen() {
   };
 
   const visibleSteps = getVisibleSteps();
-  const currentStepData = visibleSteps[currentStep];
-  const progress = ((currentStep + 1) / visibleSteps.length) * 100;
-  
+  // Eski bir uygulama sürümünden kalan `currentStep` değeri, güncel adım sayısının
+  // dışında kalmışsa (örn. adım listesi güncellemede değiştiyse) sınırlar içine çekilir.
+  const safeCurrentStep = Math.min(Math.max(currentStep, 0), visibleSteps.length - 1);
+  const currentStepData = visibleSteps[safeCurrentStep];
+  const progress = ((safeCurrentStep + 1) / visibleSteps.length) * 100;
+
+  useEffect(() => {
+    if (currentStep !== safeCurrentStep) {
+      setCurrentStep(safeCurrentStep);
+    }
+  }, [currentStep, safeCurrentStep, setCurrentStep]);
+
   // Canlı pH hesaplama (Preferences değiştikçe güncellenir)
   const livePHData = useMemo(() => hesaplaPHPure(preferences), [preferences]);
 

@@ -212,6 +212,7 @@ Bu bölümü proje ilerledikçe güncelle. Şu an için:
 - Parfüm veritabanı kaynağı (manuel curation mı, dış API mi?) belirlenmedi.
 - Backend/senkronizasyon planı yok (şu an local-first görünüyor).
 - Görsel/marka varlıkları (parfüm fotoğrafları) için telif durumu netleştirilmeli.
+- RevenueCat gerçek API key'leri henüz girilmedi (`services/subscriptionService.ts` içinde yer tutucu) — App Store Connect/Play Console abonelik ürünleri de henüz oluşturulmadı. Bkz. Bölüm 9.5.
 
 
 
@@ -224,4 +225,56 @@ ca-app-pub-1731461024871182~1620940090
 
 Rewarded Ad Unit ID (Reklam Birimi Kimliği) kodundur.
 ca-app-pub-1731461024871182/1891604076
+
+---
+
+## 9. Abonelik Sistemi (RevenueCat + Paywall)
+
+Uygulamada AdMob rewarded reklamın yanında ikinci bir gelir kanalı olarak **RevenueCat üzerinden StoreKit/Google Play Billing aboneliği** entegre edilmiştir. Fiyatlandırma (haftalık/aylık/yıllık, deneme süresi) App Store Connect / Play Console tarafında yönetilir; kodda hiçbir fiyat sabitlenmez.
+
+**Kritik kural:** Uygulama içi dijital özellik satışı yalnızca Apple/Google'ın kendi ödeme sistemleri üzerinden yapılabilir (App Store Review politikası). Başka bir ödeme sağlayıcısı (örn. Param, Iyzico) bu amaçla **asla kullanılamaz** — App Store'dan ret/kaldırılma riski taşır.
+
+### 9.1 Mimari
+```
+services/subscriptionService.ts   // RevenueCat SDK sarmalayıcı (Expo Go'da güvenli no-op fallback)
+context/SubscriptionContext.tsx   // isPremium state, offline cache, satın alma/restore
+hooks/use-premium-gate.ts         // requirePremium() + paywallVisible state yönetimi
+components/paywall/
+  PaywallScreen.tsx                // Paket seçimi + avantaj listesi + satın alma UI
+  LockedFeatureOverlay.tsx         // Bulanıklaştırılmış içerik + kilit CTA'sı
+constants/premiumLimits.ts        // Tüm ücretsiz kullanım limitleri tek noktadan
+```
+- `SubscriptionProvider`, `app/_layout.tsx` içinde `AppProvider`'ın içine sarılıdır; `AppContext` kasıtlı olarak abonelik durumundan habersizdir (ayrım korunmalı — yeni bir feature eklerken `AppContext`'e `isPremium` sızdırma, gating her zaman ekran/component seviyesinde `usePremiumGate()` ile yapılmalı).
+- RevenueCat API key'leri `services/subscriptionService.ts` içinde yer tutucudur (`REVENUECAT_API_KEYS`). Gerçek key'ler girilmeden abonelik özellikleri sessizce devre dışı kalır (uygulama çökmez, `isPremium` her zaman `false` döner).
+
+### 9.2 Ücretsiz Kullanım Limitleri (`constants/premiumLimits.ts`)
+| Sabit | Değer | Anlamı |
+|---|---|---|
+| `FREE_RESULT_COUNT` | 1 | Onboarding sonrası ilk öneri ücretsiz açık, 2.-5. öneri (isim + gerekçe) bulanık/kilitli |
+| `FREE_COMPARE_COUNT` | 1 | Ömür boyu 1 kerelik ücretsiz karşılaştırma, sonrası kilitli |
+| `FREE_PARFUM_DETAIL_LIMIT` | 5 | Farklı 5 parfümün detay sayfası ücretsiz; bu 5 id cihazda kalıcı tutulur, tekrar ziyaret her zaman ücretsizdir |
+| `FREE_FAVORITE_LIMIT` | 5 | En fazla 5 favori parfüm |
+| `FREE_COLLECTION_LIMIT` | 5 | En fazla 5 koleksiyon oluşturulabilir |
+| `FREE_COLLECTION_PARFUM_LIMIT` | 3 | Koleksiyon başına en fazla 3 parfüm |
+| `FREE_JOURNAL_COUNT` | 3 | En fazla 3 günlük (journal) kaydı |
+
+Limitlerin sayaç/hafıza verisi `services/storage.ts` üzerinden AsyncStorage'da tutulur (`@auram_compare_count`, `@auram_free_viewed_parfums` vb.) — bu yüzden kullanıcı o an abone olmasa bile kilitli öğeler (örn. sonuç listesi, görüntülenen parfüm detayları) kalıcıdır; sonradan abone olduğunda profil sayfasından ("Önerilerimi Gör") aynı listeye erişip kilidi açık görebilir.
+
+### 9.3 Tamamen Premium'a Kilitli Modüller
+Ana sayfadaki "Premium Özellikler" bölümündeki kartlar (Mood Tracker, Takvim, Katmanlama, Hediye Asistanı, Günlük, Şans Çarkı) abone olmadan **açılmaz** — karta dokunmak doğrudan paywall'ı tetikler (`(tabs)/index.tsx`). Bu ekranların kendi içinde de (örn. `layering.tsx` içindeki teaser+kilit mantığı) ayrıca bir gating katmanı vardır; bu, ekrana başka bir yoldan (deep link vb.) ulaşılırsa diye ikinci bir savunma hattıdır, kaldırılmamalı.
+
+Reklamla ilişkisi: Ücretsiz kullanıcı onboarding sonrası `ad-loading.tsx`'te rewarded reklamı görmeye devam eder; premium kullanıcı bu ekranı tamamen atlayıp doğrudan sonuçlara gider.
+
+### 9.4 Yeni Bir Özelliği Kilitlemek İstersen
+1. Sınırı `constants/premiumLimits.ts`'e ekle (magic number'ı ilgili ekrana gömme).
+2. Ekranda `const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();` çağır.
+3. Kilit tetiklenecek aksiyonun başında `if (!isPremium && <limit koşulu>) { setPaywallVisible(true); return; }` guard'ı koy.
+4. Kısmi/bulanık gösterim gerekiyorsa `components/paywall/LockedFeatureOverlay.tsx`'i kullan; tam ekran kilit gerekiyorsa teaser içerik + overlay + `<PaywallScreen visible={paywallVisible} onClose={...} .../>` render et.
+5. `PaywallScreen`'in avantaj listesi (`PREMIUM_BENEFITS`) tüm tetikleyicilerde ortak gösterilir — yeni kilitlenen özellik önemliyse bu listeye de bir madde ekle.
+
+### 9.5 Kalan Kurulum (kod dışı)
+- App Store Connect: Abonelik grubu + haftalık/aylık/yıllık ürünler (fiyat/deneme dahil).
+- Play Console: Aynı yapı (base plan + offer).
+- RevenueCat Dashboard: iOS/Android app tanımı, tek "premium" entitlement, tüm ürünlerin buna bağlanması, gerçek API key'lerin `services/subscriptionService.ts`'e girilmesi.
+- Gerçek cihazda satın alma testi (StoreKit Configuration / Play License Testers) — Expo Go'da bu SDK çalışmaz, development build gerekir.
 

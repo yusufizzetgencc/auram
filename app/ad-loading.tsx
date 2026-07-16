@@ -6,6 +6,7 @@
  */
 
 import { Colors } from '@/constants/theme';
+import { useSubscription } from '@/context/SubscriptionContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { adService } from '@/services/adService';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,6 +36,7 @@ export default function AdLoadingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
+  const { isPremium } = useSubscription();
 
   const [messageIndex, setMessageIndex] = useState(0);
   const [adReady, setAdReady] = useState(false);
@@ -156,6 +158,12 @@ export default function AdLoadingScreen() {
     let isMounted = true;
 
     const loadAndShow = async () => {
+      // Premium kullanıcı reklamsız deneyim alır — doğrudan sonuçlara geç
+      if (isPremium) {
+        router.replace('/results');
+        return;
+      }
+
       // ATT izin süreci tamamlanana kadar bekle (max 5 saniye)
       // Bu, iOS'ta kullanıcının izin penceresine yanıt vermesini bekler
       const waitForTracking = new Promise<void>((resolve) => {
@@ -210,7 +218,7 @@ export default function AdLoadingScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [isPremium]);
 
   // Renk şeması
   const isDark = colorScheme === 'dark';

@@ -21,8 +21,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Button, Card } from '@/components/ui';
+import { PaywallScreen } from '@/components/paywall';
 import { BorderRadius, Colors, FontSizes, FontWeights, ScentTypeColors, Spacing } from '@/constants/theme';
+import { FREE_FAVORITE_LIMIT } from '@/constants/premiumLimits';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Parfum } from '@/types';
 
@@ -37,12 +40,23 @@ export default function ParfumsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   
-  const { 
-    parfumler, 
+  const {
+    parfumler,
+    favorites,
     isFavorite,
     toggleFavoriteParfum,
     addToRecentlyViewedList,
   } = useApp();
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
+
+  const handleToggleFavorite = (parfumId: string) => {
+    const currentlyFavorite = isFavorite(parfumId);
+    if (!currentlyFavorite && !isPremium && favorites.length >= FREE_FAVORITE_LIMIT) {
+      setPaywallVisible(true);
+      return;
+    }
+    toggleFavoriteParfum(parfumId);
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -228,7 +242,7 @@ export default function ParfumsScreen() {
                   colors={colors}
                   isFavorite={isFavorite(parfum.id)}
                   onPress={() => handleOpenParfum(parfum)}
-                  onToggleFavorite={() => toggleFavoriteParfum(parfum.id)}
+                  onToggleFavorite={() => handleToggleFavorite(parfum.id)}
                   delay={index * 20}
                 />
               ))}
@@ -242,7 +256,7 @@ export default function ParfumsScreen() {
                   colors={colors}
                   isFavorite={isFavorite(parfum.id)}
                   onPress={() => handleOpenParfum(parfum)}
-                  onToggleFavorite={() => toggleFavoriteParfum(parfum.id)}
+                  onToggleFavorite={() => handleToggleFavorite(parfum.id)}
                   delay={index * 15}
                 />
               ))}
@@ -320,6 +334,13 @@ export default function ParfumsScreen() {
           </SafeAreaView>
         </ThemedView>
       </Modal>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Sınırsız Favori"
+        subtitle="Daha fazla parfümü favorilerine eklemek için Premium'a geç."
+      />
     </ThemedView>
   );
 }

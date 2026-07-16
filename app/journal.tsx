@@ -14,13 +14,16 @@ import Animated, { FadeIn, FadeInDown, FadeInUp, SlideInRight, SlideOutLeft } fr
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card, Button } from '@/components/ui';
+import { PaywallScreen } from '@/components/paywall';
 import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, ScentTypeColors } from '@/constants/theme';
+import { FREE_JOURNAL_COUNT } from '@/constants/premiumLimits';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useApp } from '@/context/AppContext';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
 import { JournalEntry, Parfum, MoodType } from '@/types';
-import { 
-  loadJournalEntries, 
-  addJournalEntry, 
+import {
+  loadJournalEntries,
+  addJournalEntry,
   deleteJournalEntry,
   updateJournalEntry,
 } from '@/services/storage';
@@ -57,6 +60,7 @@ export default function JournalScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const { parfumler, getFavoriteParfums, getRecentlyViewedParfums, addToRecentlyViewedList } = useApp();
+  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
 
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -160,6 +164,15 @@ export default function JournalScreen() {
     );
   };
 
+  const openAddModal = () => {
+    if (!isPremium && entries.length >= FREE_JOURNAL_COUNT) {
+      setPaywallVisible(true);
+      return;
+    }
+    resetForm();
+    setShowAddModal(true);
+  };
+
   const handleEditEntry = (entry: JournalEntry) => {
     const parfum = parfumler.find(p => p.id === entry.parfumId);
     if (!parfum) return;
@@ -218,8 +231,8 @@ export default function JournalScreen() {
               Deneyimlerini kaydet
             </ThemedText>
           </View>
-          <Pressable 
-            onPress={() => { resetForm(); setShowAddModal(true); }}
+          <Pressable
+            onPress={openAddModal}
             style={[styles.addBtn, { backgroundColor: colors.tint }]}
           >
             <Ionicons name="add" size={24} color="#FFF" />
@@ -281,8 +294,8 @@ export default function JournalScreen() {
                   <ThemedText style={styles.emptyDesc}>
                     Parfüm deneyimlerini kaydetmeye başla
                   </ThemedText>
-                  <Pressable 
-                    onPress={() => { resetForm(); setShowAddModal(true); }}
+                  <Pressable
+                    onPress={openAddModal}
                     style={styles.emptyBtn}
                   >
                     <ThemedText style={{ color: colors.primary, fontWeight: '600' }}>
@@ -737,6 +750,13 @@ export default function JournalScreen() {
           </SafeAreaView>
         </ThemedView>
       </Modal>
+
+      <PaywallScreen
+        visible={paywallVisible}
+        onClose={() => setPaywallVisible(false)}
+        title="Sınırsız Günlük Kaydı"
+        subtitle="Tüm parfüm deneyimlerini kaydetmek için Premium'a geç."
+      />
     </ThemedView>
   );
 }

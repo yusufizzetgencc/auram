@@ -23,6 +23,10 @@ const STORAGE_KEYS = {
   SOTD_HISTORY: '@auram_sotd_history',
   STREAK_DATA: '@auram_streak_data',
   PERFORMANCE_LOGS: '@auram_performance_logs',
+  // Abonelik
+  SUBSCRIPTION_CACHE: '@auram_subscription_cache',
+  COMPARE_COUNT: '@auram_compare_count',
+  FREE_VIEWED_PARFUMS: '@auram_free_viewed_parfums',
 } as const;
 
 // ============ TYPES ============
@@ -599,5 +603,50 @@ export async function getTodaysPerformanceLog(): Promise<PerformanceLog | null> 
   const logs = await loadPerformanceLogs();
   const today = new Date().toISOString().split('T')[0];
   return logs.find(l => l.date === today) || null;
+}
+
+// ============ 💎 ABONELİK ============
+interface SubscriptionCache {
+  isPremium: boolean;
+  updatedAt: string;
+}
+
+const defaultSubscriptionCache: SubscriptionCache = {
+  isPremium: false,
+  updatedAt: new Date(0).toISOString(),
+};
+
+export async function saveSubscriptionCache(isPremium: boolean): Promise<boolean> {
+  return saveData(STORAGE_KEYS.SUBSCRIPTION_CACHE, {
+    isPremium,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export async function loadSubscriptionCache(): Promise<SubscriptionCache> {
+  return loadData(STORAGE_KEYS.SUBSCRIPTION_CACHE, defaultSubscriptionCache);
+}
+
+export async function getCompareCount(): Promise<number> {
+  return loadData(STORAGE_KEYS.COMPARE_COUNT, 0);
+}
+
+export async function incrementCompareCount(): Promise<number> {
+  const count = await getCompareCount();
+  const next = count + 1;
+  await saveData(STORAGE_KEYS.COMPARE_COUNT, next);
+  return next;
+}
+
+export async function getFreeViewedParfumIds(): Promise<string[]> {
+  return loadData(STORAGE_KEYS.FREE_VIEWED_PARFUMS, []);
+}
+
+export async function addFreeViewedParfumId(parfumId: string): Promise<string[]> {
+  const ids = await getFreeViewedParfumIds();
+  if (ids.includes(parfumId)) return ids;
+  const updated = [...ids, parfumId];
+  await saveData(STORAGE_KEYS.FREE_VIEWED_PARFUMS, updated);
+  return updated;
 }
 
