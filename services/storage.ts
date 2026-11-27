@@ -1,32 +1,44 @@
 /**
- * AURAM - Storage Service
+ * TENİNDE - Storage Service
  * AsyncStorage ile veri kalıcılığı
  */
 
+import { toLocalDateKey } from '@/utils/date';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { UserPreferences, ScentCalendarEntry, MoodEntry, JournalEntry, NotificationPreferences, SpinResult, SOTDEntry, StreakData, PerformanceLog } from '@/types';
+import { Etkinlik, WardrobeItem, UserPreferences, ScentCalendarEntry, MoodEntry, JournalEntry, NotificationPreferences, SpinResult, SOTDEntry, StreakData, PerformanceLog } from '@/types';
 
 // ============ STORAGE KEYS ============
 const STORAGE_KEYS = {
-  USER_PREFERENCES: '@auram_preferences',
-  ONBOARDING_STATUS: '@auram_onboarding',
-  FAVORITES: '@auram_favorites',
-  COLLECTIONS: '@auram_collections',
-  RECENTLY_VIEWED: '@auram_recently_viewed',
-  SEARCH_HISTORY: '@auram_search_history',
+  USER_PREFERENCES: '@teninde_preferences',
+  ONBOARDING_STATUS: '@teninde_onboarding',
+  FAVORITES: '@teninde_favorites',
+  COLLECTIONS: '@teninde_collections',
+  RECENTLY_VIEWED: '@teninde_recently_viewed',
+  SEARCH_HISTORY: '@teninde_search_history',
   // Yeni özellikler
-  SCENT_CALENDAR: '@auram_scent_calendar',
-  MOOD_HISTORY: '@auram_mood_history',
-  JOURNAL_ENTRIES: '@auram_journal',
-  SPIN_HISTORY: '@auram_spin_history',
-  NOTIFICATION_PREFS: '@auram_notifications',
-  SOTD_HISTORY: '@auram_sotd_history',
-  STREAK_DATA: '@auram_streak_data',
-  PERFORMANCE_LOGS: '@auram_performance_logs',
+  SCENT_CALENDAR: '@teninde_scent_calendar',
+  MOOD_HISTORY: '@teninde_mood_history',
+  JOURNAL_ENTRIES: '@teninde_journal',
+  SPIN_HISTORY: '@teninde_spin_history',
+  NOTIFICATION_PREFS: '@teninde_notifications',
+  SOTD_HISTORY: '@teninde_sotd_history',
+  STREAK_DATA: '@teninde_streak_data',
+  PERFORMANCE_LOGS: '@teninde_performance_logs',
   // Abonelik
-  SUBSCRIPTION_CACHE: '@auram_subscription_cache',
-  COMPARE_COUNT: '@auram_compare_count',
-  FREE_VIEWED_PARFUMS: '@auram_free_viewed_parfums',
+  SUBSCRIPTION_CACHE: '@teninde_subscription_cache',
+  COMPARE_COUNT: '@teninde_compare_count',
+  FREE_VIEWED_PARFUMS: '@teninde_free_viewed_parfums',
+  // Mağaza modu
+  TRY_LIST: '@teninde_try_list',
+  // Dolabım ve günlük plan
+  WARDROBE: '@teninde_wardrobe',
+  FRIENDS: '@teninde_friends',
+  LEARNING: '@teninde_learning',
+  TODAY_PLAN: '@teninde_today_plan',
+  // Koku Danışmanı ücretsiz kullanım sayacı
+  ADVISOR_COUNT: '@teninde_advisor_count',
+  // Anonim kullanım verisi (analitik) tercihi ve kimliği
+  ANALYTICS: '@teninde_analytics',
 } as const;
 
 // ============ TYPES ============
@@ -358,7 +370,7 @@ export async function addMoodEntry(entry: Omit<MoodEntry, 'id' | 'createdAt'>): 
 
 export async function getTodaysMood(): Promise<MoodEntry | null> {
   const entries = await loadMoodHistory();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey();
   return entries.find(e => e.date === today) || null;
 }
 
@@ -443,7 +455,13 @@ export async function addSpinResult(parfumId: string): Promise<SpinResult> {
 
 // ============ 🔔 NOTIFICATION PREFERENCES ============
 const defaultNotificationPrefs: NotificationPreferences = {
-  enabled: true,
+  enabled: false, // izin istenene kadar kapalı; Profil → Bildirimler'den açılır
+  sabah: true,
+  aksam: true,
+  seri: true,
+  haftalik: true,
+  aylik: true,
+  azalan: true,
   weatherSuggestions: true,
   specialDayReminders: true,
   dailyMoodCheck: false,
@@ -452,7 +470,8 @@ const defaultNotificationPrefs: NotificationPreferences = {
 };
 
 export async function loadNotificationPreferences(): Promise<NotificationPreferences> {
-  return loadData(STORAGE_KEYS.NOTIFICATION_PREFS, defaultNotificationPrefs);
+  // Eski kayıtlarda yeni alanlar yok → varsayılanlarla birleştir
+  return { ...defaultNotificationPrefs, ...(await loadData<Partial<NotificationPreferences>>(STORAGE_KEYS.NOTIFICATION_PREFS, {})) };
 }
 
 export async function saveNotificationPreferences(prefs: NotificationPreferences): Promise<boolean> {
@@ -521,9 +540,9 @@ export async function saveSotdHistory(entries: SOTDEntry[]): Promise<boolean> {
   return saveData(STORAGE_KEYS.SOTD_HISTORY, entries);
 }
 
-export async function addSotdEntry(parfumId: string, weather?: any): Promise<SOTDEntry> {
+export async function addSotdEntry(parfumId: string, weather?: any, etkinlik?: SOTDEntry['etkinlik']): Promise<SOTDEntry> {
   const history = await loadSotdHistory();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey();
   
   // Check if today already has SOTD
   const existingIndex = history.findIndex(e => e.date === today);
@@ -533,6 +552,7 @@ export async function addSotdEntry(parfumId: string, weather?: any): Promise<SOT
     parfumId,
     date: today,
     weather,
+    ...(etkinlik ? { etkinlik } : {}),
     createdAt: new Date().toISOString()
   };
 
@@ -548,7 +568,7 @@ export async function addSotdEntry(parfumId: string, weather?: any): Promise<SOT
 
 export async function getTodaysSotd(): Promise<SOTDEntry | null> {
   const history = await loadSotdHistory();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey();
   return history.find(e => e.date === today) || null;
 }
 
@@ -601,7 +621,7 @@ export async function addPerformanceLog(log: Omit<PerformanceLog, 'id' | 'create
 
 export async function getTodaysPerformanceLog(): Promise<PerformanceLog | null> {
   const logs = await loadPerformanceLogs();
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey();
   return logs.find(l => l.date === today) || null;
 }
 
@@ -650,3 +670,123 @@ export async function addFreeViewedParfumId(parfumId: string): Promise<string[]>
   return updated;
 }
 
+
+
+// ============ MAĞAZA MODU: DENENECEKLER LİSTESİ ============
+export interface TryItem {
+  parfumId: string;
+  /** Mağazada denendi mi */
+  denendi: boolean;
+  addedAt: string;
+}
+
+export async function getTryList(): Promise<TryItem[]> {
+  return loadData<TryItem[]>(STORAGE_KEYS.TRY_LIST, []);
+}
+
+export async function saveTryList(list: TryItem[]): Promise<boolean> {
+  return saveData(STORAGE_KEYS.TRY_LIST, list);
+}
+
+// ============ YEDEKLEME (dışa aktar / geri yükle) ============
+// Telefon değişince veriler kaybolmasın diye kullanıcı verisini tek bir metin halinde dışa aktarır.
+// Abonelik önbelleği ve ücretsiz kullanım sayaçları BİLEREK dahil edilmez (abonelik mağazadan geri yüklenir).
+const YEDEK_HARIC: string[] = [STORAGE_KEYS.SUBSCRIPTION_CACHE, STORAGE_KEYS.COMPARE_COUNT, STORAGE_KEYS.FREE_VIEWED_PARFUMS, STORAGE_KEYS.ADVISOR_COUNT, STORAGE_KEYS.ANALYTICS];
+const YEDEK_SURUM = 1;
+
+export async function exportBackup(): Promise<string> {
+  const keys = Object.values(STORAGE_KEYS).filter(k => !YEDEK_HARIC.includes(k));
+  const pairs = await AsyncStorage.multiGet(keys);
+  const veri: Record<string, unknown> = {};
+  pairs.forEach(([k, v]) => { if (v != null) veri[k] = JSON.parse(v); });
+  return JSON.stringify({ uygulama: 'teninde', surum: YEDEK_SURUM, tarih: new Date().toISOString(), veri });
+}
+
+/** Yedek metnini geri yükler. Geçersizse hata fırlatır; mevcut veriye dokunmaz. */
+export async function importBackup(text: string): Promise<number> {
+  let parsed: any;
+  try { parsed = JSON.parse(text.trim()); } catch { throw new Error('Yedek metni okunamadı.'); }
+  if (!parsed || parsed.uygulama !== 'teninde' || typeof parsed.veri !== 'object') throw new Error('Bu bir Teninde yedeği değil.');
+  const allowed = new Set<string>(Object.values(STORAGE_KEYS).filter(k => !YEDEK_HARIC.includes(k)));
+  const entries = Object.entries(parsed.veri as Record<string, unknown>).filter(([k]) => allowed.has(k));
+  if (!entries.length) throw new Error('Yedekte geri yüklenecek veri yok.');
+  await AsyncStorage.multiSet(entries.map(([k, v]) => [k, JSON.stringify(v)]));
+  return entries.length;
+}
+
+
+// ============ DOLABIM ============
+export async function loadWardrobe(): Promise<WardrobeItem[]> {
+  return loadData<WardrobeItem[]>(STORAGE_KEYS.WARDROBE, []);
+}
+
+export async function saveWardrobe(items: WardrobeItem[]): Promise<boolean> {
+  return saveData(STORAGE_KEYS.WARDROBE, items);
+}
+
+// ============ ÖĞRENEN MOTOR ============
+/** "Başka" ile geçilen öneriler ve kullanıcının reddettiği tespitler (engine/learning.ts) */
+export interface LearningState {
+  gecilenler: { parfumId: string; tarih: string; etkinlik?: SOTDEntry['etkinlik'] }[];
+  reddedilen: string[];
+}
+
+export async function loadLearning(): Promise<LearningState> {
+  const s = await loadData<LearningState>(STORAGE_KEYS.LEARNING, { gecilenler: [], reddedilen: [] });
+  return { gecilenler: s.gecilenler ?? [], reddedilen: s.reddedilen ?? [] };
+}
+
+export async function saveLearning(s: LearningState): Promise<boolean> {
+  // Yalnızca son 300 "geçildi" kaydı tutulur (eskilerin etkisi zaten azalıyor)
+  return saveData(STORAGE_KEYS.LEARNING, { ...s, gecilenler: s.gecilenler.slice(-300) });
+}
+
+// ============ ARKADAŞ UYUMU ============
+/** Kaydedilen arkadaş profil kodları (yalnızca cihazda; en fazla 10) */
+export interface SavedFriend { kod: string; ad: string; eklendi: string }
+
+export async function loadFriends(): Promise<SavedFriend[]> {
+  return loadData<SavedFriend[]>(STORAGE_KEYS.FRIENDS, []);
+}
+
+export async function saveFriends(list: SavedFriend[]): Promise<boolean> {
+  return saveData(STORAGE_KEYS.FRIENDS, list.slice(0, 10));
+}
+
+// ============ BUGÜNÜN PLANI ("Bugün ne var?") ============
+export interface TodayPlan { date: string; etkinlik: Etkinlik }
+
+export async function loadTodayPlan(): Promise<TodayPlan | null> {
+  const plan = await loadData<TodayPlan | null>(STORAGE_KEYS.TODAY_PLAN, null);
+  return plan && plan.date === toLocalDateKey() ? plan : null;
+}
+
+export async function saveTodayPlan(etkinlik: Etkinlik): Promise<boolean> {
+  return saveData(STORAGE_KEYS.TODAY_PLAN, { date: toLocalDateKey(), etkinlik });
+}
+
+// ============ KOKU DANIŞMANI SAYACI ============
+export async function getAdvisorCount(): Promise<number> {
+  return loadData(STORAGE_KEYS.ADVISOR_COUNT, 0);
+}
+
+export async function incrementAdvisorCount(): Promise<number> {
+  const n = (await getAdvisorCount()) + 1;
+  await saveData(STORAGE_KEYS.ADVISOR_COUNT, n);
+  return n;
+}
+
+// ============ ANALİTİK ============
+export interface AnalyticsState { id: string; optOut: boolean }
+
+export async function loadAnalyticsState(): Promise<AnalyticsState> {
+  const st = await loadData<AnalyticsState | null>(STORAGE_KEYS.ANALYTICS, null);
+  if (st?.id) return st;
+  const fresh = { id: `anon_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`, optOut: false };
+  await saveData(STORAGE_KEYS.ANALYTICS, fresh);
+  return fresh;
+}
+
+export async function saveAnalyticsState(st: AnalyticsState): Promise<boolean> {
+  return saveData(STORAGE_KEYS.ANALYTICS, st);
+}

@@ -1,577 +1,168 @@
 /**
- * AROMIXEN - Compare Screen
- * 2-3 parfümü yan yana karşılaştır
+ * TENİNDE — Karşılaştır (seçim + sonuç tek ekranda)
+ * İki parfüm seçilince karşılaştırma açılır. Ücretsiz kullanıcının ömür boyu FREE_COMPARE_COUNT hakkı vardır.
  */
-
+import { Button, Card, Divider, FamilyDot, Header, Screen, T, useTheme } from '@/components/kit';
+import { Bottle, brandCaps } from '@/components/kit/perfume';
+import { PerfumePicker } from '@/components/kit/PerfumePicker';
+import { PaywallScreen } from '@/components/paywall';
+import { FREE_COMPARE_COUNT } from '@/constants/premiumLimits';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { useApp } from '@/context/AppContext';
+import { getEffectivePH, skorlaParfum } from '@/engine';
+import { usePremiumGate } from '@/hooks/use-premium-gate';
+import { getCompareCount, incrementCompareCount } from '@/services/storage';
+import { Parfum } from '@/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Card } from '@/components/ui';
-import { LockedFeatureOverlay, PaywallScreen } from '@/components/paywall';
-import { BorderRadius, Colors, FontSizes, FontWeights, Spacing, ScentTypeColors } from '@/constants/theme';
-import { FREE_COMPARE_COUNT } from '@/constants/premiumLimits';
-import { useApp } from '@/context/AppContext';
-import { usePremiumGate } from '@/hooks/use-premium-gate';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { incrementCompareCount } from '@/services/storage';
-import { Parfum } from '@/types';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const YOG = { hafif: 1, orta: 2, yogun: 3 } as const;
+const KAL = { kisa: 1, orta: 2, uzun: 3 } as const;
+const LBL_Y = ['', 'Hafif', 'Orta', 'Yoğun'];
+const LBL_K = ['', 'Kısa', 'Orta', 'Uzun'];
 
 export default function CompareScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  const isDark = colorScheme === 'dark';
-  
-  const { parfumler, kullaniciPH } = useApp();
+  const c = useTheme();
+  const params = useLocalSearchParams<{ a?: string; b?: string }>();
+  const { parfumler, preferences, zevk, etkinPrefs } = useApp();
   const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
-  const [isLocked, setIsLocked] = useState(false);
+  const [a, setA] = useState<Parfum | undefined>(() => parfumler.find(p => p.id === params.a));
+  const [b, setB] = useState<Parfum | undefined>(() => parfumler.find(p => p.id === params.b));
+  const [picking, setPicking] = useState<'a' | 'b' | null>(null);
+  const [unlocked, setUnlocked] = useState(false);
+  const [used, setUsed] = useState(0);
 
-  // URL'den parfüm ID'lerini al
-  const parfumIds = useMemo(() => {
-    const ids = params.ids;
-    if (typeof ids === 'string') {
-      return ids.split(',');
-    }
-    return Array.isArray(ids) ? ids : [];
-  }, [params.ids]);
-  
-  // Parfümleri bul
-  const compareParfums = useMemo(() => {
-    return parfumIds
-      .map(id => parfumler.find(p => p.id === id))
-      .filter((p): p is Parfum => p !== undefined)
-      .slice(0, 3);
-  }, [parfumIds, parfumler]);
+  useEffect(() => { getCompareCount().then(setUsed); }, []);
 
-  // Kullanım sayacı: ilk karşılaştırma ücretsiz, sonrası Premium'a kilitli.
+  // İki parfüm seçildiğinde hakkı tüket (aynı çift için bir kez)
   useEffect(() => {
-    if (compareParfums.length === 0 || isPremium) return;
+    if (!a || !b) { setUnlocked(false); return; }
+    if (isPremium) { setUnlocked(true); return; }
     (async () => {
-      const count = await incrementCompareCount();
-      if (count > FREE_COMPARE_COUNT) {
-        setIsLocked(true);
-        setPaywallVisible(true);
-      }
+      const n = await incrementCompareCount();
+      setUsed(n);
+      if (n > FREE_COMPARE_COUNT) { setUnlocked(false); setPaywallVisible(true); }
+      else setUnlocked(true);
     })();
-  }, [compareParfums.length, isPremium]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [a?.id, b?.id, isPremium]);
 
-  // Ortak notaları bul
-  const commonNotes = useMemo(() => {
-    if (compareParfums.length < 2) return [];
-    
-    const allNotes = compareParfums.map(p => [
-      ...p.notalar.ust,
-      ...p.notalar.orta,
-      ...p.notalar.alt,
-    ]);
-    
-    return allNotes[0].filter(note =>
-      allNotes.every(notes => notes.some(n => n.toLowerCase() === note.toLowerCase()))
-    );
-  }, [compareParfums]);
+  const ph = useMemo(() => getEffectivePH(preferences), [preferences]);
+  const ra = a ? skorlaParfum(a, etkinPrefs, ph, zevk) : null;
+  const rb = b ? skorlaParfum(b, etkinPrefs, ph, zevk) : null;
 
-  // Mevsim örtüşmesi
-  const seasonOverlap = useMemo(() => {
-    if (compareParfums.length < 2) return [];
-    
-    const allSeasons = compareParfums.map(p => p.mevsim || []);
-    return (allSeasons[0] || []).filter(season =>
-      allSeasons.every(seasons => seasons.includes(season))
-    );
-  }, [compareParfums]);
-
-  if (compareParfums.length === 0) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.emptyState}>
-            <Ionicons name="git-compare-outline" size={64} color={colors.textMuted} />
-            <ThemedText type="subtitle" center style={{ marginTop: Spacing.lg }}>
-              Karşılaştırılacak parfüm bulunamadı
-            </ThemedText>
-            <Pressable 
-              style={[styles.backButton, { backgroundColor: colors.tint }]}
-              onPress={() => router.back()}
-            >
-              <ThemedText style={{ color: '#FFF', fontWeight: '600' }}>Geri Dön</ThemedText>
-            </Pressable>
-          </View>
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
-
-  const cardWidth = (SCREEN_WIDTH - Spacing.xl * 2 - Spacing.md * (compareParfums.length - 1)) / compareParfums.length;
-
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </Pressable>
-          <View style={styles.headerCenter}>
-            <ThemedText type="title">Karşılaştırma</ThemedText>
-            <ThemedText type="caption" style={{ color: colors.textMuted }}>
-              {compareParfums.length} parfüm
-            </ThemedText>
-          </View>
-          <View style={{ width: 40 }} />
-        </Animated.View>
-
-        {isLocked ? (
-          <View style={styles.lockedContainer}>
-            <LockedFeatureOverlay
-              onUnlock={() => setPaywallVisible(true)}
-              title="Karşılaştırmayı Aç"
-              subtitle="Sınırsız karşılaştırma için Premium'a geç"
-            >
-              <View style={styles.lockedPreview} />
-            </LockedFeatureOverlay>
-          </View>
-        ) : (
-        <ScrollView
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {/* Parfüm Kartları */}
-          <Animated.View entering={FadeInUp.delay(100).duration(500)} style={styles.cardsRow}>
-            {compareParfums.map((parfum, index) => (
-              <ParfumCompareCard 
-                key={parfum.id}
-                parfum={parfum}
-                width={cardWidth}
-                colors={colors}
-                isDark={isDark}
-                delay={index * 100}
-                userPH={kullaniciPH}
-              />
-            ))}
-          </Animated.View>
-
-          {/* pH Uyum Karşılaştırması */}
-          <Animated.View entering={FadeInUp.delay(300).duration(500)}>
-            <Card variant="elevated" style={styles.comparisonCard}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.cardIcon, { backgroundColor: colors.success + '20' }]}>
-                  <Ionicons name="water" size={20} color={colors.success} />
-                </View>
-                <ThemedText type="heading">pH Uyumu</ThemedText>
-              </View>
-              
-              <View style={styles.phCompare}>
-                {compareParfums.map((parfum, index) => {
-                  const userPH = kullaniciPH || 5.5;
-                  const isIdeal = userPH >= parfum.phUyumu.minPH && userPH <= parfum.phUyumu.maxPH;
-                  const phScore = isIdeal 
-                    ? Math.round(100 - Math.abs(userPH - parfum.phUyumu.idealPH) * 20)
-                    : Math.round(50 - Math.min(Math.abs(userPH - parfum.phUyumu.minPH), Math.abs(userPH - parfum.phUyumu.maxPH)) * 25);
-                  
-                  return (
-                    <View key={parfum.id} style={[styles.phItem, { flex: 1 }]}>
-                      <ThemedText type="caption" numberOfLines={1} style={{ textAlign: 'center' }}>
-                        {parfum.isim}
-                      </ThemedText>
-                      <View style={[styles.phScoreBadge, { 
-                        backgroundColor: phScore >= 70 ? colors.success + '20' : phScore >= 50 ? colors.warning + '20' : colors.error + '20' 
-                      }]}>
-                        <ThemedText style={[styles.phScoreText, { 
-                          color: phScore >= 70 ? colors.success : phScore >= 50 ? colors.warning : colors.error 
-                        }]}>
-                          %{Math.max(0, phScore)}
-                        </ThemedText>
-                      </View>
-                      <ThemedText type="caption" style={{ color: colors.textMuted, fontSize: 10 }}>
-                        İdeal: {parfum.phUyumu.idealPH}
-                      </ThemedText>
-                    </View>
-                  );
-                })}
-              </View>
-            </Card>
-          </Animated.View>
-
-          {/* Nota Piramitleri */}
-          <Animated.View entering={FadeInUp.delay(400).duration(500)}>
-            <Card variant="elevated" style={styles.comparisonCard}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.cardIcon, { backgroundColor: colors.primary + '20' }]}>
-                  <Ionicons name="layers" size={20} color={colors.primary} />
-                </View>
-                <ThemedText type="heading">Nota Piramitleri</ThemedText>
-              </View>
-              
-              {['ust', 'orta', 'alt'].map((layer) => (
-                <View key={layer} style={styles.notaLayer}>
-                  <View style={styles.notaLayerHeader}>
-                    <View style={[styles.layerBadge, { 
-                      backgroundColor: layer === 'ust' ? '#FFD70020' : layer === 'orta' ? '#FF69B420' : '#8B451320' 
-                    }]}>
-                      <ThemedText style={[styles.layerText, {
-                        color: layer === 'ust' ? '#FFD700' : layer === 'orta' ? '#FF69B4' : '#8B4513'
-                      }]}>
-                        {layer === 'ust' ? '🌸 Üst' : layer === 'orta' ? '💐 Orta' : '🌲 Alt'}
-                      </ThemedText>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.notaCompareRow}>
-                    {compareParfums.map((parfum) => (
-                      <View key={parfum.id} style={[styles.notaColumn, { flex: 1 }]}>
-                        {parfum.notalar[layer as 'ust' | 'orta' | 'alt'].map((nota, i) => (
-                          <View key={i} style={[styles.notaBadge, { backgroundColor: colors.backgroundTertiary }]}>
-                            <ThemedText style={styles.notaText} numberOfLines={1}>{nota}</ThemedText>
-                          </View>
-                        ))}
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ))}
-            </Card>
-          </Animated.View>
-
-          {/* Ortak Notalar */}
-          {commonNotes.length > 0 && (
-            <Animated.View entering={FadeInUp.delay(500).duration(500)}>
-              <Card variant="elevated" style={styles.comparisonCard}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIcon, { backgroundColor: colors.success + '20' }]}>
-                    <Ionicons name="link" size={20} color={colors.success} />
-                  </View>
-                  <ThemedText type="heading">Ortak Notalar</ThemedText>
-                </View>
-                
-                <View style={styles.commonNotesContainer}>
-                  {commonNotes.map((nota, index) => (
-                    <View key={index} style={[styles.commonNotaBadge, { backgroundColor: colors.success + '15' }]}>
-                      <ThemedText style={{ color: colors.success, fontSize: FontSizes.sm }}>
-                        {nota}
-                      </ThemedText>
-                    </View>
-                  ))}
-                </View>
-              </Card>
-            </Animated.View>
-          )}
-
-          {/* Mevsim Örtüşmesi */}
-          <Animated.View entering={FadeInUp.delay(600).duration(500)}>
-            <Card variant="elevated" style={styles.comparisonCard}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.cardIcon, { backgroundColor: colors.accent + '20' }]}>
-                  <Ionicons name="calendar" size={20} color={colors.accent} />
-                </View>
-                <ThemedText type="heading">Mevsim Uyumu</ThemedText>
-              </View>
-              
-              <View style={styles.seasonsGrid}>
-                {['İlkbahar', 'Yaz', 'Sonbahar', 'Kış'].map((season) => {
-                  const count = compareParfums.filter(p => (p.mevsim || []).includes(season as any)).length;
-                  const isOverlap = count === compareParfums.length;
-                  
-                  return (
-                    <View 
-                      key={season} 
-                      style={[
-                        styles.seasonItem,
-                        { 
-                          backgroundColor: isOverlap ? colors.success + '15' : colors.backgroundTertiary,
-                          borderColor: isOverlap ? colors.success : 'transparent',
-                          borderWidth: isOverlap ? 1 : 0,
-                        }
-                      ]}
-                    >
-                      <ThemedText style={{ fontSize: 20 }}>
-                        {season === 'İlkbahar' ? '🌸' : season === 'Yaz' ? '☀️' : season === 'Sonbahar' ? '🍂' : '❄️'}
-                      </ThemedText>
-                      <ThemedText type="caption">{season}</ThemedText>
-                      <ThemedText style={[styles.seasonCount, { 
-                        color: isOverlap ? colors.success : colors.textMuted 
-                      }]}>
-                        {count}/{compareParfums.length}
-                      </ThemedText>
-                    </View>
-                  );
-                })}
-              </View>
-            </Card>
-          </Animated.View>
-
-          <View style={{ height: 40 }} />
-        </ScrollView>
-        )}
-      </SafeAreaView>
-
-      <PaywallScreen
-        visible={paywallVisible}
-        onClose={() => {
-          setPaywallVisible(false);
-          if (isLocked) router.back();
-        }}
-        onPurchaseSuccess={() => setIsLocked(false)}
-        title="Sınırsız Karşılaştırma"
-        subtitle="Tüm parfüm karşılaştırmalarını Premium ile aç."
-      />
-    </ThemedView>
+  const Slot = ({ p, which }: { p?: Parfum; which: 'a' | 'b' }) => (
+    <Pressable onPress={() => setPicking(which)} style={[styles.slot, { backgroundColor: p ? c.surface : c.surfaceAlt, borderColor: c.border }]}>
+      {p ? (
+        <>
+          <Bottle parfum={p} size={60} />
+          <T variant="overline" caps={brandCaps(p)} color="subtle" numberOfLines={1} style={{ marginTop: Spacing.sm }}>{p.marka}</T>
+          <T variant="bodyStrong" numberOfLines={1} align="center">{p.isim}</T>
+          <T variant="small" color="accent" style={{ marginTop: 4 }}>Değiştir</T>
+        </>
+      ) : (
+        <>
+          <Ionicons name="add" size={28} color={c.accent} />
+          <T variant="smallStrong" style={{ marginTop: Spacing.sm }}>Parfüm seçin</T>
+        </>
+      )}
+    </Pressable>
   );
-}
 
-function ParfumCompareCard({ 
-  parfum, 
-  width, 
-  colors, 
-  isDark,
-  delay,
-  userPH,
-}: { 
-  parfum: Parfum;
-  width: number;
-  colors: typeof Colors.light;
-  isDark: boolean;
-  delay: number;
-  userPH: number | null;
-}) {
-  const tipColor = ScentTypeColors[parfum.tip] || colors.tint;
+  const Row = ({ label, va, vb, better }: { label: string; va: string; vb: string; better?: 'a' | 'b' | null }) => (
+    <View>
+      <T variant="overline" color="subtle" align="center">{label}</T>
+      <View style={styles.cmpRow}>
+        <T variant="h3" align="center" style={[{ flex: 1 }, better === 'a' && { color: c.accent }]}>{va}</T>
+        <View style={[styles.vs, { backgroundColor: c.border }]} />
+        <T variant="h3" align="center" style={[{ flex: 1 }, better === 'b' && { color: c.accent }]}>{vb}</T>
+      </View>
+    </View>
+  );
+
+  const pick = (x: number, y: number) => (x === y ? null : x > y ? 'a' : 'b');
+  const shared = a && b ? [...a.notalar.ust, ...a.notalar.orta, ...a.notalar.alt].filter(n => [...b.notalar.ust, ...b.notalar.orta, ...b.notalar.alt].includes(n)) : [];
 
   return (
-    <Animated.View 
-      entering={FadeIn.delay(delay).duration(400)}
-      style={[styles.parfumCard, { width, backgroundColor: colors.card }]}
-    >
-      {/* Type Badge */}
-      <View style={[styles.typeBadge, { backgroundColor: tipColor + '20' }]}>
-        <ThemedText style={[styles.typeText, { color: tipColor }]}>
-          {parfum.tip}
-        </ThemedText>
+    <Screen>
+      <Header title="Karşılaştır" />
+      <View style={styles.slots}>
+        <Slot p={a} which="a" />
+        <Slot p={b} which="b" />
       </View>
-      
-      {/* Name & Brand */}
-      <ThemedText type="subtitle" numberOfLines={2} style={styles.parfumName}>
-        {parfum.isim}
-      </ThemedText>
-      <ThemedText type="caption" style={{ color: colors.textMuted }} numberOfLines={1}>
-        {parfum.marka}
-      </ThemedText>
-      
-      {/* Quick Info */}
-      <View style={styles.quickInfo}>
-        <View style={styles.infoRow}>
-          <Ionicons name="time-outline" size={12} color={colors.textMuted} />
-          <ThemedText style={styles.infoText}>{parfum.kalicilik}</ThemedText>
-        </View>
-        <View style={styles.infoRow}>
-          <Ionicons name="speedometer-outline" size={12} color={colors.textMuted} />
-          <ThemedText style={styles.infoText}>{parfum.yogunluk}</ThemedText>
-        </View>
-        <View style={styles.infoRow}>
-          <Ionicons name="person-outline" size={12} color={colors.textMuted} />
-          <ThemedText style={styles.infoText}>{parfum.cinsiyet}</ThemedText>
-        </View>
-      </View>
-    </Animated.View>
+      {!isPremium ? (
+        <T variant="small" color="subtle" align="center" style={{ marginTop: Spacing.sm }}>
+          {Math.max(0, FREE_COMPARE_COUNT - used)} ücretsiz karşılaştırma hakkınız kaldı
+        </T>
+      ) : null}
+
+      {a && b && ra && rb && unlocked ? (
+        <>
+          <Card style={{ marginTop: Spacing.xl, gap: Spacing.lg }}>
+            <Row label="Teninize uyum" va={`%${ra.matchPercentage}`} vb={`%${rb.matchPercentage}`} better={pick(ra.matchPercentage, rb.matchPercentage)} />
+            <Divider />
+            <Row label="Ten kimyası" va={`%${ra.phSkor.phUyumSkoru}`} vb={`%${rb.phSkor.phUyumSkoru}`} better={pick(ra.phSkor.phUyumSkoru, rb.phSkor.phUyumSkoru)} />
+            <Divider />
+            <Row label="Teninizdeki performans" va={`%${ra.phSkor.toplamPerformans}`} vb={`%${rb.phSkor.toplamPerformans}`} better={pick(ra.phSkor.toplamPerformans, rb.phSkor.toplamPerformans)} />
+            <Divider />
+            <Row label="Kalıcılık" va={LBL_K[KAL[a.kalicilik]]} vb={LBL_K[KAL[b.kalicilik]]} />
+            <Divider />
+            <Row label="Yoğunluk" va={LBL_Y[YOG[a.yogunluk]]} vb={LBL_Y[YOG[b.yogunluk]]} />
+          </Card>
+
+          <Card style={{ marginTop: Spacing.md }}>
+            <T variant="overline" color="subtle">Koku aileleri</T>
+            <View style={styles.cmpRow}>
+              <View style={[styles.inline, { flex: 1, justifyContent: 'center' }]}><FamilyDot family={a.tip} /><T variant="body">{a.tip}</T></View>
+              <View style={[styles.vs, { backgroundColor: c.border }]} />
+              <View style={[styles.inline, { flex: 1, justifyContent: 'center' }]}><FamilyDot family={b.tip} /><T variant="body">{b.tip}</T></View>
+            </View>
+            <Divider style={{ marginVertical: Spacing.md }} />
+            <T variant="overline" color="subtle">Ortak notalar</T>
+            <T variant="body" style={{ marginTop: 4, textTransform: 'capitalize' }}>{shared.length ? shared.join(' · ') : 'Ortak nota yok — birbirinden çok farklılar.'}</T>
+          </Card>
+
+          <Card tone="accent" style={{ marginTop: Spacing.md }}>
+            <T variant="overline" color="accent">Teninize göre</T>
+            <T variant="body" style={{ marginTop: 4 }}>
+              {ra.matchPercentage === rb.matchPercentage
+                ? 'İkisi de teninize eşit uyumlu; karar zevkinize kalmış.'
+                : `${ra.matchPercentage > rb.matchPercentage ? a.isim : b.isim} size daha uygun. ${(ra.matchPercentage > rb.matchPercentage ? ra : rb).matchReasons[0]}`}
+            </T>
+          </Card>
+
+          <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg }}>
+            <Button label={a.isim} variant="secondary" size="sm" onPress={() => router.push(`/parfum/${a.id}`)} style={{ flex: 1 }} />
+            <Button label={b.isim} variant="secondary" size="sm" onPress={() => router.push(`/parfum/${b.id}`)} style={{ flex: 1 }} />
+          </View>
+        </>
+      ) : a && b && !unlocked && !isPremium ? (
+        <Card style={{ marginTop: Spacing.xl }} onPress={() => setPaywallVisible(true)}>
+          <T variant="h3">Ücretsiz karşılaştırma hakkınız doldu</T>
+          <T variant="body" color="muted" style={{ marginTop: 4 }}>Premium ile sınırsız karşılaştırın.</T>
+        </Card>
+      ) : (
+        <T variant="body" color="muted" align="center" style={{ marginTop: Spacing.xl }}>İki parfüm seçin; teninize uyum, performans ve notaları yan yana görün.</T>
+      )}
+
+      <PerfumePicker
+        visible={!!picking}
+        onClose={() => setPicking(null)}
+        excludeIds={[a?.id, b?.id].filter(Boolean) as string[]}
+        onSelect={p => (picking === 'a' ? setA(p) : setB(p))}
+      />
+      <PaywallScreen visible={paywallVisible} onClose={() => setPaywallVisible(false)} title="Sınırsız karşılaştırma" />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerCenter: {
-    alignItems: 'center',
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.md,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing['2xl'],
-  },
-  lockedContainer: {
-    flex: 1,
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.md,
-  },
-  lockedPreview: {
-    flex: 1,
-    minHeight: 400,
-  },
-  backButton: {
-    marginTop: Spacing.xl,
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.lg,
-  },
-  cardsRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.lg,
-  },
-  parfumCard: {
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  typeBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-    marginBottom: Spacing.sm,
-  },
-  typeText: {
-    fontSize: 10,
-    fontWeight: FontWeights.bold,
-  },
-  parfumName: {
-    fontSize: FontSizes.sm,
-    marginBottom: 2,
-  },
-  quickInfo: {
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
-    gap: 4,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  infoText: {
-    fontSize: 10,
-    opacity: 0.7,
-  },
-  comparisonCard: {
-    marginBottom: Spacing.lg,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  cardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: BorderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-  },
-  phCompare: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  phItem: {
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  phScoreBadge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-  },
-  phScoreText: {
-    fontSize: FontSizes.lg,
-    fontWeight: FontWeights.bold,
-  },
-  notaLayer: {
-    marginBottom: Spacing.lg,
-  },
-  notaLayerHeader: {
-    marginBottom: Spacing.sm,
-  },
-  layerBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-  },
-  layerText: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.semiBold,
-  },
-  notaCompareRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  notaColumn: {
-    gap: 4,
-  },
-  notaBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
-    borderRadius: BorderRadius.sm,
-  },
-  notaText: {
-    fontSize: 10,
-    textAlign: 'center',
-  },
-  commonNotesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  commonNotaBadge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-  },
-  seasonsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
-  },
-  seasonItem: {
-    width: '47%',
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    gap: 4,
-  },
-  seasonCount: {
-    fontSize: FontSizes.sm,
-    fontWeight: FontWeights.bold,
-  },
+  slots: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg },
+  slot: { flex: 1, height: 190, borderRadius: BorderRadius.lg, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', padding: Spacing.md },
+  cmpRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
+  vs: { width: StyleSheet.hairlineWidth, height: 24 },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });
-
-

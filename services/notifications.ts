@@ -1,163 +1,155 @@
 /**
- * AURAM - Notifications Service
- * Akıllı yerel (local) bildirim yönetimi
+ * TENİNDE — Yerel bildirimler (zamanlayıcı)
+ *
+ * Ne gönderilir, ne zaman: services/notificationPlan.ts (saf planlayıcı). Bu dosya yalnızca planı sisteme verir.
+ *  • syncNotifications(): Teninde'nin planladığı tüm bildirimleri siler, planı baştan kurar. Uygulama açıldığında
+ *    ve günün kokusu / dolap / ayar değiştiğinde çağrılır (components/NotificationSync.tsx).
+ *  • notifyLowStock(): şişe azalınca anında bildirim.
+ *  • Bildirime dokununca `data.url` ile ilgili ekran açılır (NotificationSync içindeki dinleyici).
+ *
+ * Sunucudan gönderilen (push) bildirim YOKTUR: hesap/sunucu olmadığı için gerekmiyor; tüm içerik cihazda üretilir.
  */
-
+import { NotificationPreferences, Parfum } from '@/types';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { NotificationPreferences } from '@/types';
+import { azalanMetni, bildirimPlani, PlanGirdisi, PlanliBildirim } from './notificationPlan';
+import { loadNotificationPreferences, saveNotificationPreferences } from './storage';
 
-// Bildirim davranışını ayarla (uygulama açıkken bile göstersin)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
-    shouldPlaySound: true,
+    shouldPlaySound: false,
     shouldSetBadge: false,
     shouldShowBanner: true,
     shouldShowList: true,
   }),
 });
 
-/**
- * Bildirim izni iste
- */
+const ON_EK = 'teninde_';
+let kanalHazir = false;
+
+async function kanal() {
+  if (kanalHazir || Platform.OS !== 'android') return;
+  await Notifications.setNotificationChannelAsync('default', { name: 'Teninde', importance: Notifications.AndroidImportance.DEFAULT });
+  kanalHazir = true;
+}
+
+export async function getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
+  const { status } = await Notifications.getPermissionsAsync();
+  return status as any;
+}
+
 export async function requestNotificationPermissions(): Promise<boolean> {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-  
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status === 'granted') return true;
+  const req = await Notifications.requestPermissionsAsync();
+  return req.status === 'granted';
+}
+
+/** Ana anahtar. Açarken izin ister; izin verilmezse false döner ve ayar kapalı kalır. */
+export async function setNotificationsEnabled(on: boolean): Promise<boolean> {
+  const current = await loadNotificationPreferences();
+  if (on && !(await requestNotificationPermissions())) {
+    await saveNotificationPreferences({ ...current, enabled: false });
+    return false;
   }
-  
-  return finalStatus === 'granted';
+  await saveNotificationPreferences({ ...current, enabled: on });
+  if (!on) await cancelAllTeninde();
+  return true;
+}
+
+export async function updateNotificationPrefs(patch: Partial<NotificationPreferences>): Promise<NotificationPreferences> {
+  const next = { ...(await loadNotificationPreferences()), ...patch };
+  await saveNotificationPreferences(next);
+  return next;
+}
+
+async function cancelAllTeninde() {
+  const all = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+  await Promise.all(all.filter(n => n.identifier.startsWith(ON_EK)).map(n => Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {})));
+}
+
+async function uygula(plan: PlanliBildirim[]) {
+  await cancelAllTeninde();
+  await kanal();
+  for (const b of plan) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: b.id,
+      content: { title: b.baslik, body: b.govde, data: { url: b.url, tur: b.tur, zaman: b.tarih.getTime() } },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: b.tarih, channelId: 'default' },
+    }).catch(() => {});
+  }
+}
+
+/** Planı (ayarlar dahil) baştan kurar. İzin yoksa hiçbir şey yapmaz. Planlanan bildirim sayısını döner. */
+export async function syncNotifications(girdi: Omit<PlanGirdisi, 'ayar' | 'simdi'>): Promise<number> {
+  const ayar = await loadNotificationPreferences();
+  if (!ayar.enabled || (await getPermissionStatus()) !== 'granted') {
+    await cancelAllTeninde();
+    return 0;
+  }
+  const plan = bildirimPlani({ ...girdi, ayar, simdi: new Date() });
+  await uygula(plan);
+  return plan.length;
+}
+
+/** Şişe azalınca anında bildirim (ayar kapalıysa veya izin yoksa gönderilmez) */
+export async function notifyLowStock(p: Parfum, kalanYuzde: number, sikis: number | null): Promise<boolean> {
+  const ayar = await loadNotificationPreferences();
+  if (!ayar.enabled || ayar.azalan === false || (await getPermissionStatus()) !== 'granted') return false;
+  await kanal();
+  const { baslik, govde } = azalanMetni(p, kalanYuzde, sikis);
+  await Notifications.scheduleNotificationAsync({
+    identifier: `${ON_EK}azalan_${p.id}`,
+    content: { title: baslik, body: govde, data: { url: `/parfum/${p.id}`, tur: 'azalan' } },
+    trigger: null,
+  });
+  return true;
 }
 
 /**
- * Günlük sabah ritüeli bildirimini planla
+ * Ücretsiz deneme hatırlatması: deneme bitmeden 2 gün önce 10:00'da. Bildirim izni yoksa sessizce atlanır.
+ * Kimliği "teninde_" ile BAŞLAMAZ; böylece günlük plan yenilenirken silinmez.
  */
-export async function scheduleMorningRoutine(prefs: NotificationPreferences) {
-  if (!prefs.enabled || !prefs.weatherSuggestions) return;
-
-  // Önce eski sabah bildirimlerini iptal et
-  await cancelNotificationsById('morning_routine');
-
-  // Varsayılan sabah 08:00
-  let hour = 8;
-  let minute = 0;
-  
-  if (prefs.reminderTime) {
-    const parts = prefs.reminderTime.split(':');
-    if (parts.length === 2) {
-      hour = parseInt(parts[0], 10);
-      minute = parseInt(parts[1], 10);
-    }
-  }
-
+export async function scheduleTrialReminder(denemeGunu: number): Promise<void> {
+  if ((await getPermissionStatus()) !== 'granted') return;
+  await kanal();
+  const t = new Date();
+  t.setDate(t.getDate() + denemeGunu - 2);
+  t.setHours(10, 0, 0, 0);
+  if (t.getTime() <= Date.now()) return;
   await Notifications.scheduleNotificationAsync({
+    identifier: 'abonelik_deneme_hatirlatma',
     content: {
-      title: "Günaydın! ☀️",
-      body: "Günün parfümünü seçtin mi? Dolabındaki sana özel önerilere göz at.",
-      data: { type: 'weather_suggestion' },
+      title: 'Denemeniz 2 gün sonra bitiyor',
+      body: 'Devam etmek istemezseniz Ayarlar > Apple Kimliği > Abonelikler bölümünden iptal edebilirsiniz. Devam ederseniz bir şey yapmanıza gerek yok.',
+      data: { url: '/(tabs)/profile', tur: 'deneme' },
     },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
-    identifier: 'morning_routine',
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: t, channelId: 'default' },
   });
 }
 
-/**
- * Akşam performans değerlendirmesi bildirimini planla (SOTD seçildiğinde çağrılır)
- */
-export async function scheduleEveningPerformanceLog(parfumName: string) {
-  await cancelNotificationsById('evening_performance');
-
+/** Ayarlardaki "Deneme bildirimi gönder": 5 sn sonra örnek bildirim */
+export async function sendTestNotification(): Promise<void> {
+  await kanal();
   await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Günün Nasıl Geçti? 🌙",
-      body: `Bugün ${parfumName} sıktın. Kalıcılığı nasıldı? İltifat aldın mı? Hadi kaydet!`,
-      data: { type: 'mood_check' },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: 20,
-      minute: 0,
-    },
-    identifier: 'evening_performance',
+    identifier: `${ON_EK}deneme`,
+    content: { title: 'Teninde', body: 'Bildirimler çalışıyor. Sabah önerileriniz bu şekilde gelecek.', data: { url: '/(tabs)' } },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 5, channelId: 'default' },
   });
 }
 
-/**
- * Hafta sonu bildirimini planla
- */
-export async function scheduleWeekendVibe(prefs: NotificationPreferences) {
-  if (!prefs.enabled || !prefs.discoveryTips) return;
-
-  await cancelNotificationsById('weekend_vibe');
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Hafta Sonu Planları? 🥂",
-      body: "Bu gece çekiciliğini artıracak, imzan olacak o parfümü seç.",
-      data: { type: 'discovery' },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-      weekday: 6, // 1: Sun, 2: Mon, ..., 6: Fri
-      hour: 18,
-      minute: 0,
-    },
-    identifier: 'weekend_vibe',
-  });
-}
-
-/**
- * SOTD Streak tehlikesi (Inactivity) - Eğer 3 gün girmezse
- */
-export async function scheduleStreakWarning(prefs: NotificationPreferences) {
-  if (!prefs.enabled) return;
-
-  await cancelNotificationsById('streak_warning');
-
-  // 3 gün sonrasına kur. Eğer SOTD yaparsa bu iptal edilip tekrar 3 gün sonraya kurulur
-  const triggerDate = new Date();
-  triggerDate.setDate(triggerDate.getDate() + 3);
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: "Serin Tehlikede! 🔥",
-      body: "3 gündür parfümünü seçmedin. Rutine dönme zamanı geldi!",
-      data: { type: 'usage_reminder' },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: triggerDate,
-    },
-    identifier: 'streak_warning',
-  });
-}
-
-/**
- * Tüm akıllı rutin bildirimlerini günceller
- */
-export async function updateAllScheduledNotifications(prefs: NotificationPreferences) {
-  if (!prefs.enabled) {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    return;
-  }
-
-  await scheduleMorningRoutine(prefs);
-  await scheduleWeekendVibe(prefs);
-  await scheduleStreakWarning(prefs);
-}
-
-async function cancelNotificationsById(id: string) {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(id);
-  } catch (e) {
-    // Ignore error if it doesn't exist
-  }
+/** Ayarlar ekranında gösterilmek üzere planlanan bildirimler */
+export async function listScheduled(): Promise<{ id: string; title: string; date: Date | null }[]> {
+  const all = await Notifications.getAllScheduledNotificationsAsync().catch(() => []);
+  return all
+    .filter(n => n.identifier.startsWith(ON_EK))
+    .map(n => {
+      // Planlanan zamanı içerikte de saklıyoruz; tetikleyicinin biçimi platforma göre değişiyor
+      const tr: any = n.trigger;
+      const veri: any = n.content.data;
+      const ms = veri?.zaman ?? tr?.value ?? tr?.date;
+      return { id: n.identifier, title: n.content.title ?? '', date: ms ? new Date(ms) : null };
+    })
+    .sort((a, b) => (a.date?.getTime() ?? Infinity) - (b.date?.getTime() ?? Infinity));
 }

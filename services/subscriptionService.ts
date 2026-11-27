@@ -1,5 +1,5 @@
 /**
- * Auram - RevenueCat Abonelik Servisi
+ * Teninde - RevenueCat Abonelik Servisi
  * StoreKit (iOS) / Google Play Billing (Android) üzerinden abonelik yönetimi.
  *
  * Not: react-native-purchases native modül gerektirdiğinden Expo Go'da
@@ -11,8 +11,11 @@ import { Platform } from "react-native";
 
 // ============ NATIVE MODÜL — GÜVENLİ YÜKLEME ============
 let RNPurchases: any = null;
+let LOG_LEVEL: any = null;
 try {
-  RNPurchases = require("react-native-purchases").default;
+  const mod = require("react-native-purchases");
+  RNPurchases = mod.default;
+  LOG_LEVEL = mod.LOG_LEVEL;
 } catch (e) {
   console.warn(
     "[SubscriptionService] react-native-purchases yüklenemedi (Expo Go ortamında normal).",
@@ -41,6 +44,12 @@ export interface PurchaseResult {
 // ============ ABONELİK SERVİSİ ============
 class SubscriptionService {
   private configured: boolean = false;
+  /** Son paket yükleme denemesinin sonucu: null = başarılı, empty = teklif yok, store = mağaza hatası */
+  lastOfferingsError: null | "empty" | "store" | "network" = null;
+
+  isConfigured(): boolean {
+    return this.configured;
+  }
 
   /**
    * Uygulama başlangıcında bir kez çağrılır.
@@ -62,6 +71,19 @@ class SubscriptionService {
         return;
       }
 
+      // SDK'nın kendi ERROR logları geliştirmede kırmızı hata ekranı açıyor. Yapılandırma
+      // sorunları (ör. mağazadan ürün çekilememesi) uygulama hatası değildir; uyarı olarak yaz.
+      try {
+        RNPurchases.setLogLevel?.(__DEV__ ? LOG_LEVEL?.WARN : LOG_LEVEL?.ERROR);
+        RNPurchases.setLogHandler?.((level: any, message: string) => {
+          if (level === LOG_LEVEL?.ERROR || level === LOG_LEVEL?.WARN) {
+            console.warn(`[RevenueCat] ${message}`);
+          }
+        });
+      } catch {
+        // log ayarı başarısız olsa da yapılandırma sürsün
+      }
+
       RNPurchases.configure({ apiKey });
       this.configured = true;
       console.log("[SubscriptionService] RevenueCat yapılandırıldı ✅");
@@ -78,9 +100,20 @@ class SubscriptionService {
 
     try {
       const offerings = await RNPurchases.getOfferings();
+      this.lastOfferingsError = offerings.current ? null : "empty";
       return offerings.current ?? null;
-    } catch (error) {
-      console.warn("[SubscriptionService] getOfferings() hatası:", error);
+    } catch (error: any) {
+      // En sık neden: paneldeki ürünler App Store Connect / StoreKit yapılandırmasından çekilemiyor.
+      // RevenueCat NETWORK_ERROR kodu "10"; geri kalanı mağaza/panel yapılandırması kaynaklıdır.
+      const isNetwork = String(error?.code) === "10" || /network|offline|internet/i.test(String(error?.message ?? ""));
+      this.lastOfferingsError = isNetwork ? "network" : "store";
+      if (__DEV__) {
+        console.warn(
+          "[SubscriptionService] Abonelik paketleri alınamadı. Simülatörde StoreKit yapılandırma dosyası gerekir; " +
+            "gerçek cihazda ürünlerin App Store Connect'te 'Ready to Submit' olması ve Paid Apps sözleşmesinin imzalı olması gerekir.",
+          error?.message ?? error,
+        );
+      }
       return null;
     }
   }

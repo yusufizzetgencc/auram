@@ -1,775 +1,324 @@
 /**
- * AURAM - Ana Sayfa (Dashboard)
- * Hava durumu, günün önerisi, koku aileleri, favoriler, son görüntülenenler
+ * TENİNDE — Bugün (ana sayfa) — günlük alışkanlığın merkezi
+ *
+ * Sade akış — ilk ekranda tek karar:
+ *  1. "Bugün ne var?" (iş / buluşma / özel gün / spor / evde / günlük) — yalnızca bugün henüz kayıt yokken
+ *  2. Bugün için önerimiz: DOLAPTAN seçim (engine/daily → gununSecimi), hava + etkinlik + ten + çeşitlilik + öğrenilenler.
+ *     Dolap boşsa katalogdan seçer ve dolap oluşturmaya davet eder. Kayıt yapılınca "Bugünün kokusu" kartına dönüşür.
+ *  3. Tek kart: seri + koruma hakkı (engine/streak) ve bu ayın özeti → aylık rapor
+ *  4. Keşfetmeye değer · Size uygun 4 araç (constants/tools → onerilenAraclar, "Tümü" → /tools) · Son baktıklarınız
  */
-
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState, useRef } from 'react';
-import {
-    Dimensions,
-    Pressable,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    View,
-    Text,
-    Image,
-} from 'react-native';
-import Animated, { FadeIn, FadeInUp, SlideInRight } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Card } from '@/components/ui';
+import { Button, Card, Chip, IconButton, Screen, Section, T, useTheme } from '@/components/kit';
+import { ContextQuestion } from '@/components/ProfileCompletion';
+import { Bottle, brandCaps, PerfumeTile } from '@/components/kit/perfume';
+import { PerfumePicker } from '@/components/kit/PerfumePicker';
 import { PaywallScreen } from '@/components/paywall';
-import { BorderRadius, Colors, FontSizes, FontWeights, Spacing, ScentTypeColors } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { onerilenAraclar } from '@/constants/tools';
 import { useApp } from '@/context/AppContext';
+import { aylikRapor, AY_ADLARI, ETKINLIK_ETIKET, getEffectivePH, gununSecimi, seriDurumu } from '@/engine';
 import { usePremiumGate } from '@/hooks/use-premium-gate';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Confetti, ConfettiRef } from '@/components/confetti';
-import { DailyRecommendation, getDailyMotivation, getMultipleDailyRecommendations } from '@/services/dailyRecommendation';
-import { fetchWeatherData, getWeatherRecommendation, WeatherData } from '@/services/weather';
-import { Parfum } from '@/types';
+import { track } from '@/services/analytics';
+import { getDailyPicks, greeting } from '@/services/dailyRecommendation';
+import { loadTodayPlan, saveTodayPlan } from '@/services/storage';
+import { fetchWeather, WeatherResult } from '@/services/weather';
+import { setWidgetTodayPick, updateWidget } from '@/services/widget';
+import { Etkinlik } from '@/types';
+import { toLocalDateKey } from '@/utils/date';
+import { hapticLight, hapticSuccess } from '@/utils/haptics';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const formatDate = (d = new Date()) => d.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
+const ETKINLIKLER: Etkinlik[] = ['gunluk', 'is', 'bulusma', 'ozel', 'spor', 'ev'];
 
-// ScentTypeColors is imported from theme.ts instead
-
-export default function HomeScreen() {
+export default function TodayScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  const isDark = colorScheme === 'dark';
-  
-  const { 
-    parfumler, 
-    preferences, 
-    favorites,
-    addToRecentlyViewedList,
-    getFavoriteParfums,
-    getRecentlyViewedParfums,
-    todaySotd,
-    streakData,
-    selectTodaysSotd,
-    performanceLogs,
-  } = useApp();
-  const { requirePremium, paywallVisible, setPaywallVisible } = usePremiumGate();
-
-  const confettiRef = useRef<ConfettiRef>(null);
-
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [dailyRecs, setDailyRecs] = useState<DailyRecommendation[]>([]);
+  const c = useTheme();
+  const {
+    parfumler, preferences, favorites, todaySotd, streakData, sotdHistory, performanceLogs,
+    selectTodaysSotd, getParfumById, getRecentlyViewedParfums, wardrobeParfums, zevk, recordSkip } = useApp();
+  const { isPremium, requirePremium, paywallVisible, setPaywallVisible } = usePremiumGate();
+  const [weather, setWeather] = useState<WeatherResult | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [etkinlik, setEtkinlik] = useState<Etkinlik>('gunluk');
+  // "Başka" ile geçilenler (kimlikle tutulur: geçilen parfümün puanı düştüğü için sıra değişse de atlama olmaz)
+  const [gecilen, setGecilen] = useState<string[]>([]);
 
-  const motivation = getDailyMotivation();
+  const load = useCallback(async () => setWeather(await fetchWeather()), []);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadTodayPlan().then(p => p && setEtkinlik(p.etkinlik)); }, []);
 
-  const currentHour = new Date().getHours();
-  let timeGreeting = 'Merhaba';
-  if (currentHour >= 5 && currentHour < 12) timeGreeting = 'Günaydın';
-  else if (currentHour >= 12 && currentHour < 18) timeGreeting = 'İyi Günler';
-  else if (currentHour >= 18 && currentHour < 22) timeGreeting = 'İyi Akşamlar';
-  else timeGreeting = 'İyi Geceler';
+  const w = weather?.ok ? weather.data : null;
+  const bugun = toLocalDateKey();
+  const dolaptan = wardrobeParfums.length > 0;
 
-  const loadData = useCallback(async () => {
-    try {
-      const weatherData = await fetchWeatherData();
-      setWeather(weatherData);
-      const recommendations = getMultipleDailyRecommendations(parfumler, preferences, favorites, 3);
-      setDailyRecs(recommendations);
-    } catch (error) {
-      console.error('Data load error:', error);
-    }
-  }, [parfumler, preferences, favorites]);
+  // Günün seçimi: dolap varsa dolaptan, yoksa katalogdan
+  const secimler = useMemo(() => {
+    const adaylar = dolaptan ? wardrobeParfums : parfumler.slice();
+    return gununSecimi({
+      adaylar,
+      prefs: preferences,
+      ph: getEffectivePH(preferences),
+      etkinlik,
+      hava: w ? { sicaklik: w.temperature, nem: w.humidity } : null,
+      gecmis: sotdHistory.map(s => ({ parfumId: s.parfumId, date: s.date })),
+      zevk: zevk,
+      dolaptan,
+    }).slice(0, dolaptan ? Math.min(5, wardrobeParfums.length) : 5);
+  }, [dolaptan, wardrobeParfums, parfumler, preferences, etkinlik, w, sotdHistory, zevk]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  }, [loadData]);
-
-  const favoriteParfums = getFavoriteParfums().slice(0, 6);
-  const recentParfums = getRecentlyViewedParfums().slice(0, 6);
-
-  const handleOpenParfum = (parfum: Parfum) => {
-    addToRecentlyViewedList(parfum.id);
-    router.push(`/parfum/${parfum.id}`);
+  useEffect(() => { setGecilen([]); }, [etkinlik, dolaptan]);
+  const kalan = secimler.filter(s => !gecilen.includes(s.parfum.id));
+  const oneri = kalan[0] ?? secimler[0] ?? null;
+  const baska = () => {
+    if (!oneri) return;
+    hapticLight();
+    recordSkip(oneri.parfum.id, etkinlik); // öğrenen motor için zayıf olumsuz sinyal
+    // Hepsi geçildiyse baştan başla
+    setGecilen(g => (kalan.length <= 1 ? [] : [...g, oneri.parfum.id]));
   };
 
-  const weatherRec = weather ? getWeatherRecommendation(weather) : null;
+  // Widget, Bugün ekranında gösterilen öneriyi göstersin (hava + etkinlik + "Başka" dahil)
+  useEffect(() => {
+    setWidgetTodayPick(oneri ? { parfum: oneri.parfum, gerekce: oneri.gerekceler[0] ?? 'Teninize ve gününüze göre seçildi.' } : null, bugun);
+    updateWidget({
+      prefs: preferences,
+      ph: getEffectivePH(preferences),
+      dolap: wardrobeParfums,
+      katalog: parfumler,
+      zevk: zevk,
+      gecmis: sotdHistory.map(s => ({ parfumId: s.parfumId, date: s.date })),
+      seri: streakData.currentStreak,
+      seriTarih: streakData.lastSOTDDate,
+    });
+  }, [oneri, bugun, preferences, wardrobeParfums, parfumler, sotdHistory, streakData, zevk]);
 
-  // Koku aileleri ve sayıları
-  const scentFamilies = Object.entries(ScentTypeColors).slice(0, 8).map(([type, color]) => ({
-    type,
-    color,
-    count: parfumler.filter(p => p.tip === type).length,
-  }));
+  const picks = useMemo(() => getDailyPicks(parfumler, preferences, favorites, w, 3), [parfumler, preferences, favorites, w]);
+  const sotd = todaySotd ? getParfumById(todaySotd.parfumId) : undefined;
+  const recent = getRecentlyViewedParfums().slice(0, 8);
+  const name = preferences.userName?.trim();
+  const seri = seriDurumu(streakData, bugun);
+  const hak = streakData.korumaYenilenme ? (streakData.korumaHakki ?? 0) : 1;
 
-  return (
-    <ThemedView style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tint} />
-        }
-      >
-        {/* Top Hero Section */}
-        <SafeAreaView edges={['top']} style={[styles.topSectionWrapper, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-          <View style={styles.topSectionContent}>
-            <Animated.View entering={FadeIn.duration(500)}>
-              <View style={styles.headerTop}>
-                <View style={styles.logoContainer}>
-                  <Image 
-                    source={require('@/assets/images/logo.png')} 
-                    style={{ width: 28, height: 28, marginRight: 8, resizeMode: 'contain' }} 
-                  />
-                  <ThemedText style={styles.logoText}>AURAM</ThemedText>
-                </View>
-                <Pressable 
-                  onPress={() => router.push('/(tabs)/profile')} 
-                  style={[styles.profileBtn, { backgroundColor: colors.backgroundTertiary }]}
-                >
-                  <Ionicons name="person" size={18} color={colors.text} />
-                  {/* Dot Indicator */}
-                  {favorites.length > 0 && (
-                    <View style={[styles.notificationDot, { backgroundColor: colors.accent, borderColor: colors.background }]} />
-                  )}
-                </Pressable>
-              </View>
-              
-              <View style={styles.greetingSection}>
-                {weather ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <ThemedText style={styles.greetingEmoji}>🌤️</ThemedText>
-                    <View style={{ flex: 1 }}>
-                      <ThemedText style={styles.greetingTitle}>
-                        {timeGreeting}!
-                      </ThemedText>
-                      <ThemedText style={{ color: colors.textMuted, fontSize: 14, marginTop: 4 }}>
-                        Şu an hava {weather.temperature}°C, {weather.description.toLowerCase()}.
-                      </ThemedText>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <ThemedText style={styles.greetingEmoji}>{motivation.emoji}</ThemedText>
-                    <View style={{ flex: 1 }}>
-                      <ThemedText style={styles.greetingTitle}>{timeGreeting}!</ThemedText>
-                    </View>
-                  </View>
-                )}
-              </View>
-            </Animated.View>
-
-            {/* Daily Hero Recommendation */}
-            {!todaySotd && dailyRecs.length > 0 && (
-              <Animated.View entering={FadeInUp.delay(30).duration(400)}>
-                <LinearGradient
-                  colors={['#8A2387', '#E94057', '#F27121']}
-                  style={styles.dailyCard}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <View style={styles.dailyHeader}>
-                    <View style={styles.dailyBadge}>
-                      <Ionicons name="sparkles" size={12} color="#FFF" />
-                      <Text style={styles.dailyBadgeText}>
-                        {weatherRec ? 'Hava Durumuna Göre Seçildi' : '✨ Bugün İçin Seçtik'}
-                      </Text>
-                    </View>
-                    <View style={styles.dailyScore}>
-                      <Text style={styles.dailyScoreText}>%{Math.round(dailyRecs[0].matchScore)} Uyum</Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.dailyName}>{dailyRecs[0].parfum.isim}</Text>
-                  <Text style={styles.dailyBrand}>{dailyRecs[0].parfum.marka || 'Auram'}</Text>
-
-                  <View style={styles.dailyReasons}>
-                    {dailyRecs[0].reasons.slice(0, 2).map((reason, index) => (
-                      <View key={index} style={styles.dailyReason}>
-                        <Ionicons name="checkmark-circle" size={14} color="rgba(255,255,255,0.9)" />
-                        <Text style={styles.dailyReasonText}>{reason}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm }}>
-                    <Pressable 
-                      style={styles.dailyAction} 
-                      onPress={() => handleOpenParfum(dailyRecs[0].parfum)}
-                    >
-                      <Text style={styles.dailyActionText}>Detayına Git</Text>
-                      <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.8)" />
-                    </Pressable>
-
-                    <Pressable 
-                      style={[styles.dailyAction, { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }]} 
-                      onPress={() => {
-                        selectTodaysSotd(dailyRecs[0].parfum.id, weather);
-                        confettiRef.current?.fire();
-                      }}
-                    >
-                      <Ionicons name="checkmark" size={16} color="#FFF" />
-                      <Text style={[styles.dailyActionText, { color: '#FFF', fontWeight: 'bold' }]}>Bugün Bunu Sıktım</Text>
-                    </Pressable>
-                  </View>
-                </LinearGradient>
-              </Animated.View>
-            )}
-
-            {/* SOTD Hub */}
-            <Animated.View entering={FadeInUp.delay(50).duration(400)}>
-              {streakData.currentStreak > 0 && (
-                <View style={[styles.streakBanner, { backgroundColor: colors.accent + (isDark ? '20' : '15') }]}>
-                  <ThemedText style={[styles.streakText, { color: colors.accent }]}>
-                    🔥 Serin: {streakData.currentStreak}. Gün | En Uzun: {streakData.longestStreak}
-                  </ThemedText>
-                </View>
-              )}
-
-              {!todaySotd ? (
-                <View style={styles.sotdContainer}>
-                  <SectionTitle title="Bugün Ne Sıksan?" subtitle="GÜNLÜK ÖNERİ" colors={colors} />
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sotdScroll}>
-                    {dailyRecs.map((rec, index) => (
-                      <Card key={index} style={styles.sotdCard}>
-                        <ThemedText style={styles.sotdCardTitle} numberOfLines={1}>{rec.parfum.isim}</ThemedText>
-                        <ThemedText style={styles.sotdCardBrand}>{rec.parfum.marka || 'Auram'}</ThemedText>
-                        <Pressable 
-                          style={styles.sotdButton}
-                          onPress={() => {
-                            selectTodaysSotd(rec.parfum.id, weather);
-                            confettiRef.current?.fire();
-                          }}
-                        >
-                          <ThemedText style={styles.sotdButtonText}>Bugün Bunu Sıktım</ThemedText>
-                        </Pressable>
-                      </Card>
-                    ))}
-                  </ScrollView>
-                </View>
-              ) : (
-                <View style={styles.sotdContainer}>
-                  <SectionTitle title="Günün Kokusu" subtitle="SEÇİMİN" colors={colors} />
-                  <Card style={styles.sotdSelectedCard}>
-                    <View style={styles.sotdSelectedIcon}>
-                      <Ionicons name="checkmark-circle" size={32} color="#00D4AA" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <ThemedText style={styles.sotdCardTitle}>{parfumler.find(p => p.id === todaySotd.parfumId)?.isim}</ThemedText>
-                      <ThemedText style={styles.sotdCardBrand}>Harika bir seçim! Akşam performansını kaydetmeyi unutma.</ThemedText>
-                    </View>
-                  </Card>
-                </View>
-              )}
-            </Animated.View>
-          </View>
-        </SafeAreaView>
-
-        <View style={styles.content}>
-          {/* Quick Actions */}
-          <Animated.View entering={FadeInUp.delay(100).duration(400)} style={styles.quickActions}>
-                <Pressable 
-              onPress={() => router.push('/(tabs)/parfums')} 
-              style={[styles.quickAction, { backgroundColor: colors.primary + '15' }]}
-            >
-              <Ionicons name="flask" size={22} color={colors.primary} />
-              <ThemedText style={[styles.quickActionText, { color: colors.primary }]}>Parfümleri Keşfet</ThemedText>
-                </Pressable>
-                <Pressable 
-              onPress={() => router.push('/(tabs)/favorites')} 
-              style={[styles.quickAction, { backgroundColor: colors.accent + '15' }]}
-            >
-              <Ionicons name="heart" size={22} color={colors.accent} />
-              <ThemedText style={[styles.quickActionText, { color: colors.accent }]}>Favorilerim</ThemedText>
-            </Pressable>
-          </Animated.View>
-
-          {/* Premium Features */}
-          <Animated.View entering={FadeInUp.delay(150).duration(400)}>
-            <SectionTitle title="Premium Özellikler" subtitle="GELİŞMİŞ DENEYİM" icon="sparkles" colors={colors} />
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              contentContainerStyle={styles.premiumContainer}
-            >
-              {[
-                { id: 'mood', title: 'Mood Tracker', desc: 'Ruh haline göre', icon: 'analytics-outline', color: '#9D4EDD' },
-                { id: 'calendar', title: 'Takvim', desc: 'Kullanım geçmişi', icon: 'calendar-outline', color: '#00B4D8' },
-                { id: 'layering', title: 'Katmanlama', desc: 'Kombinasyonlar', icon: 'layers-outline', color: '#FF6B9D' },
-                { id: 'gift', title: 'Hediye', desc: 'Hediye asistanı', icon: 'gift-outline', color: '#FFB020' },
-                { id: 'journal', title: 'Günlük', desc: 'Deneyim kaydı', icon: 'camera-outline', color: '#00D4AA' },
-                { id: 'spin', title: 'Çark', desc: 'Şansını dene', icon: 'aperture-outline', color: '#FF6B6B' },
-              ].map((item, index) => (
-                <Pressable
-                  key={item.id}
-                  onPress={() => requirePremium(() => router.push(`/${item.id}` as any))}
-                  style={[styles.premiumPill, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}
-                >
-                  <View style={[styles.premiumIconBox, { backgroundColor: item.color + '15' }]}>
-                    <Ionicons name={item.icon as any} size={20} color={item.color} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <ThemedText style={styles.premiumTitle}>{item.title}</ThemedText>
-                    <ThemedText style={styles.premiumDesc}>{item.desc}</ThemedText>
-                  </View>
-                  <Ionicons name="lock-closed" size={14} color={colors.textMuted} />
-                </Pressable>
-              ))}
-            </ScrollView>
-          </Animated.View>
-
-          {/* Weather Widget */}
-          {weather && (
-            <Animated.View entering={FadeInUp.delay(200).duration(400)}>
-              <Card variant="elevated" style={styles.weatherCard}>
-                {/* Konum Bilgisi */}
-                <View style={styles.locationRow}>
-                  <Ionicons name="location" size={14} color={colors.tint} />
-                  <ThemedText style={{ color: colors.tint, fontSize: FontSizes.sm, fontWeight: '600', marginLeft: 4 }}>
-                    {weather.fullAddress || weather.city}
-                  </ThemedText>
-                </View>
-                
-                <View style={styles.weatherContent}>
-                  <View style={styles.weatherLeft}>
-                    <View style={[styles.weatherIconBg, { backgroundColor: isDark ? 'rgba(135,206,235,0.15)' : 'rgba(74,144,217,0.1)' }]}>
-                  <Ionicons 
-                        name={weather.icon as keyof typeof Ionicons.glyphMap} 
-                        size={28} 
-                        color={isDark ? '#87CEEB' : '#4A90D9'} 
-                      />
-              </View>
-                    <View style={styles.weatherInfo}>
-                      <View style={styles.weatherTempRow}>
-                        <ThemedText style={styles.weatherTemp}>{weather.temperature}°</ThemedText>
-                        <ThemedText type="caption" style={{ color: colors.textMuted }}>
-                          Hissedilen {weather.feelsLike}°
-                        </ThemedText>
-            </View>
-                      <ThemedText type="caption" style={{ color: colors.textMuted }}>
-                        {weather.description}
-                      </ThemedText>
-          </View>
-          </View>
-
-                  <View style={styles.weatherRight}>
-                    <View style={[styles.weatherBadge, { backgroundColor: colors.primary + '1A' }]}>
-                      <Ionicons name="water-outline" size={12} color={colors.primary} />
-                      <ThemedText style={{ color: colors.primary, fontSize: 11, fontWeight: '600' }}>%{weather.humidity}</ThemedText>
-            </View>
-                    <View style={[styles.weatherBadge, { backgroundColor: colors.accent + '1A' }]}>
-                      <Ionicons name="speedometer-outline" size={12} color={colors.accent} />
-                      <ThemedText style={{ color: colors.accent, fontSize: 11, fontWeight: '600' }}>{weather.windSpeed} km/s</ThemedText>
-                  </View>
-        </View>
-              </View>
-                
-                {weatherRec && (
-                  <View style={styles.weatherRecommendation}>
-                    <ThemedText type="caption" style={{ color: colors.textMuted, marginBottom: Spacing.sm }}>
-                      Bugün için önerilen koku tipleri
-              </ThemedText>
-                    <View style={styles.weatherTags}>
-                      {weatherRec.scentTypes.slice(0, 3).map((type, i) => (
-              <Pressable 
-                          key={i} 
-                          onPress={() => router.push('/(tabs)/parfums')}
-                          style={[styles.weatherTag, { backgroundColor: (ScentTypeColors[type] || colors.tint) + '15' }]}
-              >
-                          <ThemedText style={{ color: ScentTypeColors[type] || colors.tint, fontSize: FontSizes.sm, fontWeight: '600' }}>
-                            {type}
-                          </ThemedText>
-              </Pressable>
-              ))}
-            </View>
-            </View>
-          )}
-              </Card>
-            </Animated.View>
-          )}
-
-
-
-          {/* Scent Families */}
-          <Animated.View entering={FadeInUp.delay(400).duration(400)}>
-            <SectionTitle 
-              title="Koku Aileleri" 
-              subtitle="KEŞFET" 
-              actionText="Tümünü Gör" 
-              onActionPress={() => router.push('/(tabs)/parfums')} 
-              colors={colors} 
-            />
-
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.typesContainer}
-            >
-              {scentFamilies.map(({ type, color, count }, index) => {
-                const getScentIcon = (t: string) => {
-                  const tl = t.toLowerCase();
-                  if (tl.includes('çiçek')) return 'flower-outline';
-                  if (tl.includes('odun')) return 'leaf-outline';
-                  if (tl.includes('ferah') || tl.includes('aqua')) return 'water-outline';
-                  if (tl.includes('baharat')) return 'flame-outline';
-                  if (tl.includes('meyve')) return 'nutrition-outline';
-                  return 'sparkles-outline';
-                };
-
-                return (
-                  <Animated.View key={type} entering={SlideInRight.delay(400 + index * 40).duration(300)}>
-                    <Pressable
-                      onPress={() => router.push('/(tabs)/parfums')}
-                      style={[styles.scentFamilyPill, { backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : colors.card, borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'transparent' }]}
-                    >
-                      <View style={[styles.scentFamilyIcon, { backgroundColor: color + '15' }]}>
-                        <Ionicons name={getScentIcon(type)} size={16} color={color} />
-                      </View>
-                      <View>
-                        <ThemedText style={styles.scentFamilyName}>{type}</ThemedText>
-                        <ThemedText style={styles.scentFamilyCount}>{count} parfüm</ThemedText>
-                      </View>
-                    </Pressable>
-                  </Animated.View>
-                );
-              })}
-            </ScrollView>
-          </Animated.View>
-
-          {/* Favorites Section */}
-          {favoriteParfums.length > 0 && (
-            <Animated.View entering={FadeInUp.delay(500).duration(400)}>
-              <SectionTitle 
-                title="Favorilerim" 
-                subtitle="KİŞİSEL KİTAPLIĞIN" 
-                icon="heart"
-                actionText={`Tümü (${favorites.length})`} 
-                onActionPress={() => router.push('/(tabs)/favorites')} 
-                colors={colors} 
-              />
-              
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-                {favoriteParfums.map((parfum, index) => (
-                  <MiniParfumCard
-                    key={parfum.id}
-                    parfum={parfum}
-                    colors={colors}
-                    onPress={() => handleOpenParfum(parfum)}
-                    delay={index * 40}
-                  />
-                ))}
-              </ScrollView>
-            </Animated.View>
-          )}
-
-          {/* Recently Viewed */}
-          {recentParfums.length > 0 && (
-            <Animated.View entering={FadeInUp.delay(600).duration(400)}>
-              <SectionTitle title="Son Görüntülenen" subtitle="GEÇMİŞ" icon="time" colors={colors} />
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-                {recentParfums.map((parfum, index) => (
-                  <MiniParfumCard
-                    key={parfum.id}
-                    parfum={parfum}
-                    colors={colors} 
-                    onPress={() => handleOpenParfum(parfum)}
-                    delay={index * 40}
-                  />
-                ))}
-              </ScrollView>
-            </Animated.View>
-          )}
-
-          {/* Stats Summary */}
-          <Animated.View entering={FadeInUp.delay(700).duration(400)}>
-            <Card variant="elevated" style={styles.statsCard}>
-              <View style={[styles.statsHeader, { marginBottom: Spacing.xl }]}>
-                <View style={[styles.sectionIconWrapper, { backgroundColor: colors.tint + '12' }]}>
-                  <Ionicons name="analytics" size={16} color={colors.tint} />
-                </View>
-                <View>
-                  <ThemedText style={[styles.sectionSubtitle, { color: colors.tint }]}>İSTATİSTİK</ThemedText>
-                  <ThemedText style={styles.sectionTitle}>Profil Özeti</ThemedText>
-                </View>
-              </View>
-              
-              <View style={styles.statsGrid}>
-                <View style={styles.statItem}>
-                  <ThemedText style={[styles.statNumber, { color: colors.primary }]}>{parfumler.length}</ThemedText>
-                  <ThemedText type="caption" style={{ color: colors.textMuted }}>Parfüm</ThemedText>
-              </View>
-                <View style={styles.statItem}>
-                  <ThemedText style={[styles.statNumber, { color: colors.accent }]}>{favorites.length}</ThemedText>
-                  <ThemedText type="caption" style={{ color: colors.textMuted }}>Favori</ThemedText>
-            </View>
-                <View style={styles.statItem}>
-                  <ThemedText style={[styles.statNumber, { color: colors.primary }]}>{Object.keys(ScentTypeColors).length}</ThemedText>
-                  <ThemedText type="caption" style={{ color: colors.textMuted }}>Koku Ailesi</ThemedText>
-                    </View>
-                <View style={styles.statItem}>
-                  <ThemedText style={[styles.statNumber, { color: colors.accent }]}>{recentParfums.length}</ThemedText>
-                  <ThemedText type="caption" style={{ color: colors.textMuted }}>Son Görüntülenen</ThemedText>
-                </View>
-              </View>
-            </Card>
-          </Animated.View>
-
-          <View style={{ height: 120 }} />
-        </View>
-          </ScrollView>
-      <Confetti ref={confettiRef} />
-
-      <PaywallScreen
-        visible={paywallVisible}
-        onClose={() => setPaywallVisible(false)}
-        title="Premium Özellikleri Aç"
-        subtitle="Mood Tracker, Takvim, Katmanlama, Hediye Asistanı, Günlük ve Şans Çarkı'nı kullanmaya başla."
-      />
-    </ThemedView>
+  const now = new Date();
+  const araclar = onerilenAraclar({
+    dolapDolu: dolaptan,
+    bugunKayitVar: !!todaySotd,
+    saat: now.getHours(),
+    ayinGunu: now.getDate(),
+    ayGunSayisi: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(),
+  });
+  const rapor = useMemo(
+    () => aylikRapor(now.getFullYear(), now.getMonth() + 1, sotdHistory.map(s => ({ parfumId: s.parfumId, date: s.date })), performanceLogs, parfumler),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sotdHistory, performanceLogs, parfumler],
   );
-}
 
-// Mini Parfüm Kartı
-function MiniParfumCard({ parfum, colors, onPress, delay = 0 }: {
-  parfum: Parfum;
-  colors: typeof Colors.light;
-  onPress: () => void;
-  delay?: number;
-}) {
-  const typeColor = ScentTypeColors[parfum.tip] || colors.tint;
+  const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
+
+  const chooseEtkinlik = (e: Etkinlik) => {
+    hapticLight();
+    setEtkinlik(e);
+    saveTodayPlan(e);
+    track('today_plan', { etkinlik: e });
+  };
+
+  const wear = async (parfumId: string, kaynak: string) => {
+    const { korumaKullanildi } = await selectTodaysSotd(parfumId, w ? { temp: w.temperature, condition: w.condition, city: w.city } : undefined, etkinlik);
+    hapticSuccess();
+    track('sotd_logged', { kaynak, dolaptan });
+    if (korumaKullanildi) Alert.alert('Seriniz korundu', 'Dün kayıt yoktu; haftalık seri koruma hakkınız kullanıldı. Hakkınız pazartesi yenilenir.');
+  };
 
   return (
-    <Animated.View entering={SlideInRight.delay(delay).duration(300)}>
-      <Pressable 
-        onPress={onPress} 
-        style={[styles.sleekMiniCard, { backgroundColor: colors.card, borderColor: 'rgba(0,0,0,0.03)', shadowColor: colors.text }]}
-      >
-        <View style={[styles.sleekMiniIcon, { backgroundColor: typeColor + '12' }]}>
-          <ThemedText style={{ color: typeColor, fontSize: 18, fontWeight: 'bold' }}>
-            {parfum.isim.charAt(0)}
-          </ThemedText>
+    <Screen refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.accent} />}>
+      {/* Başlık */}
+      <View style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <T variant="overline" color="subtle">{formatDate()}{w ? ` · ${w.temperature}°C` : ''}</T>
+          <T variant="h1" style={{ marginTop: 4 }}>{greeting()}{name ? `, ${name}` : ''}</T>
         </View>
-        <View style={{ flex: 1, paddingRight: Spacing.sm }}>
-          <ThemedText type="subtitle" numberOfLines={1} style={{ fontSize: 13, marginBottom: 2 }}>{parfum.isim}</ThemedText>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <ThemedText type="caption" numberOfLines={1} style={{ color: colors.textMuted, fontSize: 11 }}>{parfum.marka}</ThemedText>
-            <View style={[styles.miniTypeBadge, { backgroundColor: typeColor + '10' }]}>
-              <ThemedText style={{ color: typeColor, fontSize: 8, fontWeight: '700' }}>{parfum.tip}</ThemedText>
-            </View>
-          </View>
-        </View>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
-// Ortak Section Header Bileşeni
-function SectionTitle({ 
-  title, 
-  subtitle, 
-  actionText, 
-  onActionPress,
-  icon,
-  colors,
-}: { 
-  title: string; 
-  subtitle?: string; 
-  actionText?: string; 
-  onActionPress?: () => void;
-  icon?: string;
-  colors: typeof Colors.light;
-}) {
-  return (
-    <View style={styles.sectionHeader}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        {icon && (
-          <View style={[styles.sectionIconWrapper, { backgroundColor: colors.tint + '15' }]}>
-            <Ionicons name={icon as any} size={18} color={colors.tint} />
-          </View>
-        )}
-        <View style={{ justifyContent: 'center' }}>
-          {subtitle && (
-            <ThemedText style={[styles.sectionSubtitle, { color: colors.tint }]}>{subtitle}</ThemedText>
-          )}
-          <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
-        </View>
+        <IconButton name="chatbubble-ellipses-outline" filled onPress={() => router.push('/advisor')} accessibilityLabel="Koku Danışmanı" />
       </View>
-      {actionText && onActionPress && (
-        <Pressable onPress={onActionPress} hitSlop={15} style={[styles.sectionAction, { backgroundColor: colors.text + '08' }]}>
-          <ThemedText style={[styles.sectionActionText, { color: colors.text }]}>{actionText}</ThemedText>
-          <Ionicons name="chevron-forward" size={12} color={colors.text} />
+
+      {/* Hava alınamadıysa tek satır */}
+      {w === null && weather && !weather.ok ? (
+        <Pressable onPress={load} style={[styles.inline, { marginTop: Spacing.sm }]} hitSlop={8}>
+          <Ionicons name={weather.reason === 'permission' ? 'location-outline' : 'cloud-offline-outline'} size={14} color={c.inkSubtle} />
+          <T variant="small" color="subtle">{weather.reason === 'permission' ? 'Havaya göre öneri için konum izni verin' : 'Hava alınamadı · yenilemek için dokunun'}</T>
         </Pressable>
-      )}
-    </View>
+      ) : null}
+
+      {/* Bugün ne var? — karar verildiyse (bugün kayıt varsa) gizlenir */}
+      {!sotd ? (
+        <>
+          <T variant="overline" color="subtle" style={{ marginTop: Spacing.xl }}>Bugün ne var?</T>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chips, { paddingHorizontal: Spacing.lg }]} style={{ marginHorizontal: -Spacing.lg }}>
+            {ETKINLIKLER.map(e => (
+              <Chip key={e} label={ETKINLIK_ETIKET[e].label} icon={ETKINLIK_ETIKET[e].icon as any} selected={etkinlik === e} onPress={() => chooseEtkinlik(e)} />
+            ))}
+          </ScrollView>
+        </>
+      ) : null}
+
+      {/* Bugün için önerimiz / bugünün kokusu */}
+      {sotd ? (
+        <Card style={{ marginTop: Spacing.lg }} onPress={() => router.push(`/parfum/${sotd.id}`)}>
+          <View style={styles.row}>
+            <View style={[styles.sotdArt, { backgroundColor: c.surfaceAlt }]}><Bottle parfum={sotd} size={46} /></View>
+            <View style={{ flex: 1 }}>
+              <View style={styles.inline}><Ionicons name="checkmark-circle" size={14} color={c.accent} /><T variant="overline" color="accent">Bugünün kokusu</T></View>
+              <T variant="overline" caps={brandCaps(sotd)} color="subtle" style={{ marginTop: 4 }}>{sotd.marka}</T>
+              <T variant="h3" numberOfLines={1}>{sotd.isim}</T>
+            </View>
+          </View>
+          <View style={[styles.actions, { borderTopColor: c.border }]}>
+            <Pressable onPress={() => setPickerOpen(true)} hitSlop={8}><T variant="smallStrong" color="accent">Değiştir</T></Pressable>
+            <Pressable onPress={() => requirePremium(() => router.push('/diary'))} hitSlop={8} style={styles.inline}>
+              <Ionicons name="moon-outline" size={14} color={c.inkMuted} />
+              <T variant="smallStrong" color="muted">Akşam: teninizde ne kadar kaldı?</T>
+            </Pressable>
+          </View>
+        </Card>
+      ) : null}
+      {/* Kayıt yapıldığı an doğru an: "nereye sıktınız?" profili tamamlar */}
+      {sotd ? (
+        <ContextQuestion id="uygulama" title="Parfümü genelde nereye sıkıyorsunuz?" style={{ marginTop: Spacing.sm }} />
+      ) : oneri ? (
+        <Card style={{ marginTop: Spacing.lg }}>
+          <T variant="overline" color="accent">{dolaptan ? 'Dolabınızdan bugün için' : 'Bugün için önerimiz'}</T>
+          <Pressable onPress={() => router.push(`/parfum/${oneri.parfum.id}`)} style={[styles.row, { marginTop: Spacing.md }]}>
+            <View style={[styles.heroArt, { backgroundColor: c.surfaceAlt }]}><Bottle parfum={oneri.parfum} size={64} /></View>
+            <View style={{ flex: 1 }}>
+              <T variant="overline" caps={brandCaps(oneri.parfum)} color="subtle">{oneri.parfum.marka}</T>
+              <T variant="h2" numberOfLines={2}>{oneri.parfum.isim}</T>
+              <T variant="small" color="muted">%{oneri.puan} bugüne uygun</T>
+            </View>
+          </Pressable>
+          <View style={{ marginTop: Spacing.md, gap: 6 }}>
+            {oneri.gerekceler.map(g => (
+              <View key={g} style={styles.reason}><View style={[styles.dot, { backgroundColor: c.accent }]} /><T variant="body" style={{ flex: 1 }}>{g}</T></View>
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.lg }}>
+            <Button label="Bunu sıkacağım" icon="checkmark" onPress={() => wear(oneri.parfum.id, dolaptan ? 'oneri_dolap' : 'oneri_katalog')} style={{ flex: 1 }} />
+            {secimler.length > 1 ? <Button label="Başka" icon="refresh" variant="secondary" onPress={baska} /> : null}
+          </View>
+          <Pressable onPress={() => setPickerOpen(true)} hitSlop={8} style={{ marginTop: Spacing.md, alignSelf: 'center' }}>
+            <T variant="smallStrong" color="muted">Başka bir parfüm sıktım</T>
+          </Pressable>
+          {!dolaptan ? (
+            <Pressable onPress={() => router.push({ pathname: '/(tabs)/favorites', params: { sekme: 'dolap' } })} style={[styles.invite, { backgroundColor: c.accentSoft }]}>
+              <Ionicons name="file-tray-stacked-outline" size={18} color={c.accent} />
+              <T variant="small" style={{ flex: 1 }}>Dolabınızı oluşturun; öneriler sahip olduğunuz parfümlerden gelsin.</T>
+              <Ionicons name="chevron-forward" size={16} color={c.accent} />
+            </Pressable>
+          ) : null}
+        </Card>
+      ) : null}
+
+      {/* Seri + bu ayın özeti (tek kart) */}
+      <Card tone="alt" style={{ marginTop: Spacing.md }}>
+        <View style={styles.row}>
+          <View style={[styles.streak, { borderColor: c.accent }]}><T variant="h3" color="accent">{seri.gunler}</T></View>
+          <View style={{ flex: 1 }}>
+            <T variant="bodyStrong">{seri.gunler ? `${seri.gunler} günlük seri` : 'Seri başlatın'}</T>
+            <T variant="small" color="muted">
+              {todaySotd
+                ? `Bugün kaydedildi · en uzun ${streakData.longestStreak} gün`
+                : seri.kurtarilabilir
+                  ? 'Dün kayıt yoktu; bugün kaydederseniz koruma hakkınız serinizi kurtarır.'
+                  : seri.riskte
+                    ? 'Bugün kaydetmezseniz seri sıfırlanır.'
+                    : 'Her gün ne sıktığınızı kaydedin.'}
+            </T>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Ionicons name={hak > 0 ? 'shield-checkmark-outline' : 'shield-outline'} size={20} color={hak > 0 ? c.accent : c.inkSubtle} />
+            <T variant="small" color="subtle">{hak} hak</T>
+          </View>
+        </View>
+        {rapor.toplamGun > 0 ? (
+          <Pressable onPress={() => router.push('/report')} style={[styles.month, { borderTopColor: c.border }]}>
+            <Ionicons name="analytics-outline" size={16} color={c.accent} />
+            <T variant="small" style={{ flex: 1 }} numberOfLines={1}>
+              {AY_ADLARI[now.getMonth()]}: {rapor.toplamGun} gün, {rapor.farkliParfum} parfüm{rapor.enCok[0] ? ` · en çok ${rapor.enCok[0].parfum.isim}` : ''}
+            </T>
+            <T variant="smallStrong" color="accent">Rapor</T>
+          </Pressable>
+        ) : null}
+      </Card>
+
+      {/* Keşfetmeye değer (katalog) */}
+      <Section title={dolaptan ? 'Keşfetmeye değer' : 'Bugün için seçtiklerimiz'} action="Tümü" onAction={() => router.push('/(tabs)/parfums')}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.md, paddingHorizontal: Spacing.lg }} style={{ marginHorizontal: -Spacing.lg }}>
+          {picks.map(p => (
+            <View key={p.parfum.id} style={{ width: 160 }}>
+              <PerfumeTile parfum={p.parfum} width={160} badge={`%${p.matchPercentage}`} onPress={() => router.push(`/parfum/${p.parfum.id}`)} />
+              <T variant="small" color="muted" numberOfLines={2} style={{ marginTop: 4 }}>{p.todayReason}</T>
+            </View>
+          ))}
+        </ScrollView>
+      </Section>
+
+      {/* Size uygun araçlar (en fazla 4) */}
+      <Section title="Araçlar" action="Tümü" onAction={() => router.push('/tools')}>
+        <View style={styles.grid}>
+          {araclar.map(t => (
+            <Pressable
+              key={t.id}
+              onPress={() => (t.premium ? requirePremium(() => router.push(t.route as any)) : router.push(t.route as any))}
+              style={({ pressed }) => [styles.tool, { backgroundColor: c.surface, borderColor: c.border, opacity: pressed ? 0.8 : 1 }]}
+            >
+              <View style={styles.toolTop}>
+                <Ionicons name={t.icon} size={22} color={c.ink} />
+                {t.premium && !isPremium ? <Ionicons name="lock-closed" size={13} color={c.inkSubtle} /> : null}
+              </View>
+              <T variant="bodyStrong" style={{ marginTop: Spacing.md }}>{t.title}</T>
+              <T variant="small" color="muted" numberOfLines={2}>{t.desc}</T>
+            </Pressable>
+          ))}
+        </View>
+      </Section>
+
+      {/* Son bakılanlar */}
+      {recent.length > 0 ? (
+        <Section title="Son baktıklarınız">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.md }}>
+            {recent.map(p => <PerfumeTile key={p.id} parfum={p} width={120} onPress={() => router.push(`/parfum/${p.id}`)} />)}
+          </ScrollView>
+        </Section>
+      ) : null}
+
+      <PerfumePicker
+        visible={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title="Bugün ne sıktınız?"
+        onSelect={p => wear(p.id, 'secici')}
+      />
+      <PaywallScreen visible={paywallVisible} onClose={() => setPaywallVisible(false)} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollView: { flex: 1 },
-  topSectionWrapper: {
-    borderBottomWidth: 1,
-    paddingBottom: Spacing.xl,
-    marginBottom: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  topSectionContent: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.sm,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderWidth: 2,
-  },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
-  logoContainer: { flexDirection: 'row', alignItems: 'center' },
-  logoIcon: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.sm },
-  logoText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold, letterSpacing: 1.5, opacity: 0.7 },
-  profileBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  greetingSection: { marginBottom: Spacing.lg },
-  greetingEmoji: { fontSize: 32, marginBottom: Spacing.xs },
-  greetingTitle: { fontSize: 34, fontWeight: '900', letterSpacing: -1, marginBottom: 4 },
-  content: { paddingHorizontal: Spacing.xl },
-  quickActions: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
-  quickAction: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg, gap: Spacing.sm },
-  quickActionText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold },
-  emptyText: {
-    fontSize: FontSizes.sm,
-    color: Colors.light.textMuted,
-  },
-  streakBanner: {
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
-    padding: Spacing.sm,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakText: {
-    fontSize: FontSizes.sm,
-    fontWeight: 'bold',
-  },
-  sotdContainer: {
-    marginVertical: Spacing.sm,
-  },
-  sotdScroll: {
-    paddingRight: Spacing.lg,
-  },
-  sotdCard: {
-    width: 200,
-    marginRight: Spacing.md,
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: 'rgba(157, 78, 221, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(157, 78, 221, 0.2)',
-  },
-  sotdCardTitle: {
-    fontSize: FontSizes.md,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  sotdCardBrand: {
-    fontSize: FontSizes.sm,
-    color: Colors.light.textMuted,
-    marginBottom: Spacing.md,
-  },
-  sotdButton: {
-    backgroundColor: '#9D4EDD',
-    padding: Spacing.sm,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
-  },
-  sotdButtonText: {
-    color: '#FFF',
-    fontSize: FontSizes.sm,
-    fontWeight: 'bold',
-  },
-  sotdSelectedCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.md,
-    backgroundColor: 'rgba(0, 212, 170, 0.1)',
-    borderColor: 'rgba(0, 212, 170, 0.3)',
-    borderWidth: 1,
-  },
-  sotdSelectedIcon: {
-    marginRight: Spacing.md,
-  },
-  // Premium Features
-  premiumContainer: { gap: Spacing.md, paddingBottom: Spacing.sm, marginBottom: Spacing.md },
-  premiumPill: { flexDirection: 'row', alignItems: 'center', width: 180, padding: Spacing.sm, borderRadius: BorderRadius.xl, borderWidth: 1, gap: Spacing.md },
-  premiumIconBox: { width: 44, height: 44, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center' },
-  premiumTitle: { fontSize: FontSizes.sm, fontWeight: FontWeights.bold, marginBottom: 2 },
-  premiumDesc: { fontSize: 10, opacity: 0.7 },
-  
-  weatherCard: { marginBottom: Spacing.lg, padding: Spacing.lg },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md, paddingBottom: Spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
-  weatherContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  weatherLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  weatherIconBg: { width: 52, height: 52, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md },
-  weatherInfo: { flex: 1 },
-  weatherTempRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.sm },
-  weatherTemp: { fontSize: 28, fontWeight: FontWeights.bold },
-  weatherRight: { gap: Spacing.xs },
-  weatherBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: BorderRadius.full, gap: 4 },
-  weatherRecommendation: { marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' },
-  weatherTags: { flexDirection: 'row', gap: Spacing.sm },
-  weatherTag: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full },
-  
-  dailyCard: { padding: Spacing.lg, borderRadius: BorderRadius.xl, marginBottom: Spacing.lg },
-  dailyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  dailyBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.full, gap: 4 },
-  dailyBadgeText: { color: '#FFF', fontSize: 11, fontWeight: FontWeights.semiBold },
-  dailyScore: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: BorderRadius.full },
-  dailyScoreText: { color: '#FFF', fontSize: FontSizes.sm, fontWeight: FontWeights.bold },
-  dailyName: { color: '#FFF', fontSize: FontSizes.lg, fontWeight: FontWeights.bold },
-  dailyBrand: { color: 'rgba(255,255,255,0.7)', fontSize: FontSizes.sm, marginBottom: Spacing.sm },
-  dailyReasons: { gap: 4, marginBottom: Spacing.md },
-  dailyReason: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  dailyReasonText: { color: 'rgba(255,255,255,0.9)', fontSize: FontSizes.sm },
-  dailyAction: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', gap: 4 },
-  dailyActionText: { color: 'rgba(255,255,255,0.8)', fontSize: FontSizes.sm },
-  
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: Spacing.lg, marginTop: Spacing.xl },
-  sectionIconWrapper: { width: 36, height: 36, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md },
-  sectionSubtitle: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 2 },
-  sectionTitle: { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-  sectionAction: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, gap: 4 },
-  sectionActionText: { fontSize: 11, fontWeight: '700' },
-  
-  typesContainer: { gap: Spacing.sm, paddingBottom: Spacing.sm },
-  scentFamilyPill: { flexDirection: 'row', alignItems: 'center', padding: Spacing.sm, paddingRight: Spacing.lg, borderRadius: BorderRadius.full, borderWidth: 1, gap: Spacing.sm },
-  scentFamilyIcon: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  scentFamilyName: { fontSize: FontSizes.sm, fontWeight: FontWeights.bold, marginBottom: 2 },
-  scentFamilyCount: { fontSize: 10, opacity: 0.6 },
-  
-  horizontalList: { gap: Spacing.md, paddingBottom: Spacing.sm },
-  sleekMiniCard: { flexDirection: 'row', alignItems: 'center', width: 220, padding: Spacing.sm, borderRadius: BorderRadius.xl, borderWidth: 1, gap: Spacing.sm, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
-  sleekMiniIcon: { width: 44, height: 44, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center' },
-  miniTypeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  
-  statsCard: { padding: Spacing.lg },
-  statsHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md },
-  statsGrid: { flexDirection: 'row', justifyContent: 'space-around' },
-  statItem: { alignItems: 'center' },
-  statNumber: { fontSize: FontSizes.xl, fontWeight: FontWeights.bold },
+  header: { flexDirection: 'row', alignItems: 'flex-end', paddingTop: Spacing.lg },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  chips: { gap: Spacing.sm, marginTop: Spacing.sm },
+  sotdArt: { width: 56, height: 64, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  heroArt: { width: 84, height: 96, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  reason: { flexDirection: 'row', gap: Spacing.md },
+  dot: { width: 5, height: 5, borderRadius: 3, marginTop: 9 },
+  actions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.lg, paddingTop: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
+  invite: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.lg, padding: Spacing.md, borderRadius: BorderRadius.md },
+  month: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
+  streak: { width: 48, height: 48, borderRadius: 24, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  tool: { width: '48.8%', padding: Spacing.lg, borderRadius: BorderRadius.lg, borderWidth: StyleSheet.hairlineWidth },
+  toolTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
 });
