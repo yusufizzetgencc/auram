@@ -1,357 +1,119 @@
 /**
- * AURAM - Weather Service
- * Gerçek zamanlı hava durumu ve parfüm önerileri
+ * TENİNDE — Hava durumu
+ *
+ * Kaynak: Open-Meteo (API anahtarı gerekmez). NOT: Open-Meteo'nun ücretsiz katmanı ticari olmayan
+ * kullanım içindir; uygulama ücretli/ticari yayına çıktığında ücretli plana geçilmeli veya
+ * sağlayıcı değiştirilmelidir. Sağlayıcı değişikliği yalnızca bu dosyayı etkiler.
+ *
+ * Kural: veri alınamazsa null döner. Uydurma (rastgele) hava verisi ASLA gösterilmez.
  */
-
 import * as Location from 'expo-location';
 
 export interface WeatherData {
   temperature: number;
+  feelsLike: number;
   humidity: number;
+  windSpeed: number;
+  condition: 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'windy' | 'hot' | 'cold' | 'mild';
   description: string;
   icon: string;
   city: string;
-  district?: string;
-  country?: string;
-  fullAddress?: string;
-  condition: 'sunny' | 'cloudy' | 'rainy' | 'snowy' | 'windy' | 'hot' | 'cold' | 'mild';
-  windSpeed: number;
-  feelsLike: number;
-  latitude?: number;
-  longitude?: number;
 }
 
-export interface WeatherRecommendation {
-  scentTypes: string[];
-  intensity: string;
-  description: string;
-  tips: string[];
+export interface WeatherAdvice {
+  title: string;
+  body: string;
+  families: string[];
 }
 
-// OpenWeatherMap API Key - Ücretsiz hesap için
-const API_KEY = ''; // Boş bırakıldığında mock data kullanılacak
+export type WeatherResult = { ok: true; data: WeatherData } | { ok: false; reason: 'permission' | 'network' };
 
-/**
- * Konum izni al
- */
-export async function requestLocationPermission(): Promise<boolean> {
+/** WMO hava kodu → durum */
+const fromWmo = (code: number, temp: number): WeatherData['condition'] => {
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return 'snowy';
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) return 'rainy';
+  if (code === 45 || code === 48) return 'cloudy';
+  if (temp >= 30) return 'hot';
+  if (temp <= 5) return 'cold';
+  if (code === 2 || code === 3) return 'cloudy';
+  return code <= 1 ? 'sunny' : 'mild';
+};
+
+const LABEL: Record<WeatherData['condition'], { text: string; icon: string }> = {
+  sunny: { text: 'Güneşli', icon: 'sunny-outline' },
+  hot: { text: 'Sıcak', icon: 'thermometer-outline' },
+  cloudy: { text: 'Bulutlu', icon: 'cloudy-outline' },
+  rainy: { text: 'Yağmurlu', icon: 'rainy-outline' },
+  snowy: { text: 'Karlı', icon: 'snow-outline' },
+  windy: { text: 'Rüzgârlı', icon: 'leaf-outline' },
+  cold: { text: 'Soğuk', icon: 'snow-outline' },
+  mild: { text: 'Ilıman', icon: 'partly-sunny-outline' },
+};
+
+let cache: { at: number; data: WeatherData } | null = null;
+const CACHE_MS = 20 * 60 * 1000;
+
+export async function fetchWeather(): Promise<WeatherResult> {
+  if (cache && Date.now() - cache.at < CACHE_MS) return { ok: true, data: cache.data };
   try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    return status === 'granted';
-  } catch (error) {
-    console.error('[Weather] Konum izni hatası:', error);
-    return false;
-  }
-}
+    const perm = await Location.requestForegroundPermissionsAsync();
+    if (perm.status !== 'granted') return { ok: false, reason: 'permission' };
+    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+    const { latitude, longitude } = loc.coords;
 
-/**
- * Mevcut konumu al
- */
-export async function getCurrentLocation(): Promise<Location.LocationObject | null> {
-  try {
-    const hasPermission = await requestLocationPermission();
-    if (!hasPermission) return null;
-    
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-    return location;
-  } catch (error) {
-    console.error('[Weather] Konum alma hatası:', error);
-    return null;
-  }
-}
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude.toFixed(3)}&longitude=${longitude.toFixed(3)}` +
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto';
+    const res = await fetch(url);
+    if (!res.ok) return { ok: false, reason: 'network' };
+    const json = await res.json();
+    const cur = json.current;
+    const temp = Math.round(cur.temperature_2m);
+    const condition = fromWmo(cur.weather_code, temp);
 
-/**
- * Hava durumu ikonunu belirle
- */
-function getWeatherCondition(temp: number, weatherId: number): WeatherData['condition'] {
-  // OpenWeatherMap weather condition codes
-  if (weatherId >= 200 && weatherId < 300) return 'rainy'; // Thunderstorm
-  if (weatherId >= 300 && weatherId < 400) return 'rainy'; // Drizzle
-  if (weatherId >= 500 && weatherId < 600) return 'rainy'; // Rain
-  if (weatherId >= 600 && weatherId < 700) return 'snowy'; // Snow
-  if (weatherId >= 700 && weatherId < 800) return 'windy'; // Atmosphere (fog, mist)
-  if (weatherId === 800) {
-    if (temp > 30) return 'hot';
-    if (temp < 10) return 'cold';
-    return 'sunny';
-  }
-  if (weatherId > 800) return 'cloudy'; // Clouds
-  
-  // Temperature based fallback
-  if (temp > 30) return 'hot';
-  if (temp < 5) return 'cold';
-  return 'mild';
-}
-
-/**
- * Ionicons ikon adını al
- */
-function getWeatherIcon(condition: WeatherData['condition']): string {
-  const iconMap: Record<string, string> = {
-    sunny: 'sunny',
-    hot: 'sunny',
-    cloudy: 'cloudy',
-    rainy: 'rainy',
-    snowy: 'snow',
-    windy: 'thunderstorm',
-    cold: 'snow-outline',
-    mild: 'partly-sunny',
-  };
-  return iconMap[condition] || 'partly-sunny';
-}
-
-/**
- * Türkçe hava durumu açıklaması
- */
-function getWeatherDescription(condition: WeatherData['condition']): string {
-  const descriptions: Record<string, string> = {
-    sunny: 'Güneşli',
-    hot: 'Sıcak',
-    cloudy: 'Bulutlu',
-    rainy: 'Yağmurlu',
-    snowy: 'Karlı',
-    windy: 'Rüzgarlı',
-    cold: 'Soğuk',
-    mild: 'Ilıman',
-  };
-  return descriptions[condition] || 'Parçalı Bulutlu';
-}
-
-/**
- * Ters geocoding - koordinattan adres al
- */
-async function reverseGeocode(latitude: number, longitude: number): Promise<{city: string; district?: string; country?: string; fullAddress?: string}> {
-  try {
-    const result = await Location.reverseGeocodeAsync({ latitude, longitude });
-    if (result && result.length > 0) {
-      const address = result[0];
-      return {
-        city: address.city || address.region || 'Bilinmeyen Şehir',
-        district: address.district || address.subregion || undefined,
-        country: address.country || undefined,
-        fullAddress: [address.district, address.city, address.country].filter(Boolean).join(', '),
-      };
-    }
-    return { city: 'Bilinmeyen Konum' };
-  } catch (error) {
-    console.error('[Weather] Reverse geocode hatası:', error);
-    return { city: 'Konum alınamadı' };
-  }
-}
-
-/**
- * Mock hava durumu (API key yoksa) - Gerçek konum ile
- */
-async function getMockWeatherData(): Promise<WeatherData> {
-  const now = new Date();
-  const month = now.getMonth();
-  const hour = now.getHours();
-  
-  // Mevsime göre sıcaklık
-  let baseTemp = 18;
-  if (month >= 5 && month <= 8) baseTemp = 28; // Yaz
-  else if (month >= 11 || month <= 2) baseTemp = 8; // Kış
-  else baseTemp = 16; // İlkbahar/Sonbahar
-  
-  // Gün içi varyasyon
-  if (hour >= 12 && hour <= 16) baseTemp += 4;
-  else if (hour >= 0 && hour <= 6) baseTemp -= 3;
-  
-  const temp = baseTemp + Math.floor(Math.random() * 4) - 2;
-  const condition = temp > 28 ? 'hot' : temp < 10 ? 'cold' : temp > 20 ? 'sunny' : 'mild';
-  
-  // Gerçek konum al
-  let locationData = { city: 'Konumunuz', district: undefined as string | undefined, country: undefined as string | undefined, fullAddress: undefined as string | undefined };
-  let latitude: number | undefined;
-  let longitude: number | undefined;
-  
-  try {
-    const location = await getCurrentLocation();
-    if (location) {
-      latitude = location.coords.latitude;
-      longitude = location.coords.longitude;
-      locationData = (await reverseGeocode(latitude, longitude)) as any;
-    }
-  } catch (error) {
-    console.log('[Weather] Konum alınamadı, varsayılan kullanılıyor');
-  }
-  
-  return {
-    temperature: temp,
-    humidity: 45 + Math.floor(Math.random() * 30),
-    description: getWeatherDescription(condition),
-    icon: getWeatherIcon(condition),
-    city: locationData.city,
-    district: locationData.district,
-    country: locationData.country,
-    fullAddress: locationData.fullAddress,
-    condition,
-    windSpeed: 5 + Math.floor(Math.random() * 15),
-    feelsLike: temp + (Math.random() > 0.5 ? 2 : -2),
-    latitude,
-    longitude,
-  };
-}
-
-/**
- * Gerçek hava durumu verisi al
- */
-export async function fetchWeatherData(): Promise<WeatherData> {
-  // API key yoksa mock data kullan (gerçek konum ile)
-  if (!API_KEY) {
-    return getMockWeatherData();
-  }
-
-  try {
-    const location = await getCurrentLocation();
-    
-    if (!location) {
-      return getMockWeatherData();
+    let city = '';
+    try {
+      const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
+      city = place?.district || place?.city || place?.subregion || place?.region || '';
+    } catch {
+      // şehir adı opsiyonel
     }
 
-    const { latitude, longitude } = location.coords;
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric&lang=tr`;
-    
-    const response = await fetch(url);
-    const data = await response.json();
-    
-    if (data.cod !== 200) {
-      console.error('[Weather] API hatası:', data.message);
-      return getMockWeatherData();
-    }
-
-    // Ters geocoding ile detaylı adres al
-    const locationData = await reverseGeocode(latitude, longitude);
-
-    const temp = Math.round(data.main.temp);
-    const condition = getWeatherCondition(temp, data.weather[0].id);
-    
-    return {
+    const data: WeatherData = {
       temperature: temp,
-      humidity: data.main.humidity,
-      description: data.weather[0].description,
-      icon: getWeatherIcon(condition),
-      city: locationData.city || data.name,
-      district: locationData.district,
-      country: locationData.country,
-      fullAddress: locationData.fullAddress,
+      feelsLike: Math.round(cur.apparent_temperature),
+      humidity: Math.round(cur.relative_humidity_2m),
+      windSpeed: Math.round(cur.wind_speed_10m),
       condition,
-      windSpeed: Math.round(data.wind.speed * 3.6), // m/s to km/h
-      feelsLike: Math.round(data.main.feels_like),
-      latitude,
-      longitude,
+      description: LABEL[condition].text,
+      icon: LABEL[condition].icon,
+      city,
     };
-  } catch (error) {
-    console.error('[Weather] Veri çekme hatası:', error);
-    return getMockWeatherData();
+    cache = { at: Date.now(), data };
+    return { ok: true, data };
+  } catch {
+    return { ok: false, reason: 'network' };
   }
 }
 
-/**
- * Hava durumuna göre parfüm önerisi
- */
-export function getWeatherRecommendation(weather: WeatherData): WeatherRecommendation {
-  const recommendations: Record<WeatherData['condition'], WeatherRecommendation> = {
-    hot: {
-      scentTypes: ['Ferah', 'Aquatik', 'Narenciye'],
-      intensity: 'hafif',
-      description: 'Sıcak havada ferah ve hafif kokular tercih edin',
-      tips: [
-        '💧 Narenciye bazlı kokular serinlik verir',
-        '🌊 Aquatik notalar yaz için ideal',
-        '⏰ Az sıkın, sıcakta koku yoğunlaşır',
-      ],
-    },
-    cold: {
-      scentTypes: ['Oryantal', 'Odunsu', 'Baharatlı'],
-      intensity: 'yoğun',
-      description: 'Soğuk havada sıcak ve sarmalayıcı kokular',
-      tips: [
-        '🔥 Amber ve vanilya sıcaklık verir',
-        '🌲 Odunsu kokular kışın zarif',
-        '✨ Yoğun parfümler soğukta kalıcı',
-      ],
-    },
-    mild: {
-      scentTypes: ['Çiçeksi', 'Odunsu', 'Ferah'],
-      intensity: 'orta',
-      description: 'Ilıman havada dengeli ve zarif kokular',
-      tips: [
-        '🌸 Çiçeksi notalar ilkbahar için ideal',
-        '🍃 Yeşil notalar tazelik katar',
-        '⚖️ Orta yoğunlukta kokular tercih edin',
-      ],
-    },
-    rainy: {
-      scentTypes: ['Odunsu', 'Oryantal', 'Amber'],
-      intensity: 'orta-yoğun',
-      description: 'Yağmurlu günlerde toprak ve sıcak notalar',
-      tips: [
-        '🌧️ Petrichor benzeri notalar uyumlu',
-        '🪵 Sedir ve sandal yağmurla güzel',
-        '💫 Nem kokuyu yayar, dikkatli dozlayın',
-      ],
-    },
-    sunny: {
-      scentTypes: ['Ferah', 'Çiçeksi', 'Narenciye'],
-      intensity: 'hafif-orta',
-      description: 'Güneşli günlerde enerjik kokular',
-      tips: [
-        '☀️ Portakal ve bergamot enerji verir',
-        '🌻 Beyaz çiçekler güneşte açılır',
-        '🎯 Sabah saatlerinde uygulayın',
-      ],
-    },
-    cloudy: {
-      scentTypes: ['Odunsu', 'Çiçeksi', 'Oryantal'],
-      intensity: 'orta',
-      description: 'Bulutlu günlerde sofistike kokular',
-      tips: [
-        '☁️ Dumanlı notalar havayla uyumlu',
-        '🌫️ İris ve süsen bulutlu günler için',
-        '🎨 Derinlikli kokular öne çıkar',
-      ],
-    },
-    snowy: {
-      scentTypes: ['Oryantal', 'Baharatlı', 'Amber'],
-      intensity: 'yoğun',
-      description: 'Karlı günlerde sıcak kokular',
-      tips: [
-        '❄️ Tarçın ve karanfil sıcaklık verir',
-        '🍂 Tonka ve vanilya sarmalayıcı',
-        '🧣 Boyun ve bileklere uygulayın',
-      ],
-    },
-    windy: {
-      scentTypes: ['Odunsu', 'Oryantal', 'Deri'],
-      intensity: 'yoğun',
-      description: 'Rüzgarlı günlerde güçlü kokular',
-      tips: [
-        '💨 Rüzgar kokuyu hızlı dağıtır',
-        '🛡️ Kalıcı alt notalar tercih edin',
-        '📍 Nabız noktalarına odaklanın',
-      ],
-    },
-  };
-
-  return recommendations[weather.condition] || recommendations.mild;
+/** Sıcaklık ve neme göre kısa, gerekçeli tavsiye */
+export function getWeatherAdvice(w: WeatherData): WeatherAdvice {
+  if (w.temperature >= 26) {
+    return { title: 'Sıcak bir gün', body: 'Isı buharlaşmayı hızlandırır; ferah notalar seçin ve az sıkın.', families: ['Ferah', 'Aquatik', 'Yeşil'] };
+  }
+  if (w.temperature <= 10) {
+    return { title: 'Serin bir gün', body: 'Soğukta koku yavaş açılır; sıcak ve yoğun notalar daha iyi duyulur.', families: ['Amber', 'Oryantal', 'Odunsu'] };
+  }
+  if (w.humidity >= 75) {
+    return { title: 'Nemli bir gün', body: 'Nem kokuyu ağırlaştırabilir; temiz ve hafif kompozisyonlar dengede kalır.', families: ['Ferah', 'Çiçeksi', 'Pudralı'] };
+  }
+  return { title: 'Ilıman bir gün', body: 'Neredeyse her aile iyi açılır; ruh halinize göre seçin.', families: ['Çiçeksi', 'Odunsu', 'Meyvemsi'] };
 }
 
-/**
- * Günün saatine göre ek öneriler
- */
-export function getTimeBasedTips(): string[] {
-  const hour = new Date().getHours();
-  
-  if (hour >= 6 && hour < 12) {
-    return ['🌅 Sabah için ferah kokular ideal', '☕ Hafif yoğunlukta başlayın'];
-  } else if (hour >= 12 && hour < 18) {
-    return ['☀️ Öğlende kokuyu tazeleyebilirsiniz', '💼 Orta yoğunluk tercih edin'];
-  } else if (hour >= 18 && hour < 22) {
-    return ['🌆 Akşam için yoğun kokular', '💃 Çekici notalar tercih edin'];
-  } else {
-    return ['🌙 Gece için samimi kokular', '💤 Lavanta rahatlatıcı'];
-  }
+/** Bugünün mevsimi (ay bazlı, Kuzey yarımküre) */
+export function currentSeason(date = new Date()): 'İlkbahar' | 'Yaz' | 'Sonbahar' | 'Kış' {
+  const m = date.getMonth();
+  if (m >= 2 && m <= 4) return 'İlkbahar';
+  if (m >= 5 && m <= 7) return 'Yaz';
+  if (m >= 8 && m <= 10) return 'Sonbahar';
+  return 'Kış';
 }

@@ -1,10 +1,12 @@
 /**
- * AURAM - Lüks Parfüm Öneri Uygulaması
+ * TENİNDE - Lüks Parfüm Öneri Uygulaması
  * Global State Management + Gelişmiş pH Hesaplama Sistemi + Veri Kalıcılığı
  */
 
+import { clearWidget } from '@/services/widget';
+import { toLocalDateKey } from '@/utils/date';
 import parfumData from '@/data/parfumler.json';
-import { getPHAraligi, hesaplaParfumPHSkoruPure, hesaplaPHPure } from '@/engine';
+import { AramaBaglami, etkinTercihler, getEffectivePH, getPHAraligi, getRecommendationsPure, hesaplaParfumPHSkoruPure, hesaplaPHPure, kisiselModel, KisiselModel, seriGuncelle, zenginlestirParfum, ZevkBaglami, zevkBaglami } from '@/engine';
 import { hapticSuccess } from '@/utils/haptics';
 import {
   addPerformanceLog,
@@ -18,6 +20,12 @@ import {
   createCollection,
   deleteCollection,
   loadAllUserDataExtended,
+  LearningState,
+  loadLearning,
+  loadTodayPlan,
+  loadWardrobe,
+  saveLearning,
+  saveWardrobe,
   RecentlyViewedItem,
   removeFromSearchHistory,
   saveCollections,
@@ -29,6 +37,7 @@ import {
   toggleFavorite
 } from '@/services/storage';
 import {
+  Etkinlik,
   KokuTipi,
   MonthlyStats,
   Parfum,
@@ -39,6 +48,7 @@ import {
   RecommendationResult,
   SOTDEntry,
   StreakData,
+  WardrobeItem,
   UserPHInfo,
   UserPreferences
 } from '@/types';
@@ -70,7 +80,7 @@ interface AppContextType {
   
   // Recommendations
   recommendations: RecommendationResult[];
-  getRecommendations: () => RecommendationResult[];
+  getRecommendations: (prefsOverride?: UserPreferences) => RecommendationResult[];
   
   // Parfüm listesi
   parfumler: Parfum[];
@@ -111,6 +121,8 @@ interface AppContextType {
   
   // ============ VERİ YÖNETİMİ ============
   resetAllData: () => Promise<void>;
+  /** Depodaki veriyi yeniden okur (ör. yedek geri yüklendikten sonra) */
+  reloadFromStorage: () => Promise<void>;
   refreshData: () => Promise<void>;
   
   // ============ SOTD & PERFORMANS ============
@@ -118,7 +130,36 @@ interface AppContextType {
   streakData: StreakData;
   performanceLogs: PerformanceLog[];
   todaySotd: SOTDEntry | null;
-  selectTodaysSotd: (parfumId: string, weather?: any) => Promise<void>;
+  /** Günün kokusunu kaydeder. Seri koruma hakkı kullanıldıysa true döner. */
+  selectTodaysSotd: (parfumId: string, weather?: any, etkinlik?: Etkinlik) => Promise<{ korumaKullanildi: boolean }>;
+
+  // ============ ÖĞRENEN MOTOR ============
+  /** Davranışınızdan öğrenilen model (engine/learning.ts) */
+  ogrenme: KisiselModel;
+  /** Sevilen/sevilmeyenler + öğrenilen model; skorlaParfum'a 4. parametre olarak verin */
+  zevk: ZevkBaglami | undefined;
+  /** "Şu an ne arıyorsunuz?" — geçici bağlam (mevsim/amaç/ortam/yoğunluk); kalıcı profili değiştirmez, oturumla sınırlı */
+  aramaBaglami: AramaBaglami;
+  setAramaBaglami: (degisim: Partial<AramaBaglami>) => void;
+  sifirlaAramaBaglami: () => void;
+  /** Puanlamada kullanılacak tercihler: profil + bağlam + otomatik mevsim. Ekranlar skorlamada `preferences` yerine bunu kullanır. */
+  etkinPrefs: UserPreferences;
+  /** Bugün ekranında "Başka" ile geçilen öneri (zayıf olumsuz sinyal) */
+  recordSkip: (parfumId: string, etkinlik?: Etkinlik) => void;
+  /** "Bu doğru değil": tespitin etkisini kaldırır */
+  rejectInsight: (id: string) => Promise<void>;
+  /** Reddedilen tespitleri geri getirir */
+  resetRejectedInsights: () => Promise<void>;
+  reddedilenTespitler: string[];
+
+  // ============ DOLABIM ============
+  wardrobe: WardrobeItem[];
+  isInWardrobe: (parfumId: string) => boolean;
+  addToWardrobe: (parfumId: string, detay?: Partial<Pick<WardrobeItem, 'hacimMl' | 'kalanYuzde' | 'alinmaTarihi' | 'not'>>) => Promise<void>;
+  updateWardrobeItem: (id: string, patch: Partial<Omit<WardrobeItem, 'id' | 'parfumId' | 'addedAt'>>) => Promise<void>;
+  removeFromWardrobe: (id: string) => Promise<void>;
+  /** Dolaptaki parfümler (katalogla eşleşenler) */
+  wardrobeParfums: Parfum[];
   logPerformance: (parfumId: string, data: Omit<PerformanceLog, 'id' | 'createdAt' | 'parfumId'>) => Promise<void>;
   getMonthlyStats: (month: number, year: number) => MonthlyStats;
 }
@@ -207,21 +248,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [sotdHistory, setSotdHistory] = useState<SOTDEntry[]>([]);
   const [streakData, setStreakData] = useState<StreakData>({ currentStreak: 0, longestStreak: 0, lastSOTDDate: null, totalSOTDs: 0, badges: [] });
   const [performanceLogs, setPerformanceLogs] = useState<PerformanceLog[]>([]);
+  const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
+  const [learning, setLearning] = useState<LearningState>({ gecilenler: [], reddedilen: [] });
   
   const todaySotd = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateKey();
     return sotdHistory.find(e => e.date === today) || null;
   }, [sotdHistory]);
 
   // ============ PARFÜM VERİLERİ ============
-  const parfumler = parfumData.parfumler as unknown as Parfum[];
+  const parfumler = useMemo(
+    () => (parfumData.parfumler as unknown as Parfum[]).map(zenginlestirParfum),
+    []
+  );
   const kokuTipleri = parfumData.kokuTipleri;
   const mevsimler = parfumData.mevsimler;
   const notalar = parfumData.notalar;
 
-  // ============ İLK YÜKLEME ============
-  useEffect(() => {
-    async function loadStoredData() {
+  // ============ İLK YÜKLEME (yedek geri yüklenince de çağrılır) ============
+  const reloadFromStorage = useCallback(async (): Promise<void> => {
       try {
         setIsLoading(true);
         
@@ -243,6 +288,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setSotdHistory(storedData.sotdHistory || []);
         if (storedData.streakData) setStreakData(storedData.streakData);
         setPerformanceLogs(storedData.performanceLogs || []);
+        setWardrobe(await loadWardrobe());
+        setLearning(await loadLearning());
         
         setIsDataLoaded(true);
       } catch (error) {
@@ -251,18 +298,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       } finally {
         setIsLoading(false);
       }
-    }
-    
-    loadStoredData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => { reloadFromStorage(); }, [reloadFromStorage]);
+
   // Kullanıcının efektif pH değeri
-  const kullaniciPH = useMemo(() => {
-    if (preferences.phInfo.biliyorMu === 'biliyorum' && preferences.phInfo.deger) {
-      return preferences.phInfo.deger;
-    }
-    return preferences.phInfo.tahminiDeger;
-  }, [preferences.phInfo]);
+  const kullaniciPH = useMemo(() => getEffectivePH(preferences), [preferences]);
 
   // ============ PARFÜM HELPER ============
   const getParfumById = useCallback((id: string): Parfum | undefined => {
@@ -477,6 +519,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const resetAllData = useCallback(async (): Promise<void> => {
     await clearAllData();
+    clearWidget();
     
     setPreferences(defaultPreferences);
     setCurrentStepState(0);
@@ -487,6 +530,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCollections([]);
     setRecentlyViewed([]);
     setSearchHistory([]);
+    // Önceden eksikti: silme sonrası bellekte eski günlük/seri verisi kalıyordu
+    setSotdHistory([]);
+    setStreakData({ currentStreak: 0, longestStreak: 0, lastSOTDDate: null, totalSOTDs: 0, badges: [] });
+    setPerformanceLogs([]);
+    setLearning({ gecilenler: [], reddedilen: [] });
+    setWardrobe([]);
   }, []);
 
   const refreshData = useCallback(async (): Promise<void> => {
@@ -499,6 +548,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSotdHistory(storedData.sotdHistory || []);
     if (storedData.streakData) setStreakData(storedData.streakData);
     setPerformanceLogs(storedData.performanceLogs || []);
+    setWardrobe(await loadWardrobe());
   }, []);
 
   // ============ pH SKOR HESAPLAMA ============
@@ -507,291 +557,146 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [preferences.ciltTipi]);
 
   // ============ ÖNERİ ALGORİTMASI ============
-  const getRecommendations = useCallback((): RecommendationResult[] => {
-    const results: RecommendationResult[] = [];
-    const effectivePH = kullaniciPH || 5.5;
+  // Puanlama mantığı engine/scoring.ts içinde saf fonksiyon olarak yaşar.
+  // pH her çağrıda güncel tercihlerden yeniden hesaplanır → state gecikmesi yok.
+  // ============ ÖĞRENEN MOTOR ============
+  // Model her veri değişiminde cihazda yeniden kurulur (saf fonksiyon, ~100 parfüm için milisaniyeler)
+  const ogrenme = useMemo(() => kisiselModel({
+    bugun: toLocalDateKey(),
+    katalog: parfumler,
+    prefs: preferences,
+    ph: getEffectivePH(preferences),
+    dolap: wardrobe.map(w => w.parfumId),
+    favoriler: favorites,
+    gunluk: sotdHistory.map(s => ({ parfumId: s.parfumId, date: s.date, etkinlik: s.etkinlik })),
+    degerlendirmeler: performanceLogs,
+    gecilenler: learning.gecilenler,
+    reddedilen: learning.reddedilen,
+  }), [parfumler, preferences, wardrobe, favorites, sotdHistory, performanceLogs, learning]);
 
-    parfumler.forEach(parfum => {
-      let score = 0;
-      let maxScore = 0;
-      const matchReasons: string[] = [];
-      const uyumKategorileri: RecommendationResult['uyumKategorileri'] = [];
+  const zevk = useMemo(() => zevkBaglami(parfumler, preferences, ogrenme), [parfumler, preferences, ogrenme]);
 
-      const phSkor = hesaplaParfumPHSkoru(parfum, effectivePH);
+  const [aramaBaglami, setAramaBaglamiState] = useState<AramaBaglami>({});
+  const setAramaBaglami = useCallback((degisim: Partial<AramaBaglami>) => setAramaBaglamiState(prev => ({ ...prev, ...degisim })), []);
+  const sifirlaAramaBaglami = useCallback(() => setAramaBaglamiState({}), []);
+  // Mevsim, bağlamda seçilmediyse bugünün tarihinden gelir (onboarding'de sorulmaz)
+  const etkinPrefs = useMemo(() => etkinTercihler(preferences, aramaBaglami), [preferences, aramaBaglami]);
 
-      // --- 1. pH UYUMU VE UYGULAMA YERİ (EN KRİTİK) ---
-      maxScore += 20;
-      let phUyumPuan = (phSkor.phUyumSkoru / 100) * 20;
-      
-      // Eğer kullanıcı parfümü "sadece kıyafete" sıkıyorsa pH'ın etkisi sıfırlanır/azaltılır, 
-      // çünkü koku tenle reaksiyona girmeyecektir.
-      if (preferences.uygulamaYeri === 'sadece_kiyafet') {
-        phUyumPuan = 20; // Kıyafette tam uyum sayılır
-        matchReasons.push('Kıyafete sıktığınız için ten kimyası reaksiyonu minimumda kalır.');
-        uyumKategorileri.push({ kategori: 'pH Uyumu (Kıyafet)', uyum: true, detay: 'Kıyafette tam uyum' });
-      } else {
-        if (phSkor.phUyumSkoru >= 70) {
-          matchReasons.push(`Ten pH'ınızla %${Math.round(phSkor.phUyumSkoru)} kimyasal uyum.`);
-        }
-        uyumKategorileri.push({
-          kategori: 'Ten Kimyası (pH)',
-          uyum: phSkor.phUyumSkoru >= 50,
-          detay: `%${Math.round(phSkor.phUyumSkoru)} uyum`
-        });
-      }
-      score += phUyumPuan;
+  // Öneri listesi canlı kalır: tercih değişikliği veya öğrenen motora giren her yeni sinyal
+  // (Sevdim/Sevmedim, akşam puanı, dolap, favori, "Başka") listeyi yeniden sıralar.
+  // Aksi halde "Önerilerim" yalnızca test bittiği anki hali gösterirdi.
+  useEffect(() => {
+    if (!isOnboardingComplete || parfumler.length === 0) return;
+    setRecommendations(getRecommendationsPure(parfumler, etkinPrefs, undefined, undefined, zevk));
+  }, [isOnboardingComplete, parfumler, etkinPrefs, zevk]);
 
-      // --- 1.5 TOPLAM PERFORMANS ---
-      maxScore += 15;
-      let performansPuan = (phSkor.toplamPerformans / 100) * 15;
-      score += performansPuan;
-      
-      if (phSkor.toplamPerformans >= 75) {
-        matchReasons.push(`Ten kimyanızda çok yüksek performans (${phSkor.aciklama.toLowerCase()}).`);
-        uyumKategorileri.push({ kategori: 'Koku Performansı', uyum: true, detay: 'Yüksek kalıcılık ve yayılım' });
-      } else if (phSkor.toplamPerformans < 50) {
-        uyumKategorileri.push({ kategori: 'Koku Performansı', uyum: false, detay: 'Ortalama altı performans beklentisi' });
-      } else {
-        uyumKategorileri.push({ kategori: 'Koku Performansı', uyum: true, detay: 'Dengeli performans' });
-      }
-
-      // --- 1.6 KALICILIK MODİFİKASYONU ---
-      if (phSkor.kalicilikModifikasyonu > 0) {
-        matchReasons.push(`Yağlı cilt yapınız bu "${parfum.kalicilik}" kalıcılıktaki parfümü normalden daha uzun tutacaktır.`);
-      } else if (phSkor.kalicilikModifikasyonu < 0) {
-        matchReasons.push(`Kuru cilt yapınız bu "${parfum.kalicilik}" kalıcılıktaki parfümü normalden daha hızlı uçuracaktır.`);
-      }
-
-      // --- 2. KOKU AİLESİ UYUMU ---
-      maxScore += 15;
-      if (preferences.kokuTipleri.length > 0) {
-        const tipUyumu = preferences.kokuTipleri.includes(parfum.tip as KokuTipi);
-        const ikincilUyum = parfum.ikincilTip && preferences.kokuTipleri.includes(parfum.ikincilTip as KokuTipi);
-        
-        if (tipUyumu) {
-          score += 13.5;
-          matchReasons.push(`Sevdiğiniz "${parfum.tip}" koku ailesine ait.`);
-        }
-        if (ikincilUyum) {
-          score += 1.5;
-        }
-        uyumKategorileri.push({
-          kategori: 'Koku Ailesi',
-          uyum: tipUyumu || !!ikincilUyum,
-          detay: tipUyumu ? parfum.tip : 'Uyumsuz'
-        });
-      }
-
-      // --- 3. AURA & KAREKTER (İzlenim Hedefi yerine) ---
-      maxScore += 15;
-      if (preferences.aura) {
-        // Auraları parfümün mevcut özellikleriyle eşleştirelim (izlenimHedefi veya kisilikTipi üzerinden tahmini bir eşleşme yapıyoruz)
-        const auraMap: Record<string, string[]> = {
-          temiz: ['taze', 'dogal', 'profesyonel'],
-          gizemli: ['gizemli', 'mistik', 'sofistike'],
-          cekici: ['cekici', 'sicak', 'romantik'],
-          dinamik: ['enerjik', 'dinamik', 'sportif'],
-          otoriter: ['profesyonel', 'cesur', 'sofistike']
-        };
-        const istenenOzellikler = auraMap[preferences.aura] || [];
-        const parfumOzellikleri = [...(parfum.izlenim || []), ...(parfum.kisilikTipi || [])];
-        
-        const auraUyumu = istenenOzellikler.some(o => parfumOzellikleri.includes(o as any));
-        if (auraUyumu) {
-          score += 15;
-          matchReasons.push(`Arzuladığınız "${preferences.aura}" auraya tam uyum.`);
-        }
-      }
-
-      // --- 4. CİNSİYET ALGISI ---
-      maxScore += 1;
-      if (preferences.cinsiyetAlgisi) {
-        let cinsiyetUyumu = false;
-        if (preferences.cinsiyetAlgisi === 'feminen' && (parfum.cinsiyet === 'kadın' || parfum.cinsiyet === 'unisex')) cinsiyetUyumu = true;
-        if (preferences.cinsiyetAlgisi === 'maskulen' && (parfum.cinsiyet === 'erkek' || parfum.cinsiyet === 'unisex')) cinsiyetUyumu = true;
-        if (preferences.cinsiyetAlgisi === 'unisex' && parfum.cinsiyet === 'unisex') cinsiyetUyumu = true;
-
-        if (cinsiyetUyumu) {
-          score += 1;
-        }
-      }
-
-      // --- 5. VÜCUT ISISI (YAYILIM) ---
-      maxScore += 10;
-      if (preferences.vucutIsisi) {
-        const isiYogunlukTablosu: Record<string, Record<string, number>> = {
-          sicak: { hafif: 10, orta: 6, yogun: 2 },
-          serin: { hafif: 4, orta: 7, yogun: 10 },
-          dengeli: { hafif: 7, orta: 8, yogun: 7 }
-        };
-        const isiPuan = isiYogunlukTablosu[preferences.vucutIsisi]?.[parfum.yogunluk] || 8;
-        score += isiPuan;
-        
-        if (preferences.vucutIsisi === 'serin' && parfum.yogunluk === 'yogun') {
-          matchReasons.push('Serin ten yapınız yoğun parfümü nazikçe açacaktır.');
-        } else if (preferences.vucutIsisi === 'sicak' && parfum.yogunluk === 'hafif') {
-          matchReasons.push('Sıcak ten yapınız hafif parfümü daha canlı ve fark edilir kılacaktır.');
-        }
-      }
-
-      // --- 6. MEVSİM UYUMU ---
-      maxScore += 10;
-      if (!preferences.mevsim || preferences.mevsim === 'Tüm Mevsimler') {
-        score += 10;
-      } else {
-        if (parfum.mevsim?.includes(preferences.mevsim)) {
-          score += 10;
-          matchReasons.push(`${preferences.mevsim} mevsimi için ideal bir seçim.`);
-        } else {
-          score += 2;
-          uyumKategorileri.push({ kategori: 'Mevsim', uyum: false, detay: `${preferences.mevsim} mevsimi için en uygun seçenek olmayabilir` });
-        }
-      }
-
-      // --- 7. ORTAM UYUMU ---
-      maxScore += 3;
-      if (preferences.ortam) {
-        if (parfum.ortam === preferences.ortam || parfum.ortam === 'her_ikisi') {
-          score += 3;
-        } else if (preferences.ortam === 'kapali' && parfum.yogunluk === 'yogun') {
-          score -= 5; // Kapalı ortamda yoğun koku eksi puan
-        }
-      }
-
-      // --- 8. KİMAFİT STİLİ UYUMU ---
-      maxScore += 1;
-      if (preferences.kiyafetStili && parfum.kiyafetStili?.includes(preferences.kiyafetStili)) {
-        score += 1;
-      }
-
-      // --- 9. KONSANTRASYON UYUMU ---
-      maxScore += 5;
-      if (!preferences.konsantrasyonTercihi || preferences.konsantrasyonTercihi === 'fark_etmez') {
-        score += 5;
-      } else if (parfum.konsantrasyon) {
-        if (parfum.konsantrasyon === preferences.konsantrasyonTercihi) {
-          score += 5;
-          matchReasons.push("Aradığınız yoğunluk ve kalıcılık seviyesine tam uyum.");
-        } else {
-          score += 1;
-        }
-      } else {
-        score += 1; // Tanımsızsa düşük puan ver
-      }
-
-      // --- 10. KULLANIM AMACI UYUMU ---
-      maxScore += 5;
-      if (!preferences.kullanimAmaci || preferences.kullanimAmaci.length === 0) {
-        score += 5;
-      } else {
-        const hasIntersection = preferences.kullanimAmaci.some(amac => parfum.kullanimAmaci?.includes(amac));
-        if (hasIntersection) {
-          score += 5;
-          matchReasons.push("Belirttiğiniz kullanım amaçlarına uygun bir seçim.");
-        } else {
-          score += 1;
-        }
-      }
-
-      // --- 11. KAÇINILACAK NOTALAR (KIRMIZI ÇİZGİ) ---
-      if (preferences.kacinilacakNotalar.length > 0) {
-        const tumNotalarArr = [...(parfum.notalar.ust||[]), ...(parfum.notalar.orta||[]), ...(parfum.notalar.alt||[])].map(n => n.toLowerCase());
-        
-        const hasNote = (keywords: string[]) => {
-          return tumNotalarArr.some(nota => 
-            keywords.some(k => nota === k || nota.includes(k + ' ') || nota.includes(' ' + k))
-          );
-        };
-
-        let hasBadNote = false;
-        if (preferences.kacinilacakNotalar.includes('Aşırı şekerli') && hasNote(['vanilya', 'karamel', 'pralin'])) hasBadNote = true;
-        if (preferences.kacinilacakNotalar.includes('Baskın çiçek') && hasNote(['gül', 'yasemin', 'sümbül'])) hasBadNote = true;
-        if (preferences.kacinilacakNotalar.includes('Deri veya tütün') && hasNote(['deri', 'tütün', 'is', 'isli'])) hasBadNote = true;
-        if (preferences.kacinilacakNotalar.includes('Ağır hayvansi misk') && hasNote(['misk', 'amber', 'paçuli'])) hasBadNote = true;
-        if (preferences.kacinilacakNotalar.includes('Yoğun baharat') && hasNote(['biber', 'tarçın', 'karanfil', 'kakule'])) hasBadNote = true;
-        if (preferences.kacinilacakNotalar.includes('Odunsu dumanlı') && hasNote(['vetiver', 'sedir', 'sandal ağacı'])) hasBadNote = true;
-        
-        if (hasBadNote) {
-          score -= 40; // Çok güçlü eksi puan
-          uyumKategorileri.push({ kategori: 'Rahatsız Edici Notalar', uyum: false, detay: 'İçeriğinde hassas olduğunuz notalar var' });
-        }
-      }
-
-      // --- 12. KOKU HASSASİYETİ ---
-      if (preferences.kokuAlmaHassasiyeti === 'cok_yuksek' && parfum.yogunluk === 'yogun') {
-        score -= 15;
-      }
-
-      const matchPercentage = Math.max(0, Math.min(100, Math.round((score / maxScore) * 100)));
-
-      if (score > 10) {
-        if (matchReasons.length === 0) {
-          matchReasons.push('Genel profilinizle uyumlu dengeli bir seçim.');
-        }
-        results.push({ 
-          parfum, 
-          score, 
-          maxScore,
-          matchPercentage,
-          matchReasons,
-          uyumKategorileri,
-          phSkor
-        });
-      }
-    });
-
-    const sortedResults = results
-      .sort((a, b) => b.matchPercentage - a.matchPercentage)
-      .slice(0, 5);
-    
-    setRecommendations(sortedResults);
-    return sortedResults;
-  }, [parfumler, preferences, kullaniciPH, hesaplaParfumPHSkoru]);
-
-  // ============ SOTD & PERFORMANS FONKSİYONLARI ============
-  const selectTodaysSotd = useCallback(async (parfumId: string, weather?: any) => {
-    const entry = await addSotdEntry(parfumId, weather);
-    setSotdHistory(prev => {
-      const today = new Date().toISOString().split('T')[0];
-      const filtered = prev.filter(e => e.date !== today);
-      return [entry, ...filtered];
-    });
-
-    // Update streak logic
-    setStreakData(prev => {
-      const today = new Date().toISOString().split('T')[0];
-      let newStreak = prev.currentStreak;
-      
-      if (prev.lastSOTDDate !== today) {
-        // Calculate days difference
-        if (prev.lastSOTDDate) {
-          const lastDate = new Date(prev.lastSOTDDate);
-          const currentDate = new Date(today);
-          const diffTime = Math.abs(currentDate.getTime() - lastDate.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          
-          if (diffDays === 1) {
-            newStreak += 1;
-          } else {
-            newStreak = 1;
-          }
-        } else {
-          newStreak = 1;
-        }
-      }
-
-      const newData: StreakData = {
-        ...prev,
-        currentStreak: newStreak,
-        longestStreak: Math.max(prev.longestStreak, newStreak),
-        lastSOTDDate: today,
-        totalSOTDs: prev.lastSOTDDate !== today ? prev.totalSOTDs + 1 : prev.totalSOTDs
-      };
-      
-      saveStreakData(newData);
-      return newData;
+  const recordSkip = useCallback((parfumId: string, etkinlik?: Etkinlik) => {
+    setLearning(prev => {
+      const next = { ...prev, gecilenler: [...prev.gecilenler, { parfumId, tarih: toLocalDateKey(), ...(etkinlik ? { etkinlik } : {}) }] };
+      saveLearning(next);
+      return next;
     });
   }, []);
+
+  const rejectInsight = useCallback(async (id: string) => {
+    setLearning(prev => {
+      const next = { ...prev, reddedilen: [...new Set([...prev.reddedilen, id])] };
+      saveLearning(next);
+      return next;
+    });
+  }, []);
+
+  const resetRejectedInsights = useCallback(async () => {
+    setLearning(prev => {
+      const next = { ...prev, reddedilen: [] };
+      saveLearning(next);
+      return next;
+    });
+  }, []);
+
+  const getRecommendations = useCallback((prefsOverride?: UserPreferences): RecommendationResult[] => {
+    const p = etkinTercihler(prefsOverride ?? preferences, aramaBaglami);
+    const sortedResults = getRecommendationsPure(parfumler, p, undefined, undefined, prefsOverride ? zevkBaglami(parfumler, p, ogrenme) : zevk);
+    setRecommendations(sortedResults);
+    return sortedResults;
+  }, [parfumler, preferences, zevk, ogrenme, aramaBaglami]);
+
+  // ============ SOTD & PERFORMANS FONKSİYONLARI ============
+  const selectTodaysSotd = useCallback(async (parfumId: string, weather?: any, etkinlik?: Etkinlik): Promise<{ korumaKullanildi: boolean }> => {
+    const today = toLocalDateKey();
+    const ayniGun = sotdHistory.find(e => e.date === today);
+    // Etkinlik verilmediyse (detay, çark, günlük) bugünün "Bugün ne var?" seçimi kullanılır
+    const baglam = etkinlik ?? (await loadTodayPlan())?.etkinlik;
+    const entry = await addSotdEntry(parfumId, weather, baglam);
+    setSotdHistory(prev => [entry, ...prev.filter(e => e.date !== today)]);
+
+    // Seri (koruma hakkı dahil) — engine/streak.ts
+    const { data, korumaKullanildi } = seriGuncelle(streakData, today);
+    setStreakData(data);
+    saveStreakData(data);
+
+    // Dolaptaki şişeden tahmini kullanım düş: 3 sıkış ≈ 0.3 ml (aynı gün parfüm değiştirilirse tekrar düşülmez)
+    if (!ayniGun || ayniGun.parfumId !== parfumId) {
+      setWardrobe(prev => {
+        const next = prev.map(w => {
+          if (w.parfumId !== parfumId || !w.hacimMl) return w;
+          const dus = (0.3 / w.hacimMl) * 100;
+          return { ...w, kalanYuzde: Math.max(0, Math.round((w.kalanYuzde - dus) * 10) / 10) };
+        });
+        saveWardrobe(next);
+        return next;
+      });
+    }
+    return { korumaKullanildi };
+  }, [sotdHistory, streakData]);
+
+  // ============ DOLABIM ============
+  const isInWardrobe = useCallback((parfumId: string) => wardrobe.some(w => w.parfumId === parfumId), [wardrobe]);
+
+  const addToWardrobe = useCallback(async (parfumId: string, detay: Partial<Pick<WardrobeItem, 'hacimMl' | 'kalanYuzde' | 'alinmaTarihi' | 'not'>> = {}) => {
+    setWardrobe(prev => {
+      if (prev.some(w => w.parfumId === parfumId)) return prev;
+      const item: WardrobeItem = {
+        id: `w_${Date.now().toString(36)}`,
+        parfumId,
+        hacimMl: detay.hacimMl ?? null,
+        kalanYuzde: detay.kalanYuzde ?? 100,
+        alinmaTarihi: detay.alinmaTarihi ?? null,
+        not: detay.not,
+        addedAt: new Date().toISOString(),
+      };
+      const next = [item, ...prev];
+      saveWardrobe(next);
+      return next;
+    });
+  }, []);
+
+  const updateWardrobeItem = useCallback(async (id: string, patch: Partial<Omit<WardrobeItem, 'id' | 'parfumId' | 'addedAt'>>) => {
+    setWardrobe(prev => {
+      const next = prev.map(w => {
+        if (w.id !== id) return w;
+        const merged = { ...w, ...patch };
+        // Şişe yeniden doldurulduysa / kalan artırıldıysa "azalıyor" bildirimi yeniden gönderilebilsin
+        if (patch.kalanYuzde !== undefined && patch.kalanYuzde > w.kalanYuzde) merged.azalanBildirildi = false;
+        return merged;
+      });
+      saveWardrobe(next);
+      return next;
+    });
+  }, []);
+
+  const removeFromWardrobe = useCallback(async (id: string) => {
+    setWardrobe(prev => {
+      const next = prev.filter(w => w.id !== id);
+      saveWardrobe(next);
+      return next;
+    });
+  }, []);
+
+  const wardrobeParfums = useMemo(
+    () => wardrobe.map(w => parfumler.find(p => p.id === w.parfumId)).filter((p): p is Parfum => !!p),
+    [wardrobe, parfumler],
+  );
 
   const logPerformance = useCallback(async (parfumId: string, data: Omit<PerformanceLog, 'id' | 'createdAt' | 'parfumId'>) => {
     const log = await addPerformanceLog({ ...data, parfumId });
@@ -925,6 +830,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         
         // Veri Yönetimi
         resetAllData,
+        reloadFromStorage,
         refreshData,
         
         // SOTD & Performans
@@ -933,6 +839,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         performanceLogs,
         todaySotd,
         selectTodaysSotd,
+        ogrenme,
+        zevk,
+        aramaBaglami,
+        setAramaBaglami,
+        sifirlaAramaBaglami,
+        etkinPrefs,
+        recordSkip,
+        rejectInsight,
+        resetRejectedInsights,
+        reddedilenTespitler: learning.reddedilen,
+        wardrobe,
+        isInWardrobe,
+        addToWardrobe,
+        updateWardrobeItem,
+        removeFromWardrobe,
+        wardrobeParfums,
         logPerformance,
         getMonthlyStats,
       }}

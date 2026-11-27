@@ -1,480 +1,310 @@
 /**
- * AURAM - Parfümler Sayfası
- * Tüm parfümlerin listesi, arama ve filtreleme
+ * TENİNDE — Keşfet (katalog)
+ * Sade düzen: arama + filtre düğmesi, tek satır koku ailesi, iki sütunlu parfüm ızgarası.
+ * Ayrıntılı filtreler (marka, aile, profil, yoğunluk, fiyat, sıralama) alttan açılan panelde.
  */
-
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
-import {
-  Dimensions,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Button, Card } from '@/components/ui';
-import { PaywallScreen } from '@/components/paywall';
-import { BorderRadius, Colors, FontSizes, FontWeights, ScentTypeColors, Spacing } from '@/constants/theme';
-import { FREE_FAVORITE_LIMIT } from '@/constants/premiumLimits';
+import { Button, Chip, IconButton, Segmented, T, useTheme } from '@/components/kit';
+import { Bottle, brandCaps } from '@/components/kit/perfume';
+import { matchesQuery, SearchField } from '@/components/kit/PerfumePicker';
+import { BorderRadius, ScentTypeColors, Spacing } from '@/constants/theme';
+import { SearchContextBar } from '@/components/SearchContextBar';
 import { useApp } from '@/context/AppContext';
-import { usePremiumGate } from '@/hooks/use-premium-gate';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getEffectivePH, skorlaParfum } from '@/engine';
 import { Parfum } from '@/types';
+import { hapticLight } from '@/utils/haptics';
+import { trLower } from '@/utils/text';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FlatList, Modal, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+type Sort = 'match' | 'az' | 'fiyat';
+type Price = NonNullable<Parfum['fiyatAraligi']>;
 
-// ScentTypeColors imported from theme
+const FAMILIES = Object.keys(ScentTypeColors);
+const GENDERS: { v: Parfum['cinsiyet']; l: string }[] = [{ v: 'kadın', l: 'Feminen' }, { v: 'erkek', l: 'Maskülen' }, { v: 'unisex', l: 'Unisex' }];
+const STRENGTH: { v: Parfum['yogunluk']; l: string }[] = [{ v: 'hafif', l: 'Hafif' }, { v: 'orta', l: 'Orta' }, { v: 'yogun', l: 'Yoğun' }];
+const PRICES: { v: Price; l: string }[] = [{ v: 'ekonomik', l: 'Uygun' }, { v: 'orta', l: 'Orta' }, { v: 'premium', l: 'Premium' }, { v: 'luks', l: 'Lüks' }];
+const PRICE_RANK: Record<string, number> = { ekonomik: 0, orta: 1, premium: 2, luks: 3 };
+const SORT_LABEL: Record<Sort, string> = { match: 'Size göre', az: 'A–Z', fiyat: 'Fiyat' };
 
-type SortType = 'name' | 'type' | 'brand';
+const toggle = <V,>(list: V[], v: V) => (list.includes(v) ? list.filter(x => x !== v) : [...list, v]);
 
-export default function ParfumsScreen() {
+export default function ExploreScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  
-  const {
-    parfumler,
-    favorites,
-    isFavorite,
-    toggleFavoriteParfum,
-    addToRecentlyViewedList,
-  } = useApp();
-  const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
+  const c = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const params = useLocalSearchParams<{ aile?: string }>();
+  const { parfumler, preferences, addSearchToHistory, addToRecentlyViewedList, zevk, etkinPrefs } = useApp();
 
-  const handleToggleFavorite = (parfumId: string) => {
-    const currentlyFavorite = isFavorite(parfumId);
-    if (!currentlyFavorite && !isPremium && favorites.length >= FREE_FAVORITE_LIMIT) {
-      setPaywallVisible(true);
-      return;
-    }
-    toggleFavoriteParfum(parfumId);
-  };
+  const [q, setQ] = useState('');
+  const [sort, setSort] = useState<Sort>('match');
+  const [families, setFamilies] = useState<string[]>(params.aile ? [params.aile] : []);
+  const [brands, setBrands] = useState<string[]>([]);
+  const [gender, setGender] = useState<Parfum['cinsiyet'] | null>(null);
+  const [strength, setStrength] = useState<Parfum['yogunluk'] | null>(null);
+  const [prices, setPrices] = useState<Price[]>([]);
+  const [sheet, setSheet] = useState(false);
+  const [brandQ, setBrandQ] = useState('');
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortType>('name');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  
-  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
-  const [selectedBudget, setSelectedBudget] = useState<string | null>(null);
+  useEffect(() => { if (params.aile) setFamilies([params.aile]); }, [params.aile]);
 
-  // Koku tipleri
-  const scentTypes = useMemo(() => {
-    const types = new Set(parfumler.map(p => p.tip));
-    return Array.from(types);
+  const scores = useMemo(() => {
+    const ph = getEffectivePH(preferences);
+    const map: Record<string, number> = {};
+    parfumler.forEach(p => { map[p.id] = skorlaParfum(p, etkinPrefs, ph, zevk).matchPercentage; });
+    return map;
+  }, [parfumler, preferences, etkinPrefs, zevk]);
+
+  /** Marka listesi: ad + parfüm sayısı, Türkçe alfabeyle */
+  const brandList = useMemo(() => {
+    const m = new Map<string, number>();
+    parfumler.forEach(p => p.marka && m.set(p.marka, (m.get(p.marka) ?? 0) + 1));
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], 'tr'));
   }, [parfumler]);
 
-  // Filtrelenmiş ve sıralanmış parfümler
-  const filteredParfums = useMemo(() => {
-    let result = [...parfumler];
-    
-    // Arama
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      result = result.filter(p =>
-        p.isim.toLowerCase().includes(query) ||
-        (p.marka && p.marka.toLowerCase().includes(query)) ||
-        p.tip.toLowerCase().includes(query) ||
-        p.notalar.ust.some(n => n.toLowerCase().includes(query)) ||
-        p.notalar.orta.some(n => n.toLowerCase().includes(query)) ||
-        p.notalar.alt.some(n => n.toLowerCase().includes(query))
-      );
-    }
-    
-    // Tip filtresi
-    if (selectedType) {
-      result = result.filter(p => p.tip === selectedType);
-    }
-    
-    // Bütçe filtresi
-    if (selectedBudget) {
-      result = result.filter(p => p.fiyatAraligi === selectedBudget);
-    }
-    
-    // Sıralama
-    switch (sortBy) {
-      case 'name':
-        result.sort((a, b) => a.isim.localeCompare(b.isim));
-        break;
-      case 'type':
-        result.sort((a, b) => a.tip.localeCompare(b.tip));
-        break;
-      case 'brand':
-        result.sort((a, b) => (a.marka || '').localeCompare(b.marka || ''));
-        break;
-    }
-    
-    return result;
-  }, [parfumler, searchQuery, selectedType, sortBy, selectedBudget]);
+  const list = useMemo(() => {
+    const filtered = parfumler.filter(p =>
+      matchesQuery(p, q) &&
+      (families.length === 0 || families.includes(p.tip) || (!!p.ikincilTip && families.includes(p.ikincilTip))) &&
+      (brands.length === 0 || brands.includes(p.marka ?? '')) &&
+      (!gender || p.cinsiyet === gender) &&
+      (!strength || p.yogunluk === strength) &&
+      (prices.length === 0 || (!!p.fiyatAraligi && prices.includes(p.fiyatAraligi))),
+    );
+    if (sort === 'az') return filtered.sort((a, b) => a.isim.localeCompare(b.isim, 'tr'));
+    if (sort === 'fiyat') return filtered.sort((a, b) => (PRICE_RANK[a.fiyatAraligi ?? 'orta'] - PRICE_RANK[b.fiyatAraligi ?? 'orta']) || scores[b.id] - scores[a.id]);
+    return filtered.sort((a, b) => scores[b.id] - scores[a.id]);
+  }, [parfumler, q, families, brands, gender, strength, prices, sort, scores]);
 
-  const handleOpenParfum = (parfum: Parfum) => {
-    addToRecentlyViewedList(parfum.id);
-    router.push(`/parfum/${parfum.id}`);
+  const panelCount = brands.length + (gender ? 1 : 0) + (strength ? 1 : 0) + prices.length + (families.length > 1 ? families.length : 0);
+  const anyFilter = families.length + brands.length + prices.length + (gender ? 1 : 0) + (strength ? 1 : 0) > 0;
+  const clearAll = () => { setFamilies([]); setBrands([]); setGender(null); setStrength(null); setPrices([]); };
+
+  const open = (p: Parfum) => {
+    if (q.trim()) addSearchToHistory(q.trim(), list.length);
+    addToRecentlyViewedList(p.id);
+    router.push(`/parfum/${p.id}`);
   };
 
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
-          <View style={styles.headerTop}>
-            <View>
-              <ThemedText type="title" style={styles.headerTitle}>Parfümler</ThemedText>
-              <ThemedText type="caption" style={{ color: colors.textMuted }}>
-                {filteredParfums.length} parfüm
-              </ThemedText>
-            </View>
-            
-            <View style={styles.headerActions}>
-              <Pressable 
-                onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                style={[styles.actionBtn, { backgroundColor: colors.backgroundTertiary }]}
-              >
-                <Ionicons name={viewMode === 'grid' ? 'list' : 'grid'} size={18} color={colors.text} />
-              </Pressable>
-              <Pressable 
-                onPress={() => setIsFilterModalVisible(true)}
-                style={[styles.actionBtn, { backgroundColor: colors.backgroundTertiary, width: 'auto', paddingHorizontal: Spacing.sm, flexDirection: 'row', gap: 6 }]}
-              >
-                <Ionicons name="options-outline" size={18} color={colors.text} />
-                <ThemedText style={{ fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold }}>
-                  {sortBy === 'name' ? 'İsim' : sortBy === 'type' ? 'Tip' : 'Marka'}
-                </ThemedText>
-              </Pressable>
-            </View>
-          </View>
-          
-          {/* Search */}
-          <View style={[styles.searchBox, { backgroundColor: colors.card }]}>
-            <Ionicons name="search-outline" size={18} color={colors.textMuted} />
-            <TextInput
-              style={[styles.searchInput, { color: colors.text }]}
-              placeholder="Parfüm, marka veya nota ara..."
-              placeholderTextColor={colors.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-              </Pressable>
-            )}
-          </View>
-          
-        </Animated.View>
+  const gap = Spacing.md;
+  const cardW = (width - Spacing.lg * 2 - gap) / 2;
 
-        {/* Filters */}
-        <View style={styles.filtersWrapper}>
-          {selectedBudget && (
-            <View style={{ paddingHorizontal: Spacing.xl, paddingBottom: Spacing.sm }}>
-              <Pressable 
-                onPress={() => setSelectedBudget(null)} 
-                style={[styles.budgetActiveChip, { backgroundColor: colors.tint + '15', borderColor: colors.tint }]}
-              >
-                <ThemedText style={{ color: colors.tint, fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold }}>
-                  Fiyat: {selectedBudget.charAt(0).toUpperCase() + selectedBudget.slice(1)}
-                </ThemedText>
-                <Ionicons name="close" size={16} color={colors.tint} style={{ marginLeft: 4 }} />
-              </Pressable>
-            </View>
-          )}
+  // Panelden seçilen filtreler: ızgaranın üstünde kaldırılabilir kısa etiketler
+  const activePills: { key: string; label: string; onRemove: () => void }[] = [
+    ...brands.map(b => ({ key: `b-${b}`, label: b, onRemove: () => setBrands(toggle(brands, b)) })),
+    ...(gender ? [{ key: 'g', label: GENDERS.find(g => g.v === gender)!.l, onRemove: () => setGender(null) }] : []),
+    ...(strength ? [{ key: 's', label: STRENGTH.find(s => s.v === strength)!.l, onRemove: () => setStrength(null) }] : []),
+    ...prices.map(pr => ({ key: `p-${pr}`, label: PRICES.find(x => x.v === pr)!.l, onRemove: () => setPrices(toggle(prices, pr)) })),
+  ];
 
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtersContent}
-          >
-            <Pressable
-              onPress={() => setSelectedType(null)}
-              style={[styles.filterChip, !selectedType && { backgroundColor: colors.tint + '15' }]}
-            >
-              <ThemedText style={[styles.filterText, !selectedType ? { color: colors.tint } : {}]}>Tümü</ThemedText>
-            </Pressable>
-            
-            {scentTypes.map((type) => (
-              <Pressable
-                key={type}
-                onPress={() => setSelectedType(type === selectedType ? null : type)}
-                style={[
-                  styles.filterChip, 
-                  selectedType === type && { backgroundColor: (ScentTypeColors[type] || colors.tint) + '15' }
-                ]}
-              >
-                <View style={[styles.filterDot, { backgroundColor: ScentTypeColors[type] || colors.tint }]} />
-                <ThemedText 
-                  style={[styles.filterText, selectedType === type ? { color: ScentTypeColors[type] || colors.tint } : {}]}
-                >
-                  {type}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
+  const header = (
+    <View>
+      <View style={styles.titleRow}>
+        <T variant="h1">Keşfet</T>
+        <T variant="small" color="subtle">{parfumler.length} parfüm</T>
+      </View>
 
-        {/* Content */}
-        <ScrollView 
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
+      <View style={styles.searchRow}>
+        <View style={{ flex: 1 }}><SearchField value={q} onChangeText={setQ} /></View>
+        <Pressable
+          onPress={() => { hapticLight(); setSheet(true); }}
+          accessibilityRole="button"
+          accessibilityLabel="Filtrele"
+          style={({ pressed }) => [styles.filterBtn, { backgroundColor: panelCount ? c.ink : c.surface, borderColor: c.border, opacity: pressed ? 0.8 : 1 }]}
         >
-          {filteredParfums.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="search-outline" size={48} color={colors.textMuted} />
-              <ThemedText type="subtitle" center style={{ marginTop: Spacing.md }}>Sonuç bulunamadı</ThemedText>
-              <ThemedText type="body" center style={{ color: colors.textMuted, marginTop: Spacing.xs }}>
-                Farklı anahtar kelimeler deneyin
-              </ThemedText>
+          <Ionicons name="options-outline" size={20} color={panelCount ? c.bg : c.ink} />
+          {panelCount ? (
+            <View style={[styles.badge, { backgroundColor: c.accent }]}>
+              <T variant="smallStrong" style={{ color: '#FFFFFF', fontSize: 11, lineHeight: 14 }}>{panelCount}</T>
             </View>
-          ) : viewMode === 'grid' ? (
-            <View style={styles.gridContainer}>
-              {filteredParfums.map((parfum, index) => (
-                <GridCard
-                  key={parfum.id}
-                  parfum={parfum}
-                  colors={colors}
-                  isFavorite={isFavorite(parfum.id)}
-                  onPress={() => handleOpenParfum(parfum)}
-                  onToggleFavorite={() => handleToggleFavorite(parfum.id)}
-                  delay={index * 20}
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.listContainer}>
-              {filteredParfums.map((parfum, index) => (
-                <ListCard
-                  key={parfum.id}
-                  parfum={parfum}
-                  colors={colors}
-                  isFavorite={isFavorite(parfum.id)}
-                  onPress={() => handleOpenParfum(parfum)}
-                  onToggleFavorite={() => handleToggleFavorite(parfum.id)}
-                  delay={index * 15}
-                />
-              ))}
-            </View>
-          )}
-          
-          <View style={{ height: 120 }} />
-        </ScrollView>
-      </SafeAreaView>
+          ) : null}
+        </Pressable>
+      </View>
 
-      <Modal visible={isFilterModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsFilterModalVisible(false)}>
-        <ThemedView style={styles.modalContainer}>
-          <SafeAreaView style={{ flex: 1 }}>
-            <View style={styles.modalHeader}>
-              <ThemedText type="heading">Sırala ve Filtrele</ThemedText>
-              <Pressable onPress={() => setIsFilterModalVisible(false)} hitSlop={10}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </Pressable>
-            </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chips, { paddingHorizontal: Spacing.lg }]} style={{ marginHorizontal: -Spacing.lg }}>
+        <Chip label="Tümü" selected={families.length === 0} onPress={() => setFamilies([])} />
+        {FAMILIES.map(f => (
+          <Chip key={f} label={f} color={ScentTypeColors[f]} selected={families.includes(f)} onPress={() => setFamilies(families.length === 1 && families[0] === f ? [] : [f])} />
+        ))}
+      </ScrollView>
 
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-              {/* Sıralama */}
-              <View style={styles.filterSection}>
-                <ThemedText type="subtitle" style={styles.filterSectionTitle}>Sıralama</ThemedText>
-                <View style={styles.radioGroup}>
-                  {[
-                    { id: 'name', label: 'İsim (A-Z)' },
-                    { id: 'type', label: 'Koku Tipi (A-Z)' },
-                    { id: 'brand', label: 'Marka (A-Z)' }
-                  ].map(option => (
-                    <Pressable 
-                      key={option.id} 
-                      style={styles.radioRow}
-                      onPress={() => {
-                        setSortBy(option.id as SortType);
-                        // setIsFilterModalVisible(false); // Let user select budget too before closing
-                      }}
-                    >
-                      <ThemedText>{option.label}</ThemedText>
-                      {sortBy === option.id && <Ionicons name="checkmark" size={20} color={colors.tint} />}
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
+      {/* "Size göre" sıralamada bağlam: mevsim/amaç/ortam/yoğunluk tek dokunuşla */}
+      {sort === 'match' ? <SearchContextBar style={{ marginTop: Spacing.md }} /> : null}
 
-              {/* Fiyat Aralığı */}
-              <View style={[styles.filterSection, { borderBottomWidth: 0 }]}>
-                <ThemedText type="subtitle" style={styles.filterSectionTitle}>Fiyat Aralığı</ThemedText>
-                <View style={styles.budgetGrid}>
-                  {['Tümü', 'ekonomik', 'orta', 'premium', 'luks'].map(budget => {
-                    const isSelected = budget === 'Tümü' ? selectedBudget === null : selectedBudget === budget;
-                    return (
-                      <Pressable
-                        key={budget}
-                        onPress={() => setSelectedBudget(budget === 'Tümü' ? null : budget)}
-                        style={[
-                          styles.budgetChip,
-                          { backgroundColor: colors.backgroundTertiary },
-                          isSelected && { backgroundColor: colors.tint, borderColor: colors.tint }
-                        ]}
-                      >
-                        <ThemedText style={{ color: isSelected ? '#FFF' : colors.text }}>
-                          {budget.charAt(0).toUpperCase() + budget.slice(1)}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <Button title="Sonuçları Göster" onPress={() => setIsFilterModalVisible(false)} fullWidth />
-            </View>
-          </SafeAreaView>
-        </ThemedView>
-      </Modal>
-
-      <PaywallScreen
-        visible={paywallVisible}
-        onClose={() => setPaywallVisible(false)}
-        title="Sınırsız Favori"
-        subtitle="Daha fazla parfümü favorilerine eklemek için Premium'a geç."
-      />
-    </ThemedView>
-  );
-}
-
-// Grid Card
-function GridCard({ parfum, colors, isFavorite, onPress, onToggleFavorite, delay = 0 }: {
-  parfum: Parfum;
-  colors: typeof Colors.light;
-  isFavorite: boolean;
-  onPress: () => void;
-  onToggleFavorite: () => void;
-  delay?: number;
-}) {
-  const typeColor = ScentTypeColors[parfum.tip] || colors.tint;
-
-  return (
-    <Animated.View entering={FadeInDown.delay(delay).duration(300)} style={styles.gridItem}>
-      <Pressable onPress={onPress}>
-        <Card variant="elevated" style={styles.gridCard}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.typeBadge, { backgroundColor: typeColor + '15' }]}>
-              <ThemedText style={[styles.typeText, { color: typeColor }]}>{parfum.tip}</ThemedText>
-            </View>
-            <Pressable onPress={onToggleFavorite} hitSlop={8}>
-              <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={18} color={isFavorite ? colors.accent : colors.textMuted} />
+      {activePills.length ? (
+        <View style={styles.pills}>
+          {activePills.map(pl => (
+            <Pressable key={pl.key} onPress={pl.onRemove} style={[styles.pill, { backgroundColor: c.surfaceAlt }]} accessibilityLabel={`${pl.label} filtresini kaldır`}>
+              <T variant="smallStrong">{pl.label}</T>
+              <Ionicons name="close" size={14} color={c.inkMuted} />
             </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      <View style={styles.countRow}>
+        <T variant="small" color="muted">{list.length} sonuç</T>
+        <Pressable
+          onPress={() => setSort(sort === 'match' ? 'az' : sort === 'az' ? 'fiyat' : 'match')}
+          hitSlop={8}
+          style={styles.sortBtn}
+          accessibilityLabel={`Sıralama: ${SORT_LABEL[sort]}`}
+        >
+          <Ionicons name="swap-vertical" size={15} color={c.inkMuted} />
+          <T variant="smallStrong" color="muted">{SORT_LABEL[sort]}</T>
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  const renderCard = ({ item }: { item: Parfum }) => (
+    <Pressable onPress={() => { hapticLight(); open(item); }} style={({ pressed }) => [{ width: cardW, opacity: pressed ? 0.85 : 1 }]}>
+      <View style={[styles.art, { backgroundColor: c.surfaceAlt, height: cardW * 0.95 }]}>
+        <Bottle parfum={item} size={cardW * 0.52} />
+        <View style={[styles.match, { backgroundColor: c.surface }]}>
+          <T variant="smallStrong" color="accent">%{scores[item.id]}</T>
+        </View>
+      </View>
+      <T variant="overline" caps={brandCaps(item)} color="subtle" numberOfLines={1} style={{ marginTop: Spacing.sm }}>{item.marka ?? ''}</T>
+      <T variant="bodyStrong" numberOfLines={1}>{item.isim}</T>
+      <View style={styles.familyLine}>
+        <View style={[styles.dot, { backgroundColor: ScentTypeColors[item.tip] }]} />
+        <T variant="small" color="muted" numberOfLines={1}>{item.tip}{item.ikincilTip ? ` · ${item.ikincilTip}` : ''}</T>
+      </View>
+    </Pressable>
+  );
+
+  const shownBrands = brandList.filter(([b]) => !brandQ.trim() || trLower(b).includes(trLower(brandQ.trim())));
+
+  return (
+    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
+      <FlatList
+        data={list}
+        keyExtractor={p => p.id}
+        numColumns={2}
+        columnWrapperStyle={{ gap }}
+        ListHeaderComponent={header}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing['3xl'], gap: Spacing.xl }}
+        ListEmptyComponent={
+          <View style={{ alignItems: 'center', marginTop: Spacing['2xl'], gap: Spacing.md }}>
+            <T variant="body" color="muted" align="center">Bu kriterlere uyan parfüm yok.</T>
+            {anyFilter ? <Button label="Filtreleri temizle" variant="secondary" size="sm" onPress={clearAll} /> : null}
           </View>
-          
-          <View style={[styles.iconContainer, { backgroundColor: typeColor + '10' }]}>
-            <Ionicons name="sparkles" size={24} color={typeColor} />
+        }
+        renderItem={renderCard}
+      />
+
+      {/* Filtre paneli */}
+      <Modal visible={sheet} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSheet(false)}>
+        <View style={{ flex: 1, backgroundColor: c.bg }}>
+          <View style={[styles.sheetHead, { borderBottomColor: c.border }]}>
+            <T variant="h2">Filtrele</T>
+            <IconButton name="close" onPress={() => setSheet(false)} accessibilityLabel="Kapat" />
           </View>
-          
-          <ThemedText type="subtitle" numberOfLines={2} style={styles.cardName}>{parfum.isim}</ThemedText>
-          <ThemedText type="caption" numberOfLines={1} style={{ color: colors.textMuted }}>{parfum.marka}</ThemedText>
-          
-          <View style={styles.cardMeta}>
-            <View style={styles.metaItem}>
-              <Ionicons name="time-outline" size={10} color={colors.textMuted} />
-              <ThemedText style={[styles.metaText, { color: colors.textMuted }]}>{parfum.kalicilik}</ThemedText>
-            </View>
+
+          <ScrollView contentContainerStyle={{ padding: Spacing.lg, paddingBottom: Spacing['2xl'], gap: Spacing.xl }} keyboardShouldPersistTaps="handled">
+            <Section title="Sırala">
+              <Segmented<Sort> value={sort} onChange={setSort} options={[{ value: 'match', label: 'Size göre' }, { value: 'az', label: 'A–Z' }, { value: 'fiyat', label: 'Fiyat' }]} />
+            </Section>
+
+            <Section title="Marka" right={brands.length ? <T variant="smallStrong" color="accent" onPress={() => setBrands([])}>Temizle</T> : null}>
+              <View style={[styles.brandSearch, { backgroundColor: c.surface, borderColor: c.border }]}>
+                <Ionicons name="search" size={16} color={c.inkSubtle} />
+                <TextInput value={brandQ} onChangeText={setBrandQ} placeholder="Marka ara" placeholderTextColor={c.inkSubtle} style={[styles.brandInput, { color: c.ink }]} autoCorrect={false} />
+              </View>
+              <ScrollView nestedScrollEnabled style={[styles.brandBox, { borderColor: c.border, backgroundColor: c.surface }]} keyboardShouldPersistTaps="handled">
+                {shownBrands.map(([b, n], i) => {
+                  const on = brands.includes(b);
+                  return (
+                    <Pressable
+                      key={b}
+                      onPress={() => setBrands(toggle(brands, b))}
+                      style={[styles.brandRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border }]}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: on }}
+                    >
+                      <T variant="body" style={{ flex: 1 }} numberOfLines={1}>{b}</T>
+                      <T variant="small" color="subtle">{n}</T>
+                      <Ionicons name={on ? 'checkbox' : 'square-outline'} size={20} color={on ? c.accent : c.inkSubtle} />
+                    </Pressable>
+                  );
+                })}
+                {shownBrands.length === 0 ? <T variant="small" color="muted" style={{ padding: Spacing.md }}>Bu adla bir marka yok.</T> : null}
+              </ScrollView>
+            </Section>
+
+            <Section title="Koku ailesi">
+              <View style={styles.wrap}>
+                {FAMILIES.map(f => <Chip key={f} label={f} color={ScentTypeColors[f]} selected={families.includes(f)} onPress={() => setFamilies(toggle(families, f))} />)}
+              </View>
+            </Section>
+
+            <Section title="Profil">
+              <View style={styles.wrap}>
+                {GENDERS.map(g => <Chip key={g.v} label={g.l} selected={gender === g.v} onPress={() => setGender(gender === g.v ? null : g.v)} />)}
+              </View>
+            </Section>
+
+            <Section title="Yoğunluk">
+              <View style={styles.wrap}>
+                {STRENGTH.map(s => <Chip key={s.v} label={s.l} selected={strength === s.v} onPress={() => setStrength(strength === s.v ? null : s.v)} />)}
+              </View>
+            </Section>
+
+            <Section title="Fiyat">
+              <View style={styles.wrap}>
+                {PRICES.map(p => <Chip key={p.v} label={p.l} selected={prices.includes(p.v)} onPress={() => setPrices(toggle(prices, p.v))} />)}
+              </View>
+            </Section>
+          </ScrollView>
+
+          <View style={[styles.sheetFoot, { borderTopColor: c.border, paddingBottom: insets.bottom + Spacing.md }]}>
+            <Button label="Temizle" variant="ghost" onPress={clearAll} style={{ flex: 1 }} />
+            <Button label={`${list.length} parfümü göster`} onPress={() => setSheet(false)} style={{ flex: 2 }} />
           </View>
-        </Card>
-      </Pressable>
-    </Animated.View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
-// List Card
-function ListCard({ parfum, colors, isFavorite, onPress, onToggleFavorite, delay = 0 }: {
-  parfum: Parfum;
-  colors: typeof Colors.light;
-  isFavorite: boolean;
-  onPress: () => void;
-  onToggleFavorite: () => void;
-  delay?: number;
-}) {
-  const typeColor = ScentTypeColors[parfum.tip] || colors.tint;
-
+function Section({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <Animated.View entering={FadeInDown.delay(delay).duration(300)}>
-      <Pressable onPress={onPress}>
-        <Card variant="elevated" style={styles.listCard}>
-          <View style={[styles.listIcon, { backgroundColor: typeColor + '15' }]}>
-            <Ionicons name="sparkles" size={20} color={typeColor} />
-          </View>
-          
-          <View style={styles.listInfo}>
-            <ThemedText type="subtitle" numberOfLines={1}>{parfum.isim}</ThemedText>
-            <ThemedText type="caption" numberOfLines={1} style={{ color: colors.textMuted }}>{parfum.marka}</ThemedText>
-            <View style={styles.listMeta}>
-              <View style={[styles.typeBadgeSmall, { backgroundColor: typeColor + '15' }]}>
-                <ThemedText style={[styles.typeTextSmall, { color: typeColor }]}>{parfum.tip}</ThemedText>
-              </View>
-              <ThemedText type="caption" style={{ color: colors.textMuted }}>{parfum.kalicilik}</ThemedText>
-            </View>
-          </View>
-          
-          <Pressable onPress={onToggleFavorite} hitSlop={10}>
-            <Ionicons name={isFavorite ? 'heart' : 'heart-outline'} size={22} color={isFavorite ? colors.accent : colors.textMuted} />
-          </Pressable>
-        </Card>
-      </Pressable>
-    </Animated.View>
+    <View style={{ gap: Spacing.md }}>
+      <View style={styles.sectionHead}>
+        <T variant="overline" color="subtle">{title}</T>
+        {right}
+      </View>
+      {children}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1 },
-  header: { paddingHorizontal: Spacing.xl, paddingTop: Spacing.sm, paddingBottom: Spacing.sm },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md },
-  headerTitle: { fontSize: FontSizes.xl },
-  headerActions: { flexDirection: 'row', gap: Spacing.sm },
-  actionBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  searchBox: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg, gap: Spacing.sm },
-  searchInput: { flex: 1, fontSize: FontSizes.base },
-  sortRow: { marginTop: Spacing.sm },
-  filtersWrapper: { marginBottom: Spacing.sm },
-  filtersContent: { paddingHorizontal: Spacing.xl, gap: Spacing.xs },
-  filterChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.full, gap: 6 },
-  filterDot: { width: 6, height: 6, borderRadius: 3 },
-  filterText: { fontSize: FontSizes.sm },
-  content: { flex: 1 },
-  contentContainer: { paddingHorizontal: Spacing.lg },
-  emptyState: { alignItems: 'center', paddingTop: Spacing['3xl'] },
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  gridItem: { width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.md) / 2 },
-  gridCard: { padding: Spacing.md },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  typeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  typeText: { fontSize: 9, fontWeight: FontWeights.bold },
-  iconContainer: { width: 48, height: 48, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: Spacing.sm },
-  cardName: { fontSize: FontSizes.sm, marginBottom: 2, minHeight: 36 },
-  cardMeta: { marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.04)' },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  metaText: { fontSize: 10 },
-  listContainer: { gap: Spacing.sm },
-  listCard: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md },
-  listIcon: { width: 44, height: 44, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md },
-  listInfo: { flex: 1 },
-  listMeta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 },
-  typeBadgeSmall: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 3 },
-  typeTextSmall: { fontSize: 9, fontWeight: FontWeights.semiBold },
-  budgetActiveChip: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.full, borderWidth: 1 },
-  modalContainer: { flex: 1 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
-  modalContent: { flex: 1, paddingHorizontal: Spacing.xl },
-  modalFooter: { paddingHorizontal: Spacing.xl, paddingVertical: Spacing.lg },
-  filterSection: { paddingVertical: Spacing.lg, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
-  filterSectionTitle: { marginBottom: Spacing.md },
-  radioGroup: { gap: Spacing.sm },
-  radioRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.sm },
-  budgetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  budgetChip: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: 'transparent' },
+  titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginTop: Spacing.lg },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.lg },
+  filterBtn: { width: 48, height: 48, borderRadius: BorderRadius.md, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: -5, right: -5, minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  chips: { gap: Spacing.sm, marginTop: Spacing.md },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.md },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.full },
+  countRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.lg },
+  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  art: { borderRadius: BorderRadius.lg, alignItems: 'center', justifyContent: 'center' },
+  match: { position: 'absolute', top: 8, right: 8, paddingHorizontal: 8, paddingVertical: 3, borderRadius: BorderRadius.full },
+  familyLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  sheetHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, borderBottomWidth: StyleSheet.hairlineWidth },
+  sheetFoot: { flexDirection: 'row', gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  brandSearch: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, borderWidth: StyleSheet.hairlineWidth, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, height: 42 },
+  brandInput: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 15 },
+  brandBox: { borderWidth: StyleSheet.hairlineWidth, borderRadius: BorderRadius.md, maxHeight: 300 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingVertical: 11 },
 });
-
-

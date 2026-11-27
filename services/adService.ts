@@ -1,5 +1,5 @@
 /**
- * Auram - AdMob Rewarded Ad Service
+ * Teninde - AdMob Rewarded Ad Service
  * Reklam yükleme, gösterme ve event yönetimi
  * ATT izin durumunu trackingPermission store'dan okur.
  *

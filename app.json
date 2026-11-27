@@ -1,35 +1,41 @@
 {
   "expo": {
-    "name": "Auram",
-    "slug": "auram",
-    "version": "1.0.5",
+    "name": "Teninde",
+    "slug": "teninde",
+    "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
-    "scheme": "auram",
+    "icon": "./assets/images/icon.png",
+    "scheme": "teninde",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.auram.app",
+      "bundleIdentifier": "com.teninde.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "Auram, size özel içerik ve deneyim sunabilmek için bu izne ihtiyaç duyar. Verileriniz güvende tutulur ve üçüncü taraflarla paylaşılmaz.",
-        "NSLocationWhenInUseUsageDescription": "Auram, bulunduğunuz bölgenin hava durumuna ve mevsime en uygun parfüm önerilerini sunabilmek için konum verinize ihtiyaç duyar.",
-        "NSLocationAlwaysUsageDescription": "Auram, bulunduğunuz bölgenin hava durumuna ve mevsime en uygun parfüm önerilerini sunabilmek için konum verinize ihtiyaç duyar.",
+        "NSUserTrackingUsageDescription": "Teninde, size özel içerik ve deneyim sunabilmek için bu izne ihtiyaç duyar. Verileriniz güvende tutulur ve üçüncü taraflarla paylaşılmaz.",
+        "NSLocationWhenInUseUsageDescription": "Teninde, bulunduğunuz bölgenin hava durumuna ve mevsime en uygun parfüm önerilerini sunabilmek için konum verinize ihtiyaç duyar.",
+        "NSLocationAlwaysUsageDescription": "Teninde, bulunduğunuz bölgenin hava durumuna ve mevsime en uygun parfüm önerilerini sunabilmek için konum verinize ihtiyaç duyar.",
         "GADApplicationIdentifier": "ca-app-pub-1731461024871182~9770094099",
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "appleTeamId": "6N8R46PLF9",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.teninde.app"
+        ]
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#D4A574",
-        "foregroundImage": "./assets/images/logo.png",
+        "backgroundColor": "#F7F3EE",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/logo.png"
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.auram.app"
+      "package": "com.teninde.app"
     },
     "web": {
       "output": "static",
@@ -41,11 +47,12 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#D4A574",
+          "backgroundColor": "#F7F3EE",
           "dark": {
-            "backgroundColor": "#1A1A26"
+            "image": "./assets/images/splash-icon-dark.png",
+            "backgroundColor": "#121010"
           }
         }
       ],
@@ -56,17 +63,18 @@
           "iosAppId": "ca-app-pub-1731461024871182~9770094099"
         }
       ],
-      "expo-tracking-transparency"
+      "expo-tracking-transparency",
+      "expo-font",
+      "expo-web-browser",
+      "expo-asset",
+      "@bacons/apple-targets"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "6014341b-6267-4d19-a435-936ae2dda0ab"
-      }
+      "router": {}
     },
     "owner": "yusufizzetgenc"
   }

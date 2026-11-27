@@ -1,5 +1,5 @@
 /**
- * Auram - Paywall Components Index
+ * Teninde - Paywall Components Index
  */
 
 export { PaywallScreen } from './PaywallScreen';

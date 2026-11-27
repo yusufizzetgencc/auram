@@ -1,5 +1,5 @@
 /**
- * Auram - Premium Gating Hook
+ * Teninde - Premium Gating Hook
  * Kilitli bir özelliğe erişim kontrolü ve paywall görünürlüğünü yönetir.
  */
 

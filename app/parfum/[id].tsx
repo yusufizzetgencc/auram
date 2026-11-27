@@ -1,764 +1,438 @@
 /**
- * AROMIXEN - Parfum Detail Screen
- * Detaylı parfüm analizi + Koleksiyona ekleme + Gelişmiş özellikler
+ * TENİNDE — Parfüm detayı
+ * Sade düzen: sabit üst bar (geri · ad · favori · "⋯" menüsü; kaydırınca kaybolmaz) · uyum + en güçlü 2 gerekçe +
+ * TEK ana eylem (dolapta değilse "Dolabıma ekle", dolaptaysa "Bugün bunu sıktım") · Denediniz mi? (tek satır) · nota piramidi (tek kart) · Karakter ve Nereden alınır
+ * (açılır-kapanır) · benzerleri (Benzer / Daha uygun sekmeli tek liste)
+ * Ücretsiz kullanıcı FREE_PARFUM_DETAIL_LIMIT kadar farklı parfüm görebilir; görülenler her zaman açık kalır.
  */
-
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Dimensions, Share, Modal, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown, FadeInUp, FadeIn, SlideInRight, SlideInUp } from 'react-native-reanimated';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Card, Button } from '@/components/ui';
-import { PaywallScreen } from '@/components/paywall';
-import { Colors, Spacing, BorderRadius, FontSizes, FontWeights, ScentTypeColors } from '@/constants/theme';
-import { FREE_PARFUM_DETAIL_LIMIT, FREE_FAVORITE_LIMIT, FREE_COLLECTION_PARFUM_LIMIT } from '@/constants/premiumLimits';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Button, Card, Divider, EmptyState, FamilyDot, Header, IconButton, IconName, ListRow, ProgressLine, Screen, Section, Segmented, Stat, T, Tag, useTheme } from '@/components/kit';
+import { Bottle, MatchBadge, PerfumeTile, brandCaps } from '@/components/kit/perfume';
+import { LockedFeatureOverlay, PaywallScreen } from '@/components/paywall';
+import { FREE_COLLECTION_LIMIT, FREE_COLLECTION_PARFUM_LIMIT, FREE_FAVORITE_LIMIT, FREE_PARFUM_DETAIL_LIMIT } from '@/constants/premiumLimits';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
+import { benzerParfumler, getEffectivePH, skorlaParfum } from '@/engine';
 import { usePremiumGate } from '@/hooks/use-premium-gate';
-import { getFreeViewedParfumIds, addFreeViewedParfumId } from '@/services/storage';
-import { Parfum } from '@/types';
+import { notaAciklamasi } from '@/constants/noteGlossary';
+import { FIYAT_KADEMESI, sampleQuery, STORES, storeUrl } from '@/constants/shopping';
+import { addFreeViewedParfumId, getFreeViewedParfumIds, getTryList, saveTryList, TryItem } from '@/services/storage';
+import * as WebBrowser from 'expo-web-browser';
+import { WardrobeItemSheet } from '@/components/wardrobe/WardrobeItemSheet';
+import { track } from '@/services/analytics';
+import { hapticSuccess } from '@/utils/haptics';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-type NotaTab = 'ust' | 'orta' | 'alt';
+const KONS: Record<string, string> = { eau_fraiche: 'Eau Fraîche', eau_de_cologne: 'Eau de Cologne', eau_de_toilette: 'Eau de Toilette', eau_de_parfum: 'Eau de Parfum', parfum: 'Parfum' };
+const PROFIL: Record<string, string> = { erkek: 'Maskülen', kadın: 'Feminen', unisex: 'Unisex' };
+const YOG: Record<string, string> = { hafif: 'Hafif', orta: 'Orta', yogun: 'Yoğun' };
+const KAL: Record<string, string> = { kisa: 'Kısa', orta: 'Orta', uzun: 'Uzun' };
+const FIYAT: Record<string, string> = { ekonomik: 'Uygun', orta: 'Orta segment', premium: 'Premium', luks: 'Niş / lüks' };
+const AMAC: Record<string, string> = { gunluk: 'Günlük', is: 'İş', aksam: 'Akşam', ozel: 'Özel gün', romantik: 'Romantik', spor: 'Spor' };
 
-// Konsantrasyon bilgileri
-const KONSANTRASYON_INFO: Record<string, { label: string; saat: string; yuzde: string; aciklama: string }> = {
-  'parfum': { label: 'Parfüm (Extrait)', saat: '8-12+ saat', yuzde: '%20-40', aciklama: 'En yoğun ve kalıcı form' },
-  'eau_de_parfum': { label: 'Eau de Parfum', saat: '6-8 saat', yuzde: '%15-20', aciklama: 'Yoğun ve uzun kalıcı' },
-  'eau_de_toilette': { label: 'Eau de Toilette', saat: '4-6 saat', yuzde: '%5-15', aciklama: 'Günlük kullanım için ideal' },
-  'eau_de_cologne': { label: 'Eau de Cologne', saat: '2-4 saat', yuzde: '%2-4', aciklama: 'Hafif ve ferah' },
-};
-
-// Removed hardcoded IZLENIM_COLORS
-
-export default function ParfumDetailScreen() {
+export default function PerfumeDetail() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { id } = useLocalSearchParams();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  
-  const [activeNotaTab, setActiveNotaTab] = useState<NotaTab>('ust');
-  const [showCollectionModal, setShowCollectionModal] = useState(false);
-  const [detailAccess, setDetailAccess] = useState<'checking' | 'allowed' | 'locked'>('checking');
-
+  const c = useTheme();
+  const insets = useSafeAreaInsets();
   const {
-    parfumler,
-    kullaniciPH,
-    preferences,
-    favorites,
-    isFavorite,
-    toggleFavoriteParfum,
-    addToRecentlyViewedList,
-    collections,
-    addParfumToCollection,
-    removeParfumFromCollection,
-  } = useApp();
+    parfumler, preferences, favorites, isFavorite, toggleFavoriteParfum, addToRecentlyViewedList,
+    collections, addParfumToCollection, removeParfumFromCollection, createNewCollection, selectTodaysSotd, todaySotd, setPreference, wardrobe, addToWardrobe, updateWardrobeItem, removeFromWardrobe, zevk, etkinPrefs } = useApp();
   const { isPremium, paywallVisible, setPaywallVisible } = usePremiumGate();
+  const [access, setAccess] = useState<'checking' | 'allowed' | 'locked'>('checking');
+  const [colOpen, setColOpen] = useState(false);
+  const [newCol, setNewCol] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [baslikGorunur, setBaslikGorunur] = useState(false);
+  const [acik, setAcik] = useState<{ karakter: boolean; alis: boolean; aciklama: boolean }>({ karakter: false, alis: false, aciklama: false });
+  const [benzerSekme, setBenzerSekme] = useState<'benzer' | 'uygun'>('benzer');
 
-  const parfum = useMemo(() => {
-    return parfumler.find(p => p.id === id);
-  }, [id, parfumler]);
+  const parfum = useMemo(() => parfumler.find(p => p.id === id), [id, parfumler]);
+  const result = useMemo(() => (parfum ? skorlaParfum(parfum, etkinPrefs, getEffectivePH(preferences), zevk) : null), [parfum, preferences, etkinPrefs, zevk]);
+  // Nota + aile benzerliği (engine/similarity.ts). "Daha uygun" = daha düşük fiyat kademesindekiler.
+  const similar = useMemo(() => (parfum ? benzerParfumler(parfum, parfumler, { limit: 8 }) : []), [parfum, parfumler]);
+  const cheaper = useMemo(() => (parfum ? benzerParfumler(parfum, parfumler, { limit: 6, dahaUygun: true }) : []), [parfum, parfumler]);
+  const [tryList, setTryList] = useState<TryItem[]>([]);
+  const [wardrobeSheet, setWardrobeSheet] = useState(false);
+  useEffect(() => { getTryList().then(setTryList); }, []);
 
-  // Son görüntülenenlere ekleme bir yan etkidir, render fazında (useMemo içinde) değil
-  // useEffect içinde tetiklenmeli.
   useEffect(() => {
-    if (parfum && detailAccess === 'allowed') addToRecentlyViewedList(parfum.id);
-  }, [parfum?.id, detailAccess]);
-
-  // Ücretsiz kullanıcı en fazla FREE_PARFUM_DETAIL_LIMIT kadar farklı parfüm detayı görebilir;
-  // daha önce görülenler cihazda hafızada kalır ve her zaman ücretsiz açık kalır.
-  useEffect(() => {
-    let mounted = true;
+    let alive = true;
     if (!parfum) return;
-    if (isPremium) {
-      setDetailAccess('allowed');
-      return;
-    }
-
+    if (isPremium) { setAccess('allowed'); return; }
     (async () => {
-      const viewedIds = await getFreeViewedParfumIds();
-      if (!mounted) return;
-
-      if (viewedIds.includes(parfum.id)) {
-        setDetailAccess('allowed');
-        return;
-      }
-
-      if (viewedIds.length < FREE_PARFUM_DETAIL_LIMIT) {
+      const seen = await getFreeViewedParfumIds();
+      if (!alive) return;
+      if (seen.includes(parfum.id)) return setAccess('allowed');
+      if (seen.length < FREE_PARFUM_DETAIL_LIMIT) {
         await addFreeViewedParfumId(parfum.id);
-        if (mounted) setDetailAccess('allowed');
-      } else {
-        setDetailAccess('locked');
-      }
+        if (alive) setAccess('allowed');
+      } else setAccess('locked');
     })();
+    return () => { alive = false; };
+  }, [parfum, isPremium]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [parfum?.id, isPremium]);
+  useEffect(() => {
+    if (parfum && access === 'allowed') addToRecentlyViewedList(parfum.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parfum?.id, access]);
 
-  const handleToggleFavorite = () => {
-    if (!parfum) return;
-    const currentlyFavorite = isFavorite(parfum.id);
-    if (!currentlyFavorite && !isPremium && favorites.length >= FREE_FAVORITE_LIMIT) {
-      setPaywallVisible(true);
-      return;
-    }
+  if (!parfum || !result) {
+    return (
+      <Screen>
+        <Header />
+        <EmptyState icon="alert-circle-outline" title="Parfüm bulunamadı" body="Bu parfüm katalogdan kaldırılmış olabilir." actionLabel="Keşfet'e dön" onAction={() => router.replace('/(tabs)/parfums')} />
+      </Screen>
+    );
+  }
+
+  const fav = isFavorite(parfum.id);
+  const toggleFav = () => {
+    if (!fav && !isPremium && favorites.length >= FREE_FAVORITE_LIMIT) return setPaywallVisible(true);
     toggleFavoriteParfum(parfum.id);
   };
-
-  const phScore = useMemo(() => {
-    if (!parfum || !kullaniciPH) return null;
-    const userPH = kullaniciPH;
-    const isIdeal = userPH >= parfum.phUyumu.minPH && userPH <= parfum.phUyumu.maxPH;
-    const score = isIdeal 
-      ? Math.round(100 - Math.abs(userPH - parfum.phUyumu.idealPH) * 20)
-      : Math.round(50 - Math.min(Math.abs(userPH - parfum.phUyumu.minPH), Math.abs(userPH - parfum.phUyumu.maxPH)) * 25);
-    return Math.max(0, Math.min(100, score));
-  }, [parfum, kullaniciPH]);
-
-  const notaPerformans = useMemo(() => {
-    if (!parfum || !kullaniciPH) return { ust: 70, orta: 70, alt: 70 };
-    const isAsidik = kullaniciPH < 5.0;
-    const isBazik = kullaniciPH > 6.0;
-    let ust = 70, orta = 70, alt = 70;
-    if (isAsidik) {
-      ust += parfum.notaKalicilik.ust.asidikCilt * 30;
-      orta += parfum.notaKalicilik.orta.asidikCilt * 30;
-      alt += parfum.notaKalicilik.alt.asidikCilt * 30;
-    } else if (isBazik) {
-      ust += parfum.notaKalicilik.ust.bazikCilt * 30;
-      orta += parfum.notaKalicilik.orta.bazikCilt * 30;
-      alt += parfum.notaKalicilik.alt.bazikCilt * 30;
-    }
-    return {
-      ust: Math.min(100, Math.max(0, Math.round(ust))),
-      orta: Math.min(100, Math.max(0, Math.round(orta))),
-      alt: Math.min(100, Math.max(0, Math.round(alt))),
-    };
-  }, [parfum, kullaniciPH]);
-
-  const similarParfums = useMemo(() => {
-    if (!parfum) return [];
-    return parfumler.filter(p => p.id !== parfum.id && (p.tip === parfum.tip || p.ikincilTip === parfum.tip)).slice(0, 4);
-  }, [parfum, parfumler]);
-
-  const handleShare = async () => {
-    if (!parfum) return;
-    try {
-      await Share.share({ title: `${parfum.isim} - AURAM`, message: `${parfum.marka} ${parfum.isim} - ${parfum.tip}. AURAM'da keşfet!` });
-    } catch (error) {
-      console.error('Share error:', error);
-    }
+  const share = () => Share.share({ message: `${parfum.marka} ${parfum.isim} — Teninde'de teninize uyumunu görün.` });
+  const wearToday = async () => {
+    const { korumaKullanildi } = await selectTodaysSotd(parfum.id);
+    hapticSuccess();
+    track('sotd_logged', { kaynak: 'detay', dolaptan: !!wardrobeItem });
+    Alert.alert('Kaydedildi', `${parfum.isim} bugünün kokusu olarak kaydedildi.${korumaKullanildi ? ' Dün kayıt yoktu; seri koruma hakkınız serinizi korudu.' : ''}`);
+  };
+  const toggleInCollection = (colId: string, inside: boolean, count: number) => {
+    if (inside) return removeParfumFromCollection(colId, parfum.id);
+    if (!isPremium && count >= FREE_COLLECTION_PARFUM_LIMIT) { setColOpen(false); return setPaywallVisible(true); }
+    addParfumToCollection(colId, parfum.id);
   };
 
-  const handleAddToCollection = async (collectionId: string) => {
-    if (!parfum) return;
-    const collection = collections.find(c => c.id === collectionId);
-    if (collection?.parfumIds.includes(parfum.id)) {
-      await removeParfumFromCollection(collectionId, parfum.id);
-      Alert.alert('Çıkarıldı', `"${collection.name}" koleksiyonundan çıkarıldı`);
-    } else {
-      if (!isPremium && (collection?.parfumIds.length ?? 0) >= FREE_COLLECTION_PARFUM_LIMIT) {
-        setShowCollectionModal(false);
-        setPaywallVisible(true);
-        return;
-      }
-      await addParfumToCollection(collectionId, parfum.id);
-      Alert.alert('Eklendi', `"${collection?.name}" koleksiyonuna eklendi`);
-    }
+  const createAndAdd = async () => {
+    const name = newCol.trim();
+    if (!name) return;
+    if (!isPremium && collections.length >= FREE_COLLECTION_LIMIT) { setColOpen(false); return setPaywallVisible(true); }
+    const col = await createNewCollection(name, 'albums-outline', '#A8642A');
+    await addParfumToCollection(col.id, parfum.id);
+    setNewCol('');
   };
 
-  if (!parfum) {
-    return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={64} color={colors.textMuted} />
-            <ThemedText type="subtitle" center style={{ marginTop: Spacing.lg }}>Parfüm bulunamadı</ThemedText>
-            <Button title="Geri Dön" onPress={() => router.back()} style={{ marginTop: Spacing.xl }} />
-          </View>
-        </SafeAreaView>
-      </ThemedView>
-    );
-  }
+  // Deneyim geri bildirimi: sevdim / sevmedim → öneriler bu bilgiye göre kişiselleşir
+  const loved = (preferences.sevilenParfumler ?? []).includes(parfum.id);
+  const disliked = (preferences.sevilmeyenParfumler ?? []).includes(parfum.id);
+  const setVerdict = (v: 'sevdim' | 'sevmedim') => {
+    const sev = (preferences.sevilenParfumler ?? []).filter(x => x !== parfum.id);
+    const sevme = (preferences.sevilmeyenParfumler ?? []).filter(x => x !== parfum.id);
+    const already = v === 'sevdim' ? loved : disliked;
+    setPreference('sevilenParfumler', !already && v === 'sevdim' ? [...sev, parfum.id] : sev);
+    setPreference('sevilmeyenParfumler', !already && v === 'sevmedim' ? [...sevme, parfum.id] : sevme);
+    hapticSuccess();
+  };
 
-  const tipColor = ScentTypeColors[parfum.tip] || colors.tint;
-  const isFav = isFavorite(parfum.id);
+  const wardrobeItem = wardrobe.find(w => w.parfumId === parfum.id) ?? null;
+  const inTryList = tryList.some(t => t.parfumId === parfum.id);
+  const toggleTry = async () => {
+    const next = inTryList ? tryList.filter(t => t.parfumId !== parfum.id) : [...tryList, { parfumId: parfum.id, denendi: false, addedAt: new Date().toISOString() }];
+    setTryList(next);
+    await saveTryList(next);
+    hapticSuccess();
+  };
 
-  if (detailAccess !== 'allowed') {
-    return (
-      <ThemedView style={styles.container}>
-        <LinearGradient colors={[tipColor + '30', 'transparent']} style={styles.headerGradient} />
-        <SafeAreaView style={styles.safeArea}>
-          <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-            <Pressable onPress={() => router.back()} style={[styles.headerBtn, { backgroundColor: colors.card }]}>
-              <Ionicons name="arrow-back" size={22} color={colors.text} />
-            </Pressable>
-          </Animated.View>
+  const query = `${parfum.marka ?? ''} ${parfum.isim}`.trim();
+  const openUrl = (url: string) => WebBrowser.openBrowserAsync(url).catch(() => {});
+  const explainNote = (n: string) => {
+    const d = notaAciklamasi(n);
+    if (d) Alert.alert(n.charAt(0).toLocaleUpperCase('tr') + n.slice(1), d);
+  };
 
-          {detailAccess === 'checking' ? (
-            <View style={styles.emptyState}>
-              <ActivityIndicator color={colors.tint} />
+  const ph = result.phSkor;
+  const layers: [string, string, string[], number][] = [
+    ['Üst notalar', 'ilk 15 dk', parfum.notalar.ust, ph.ustNotaPerformansi],
+    ['Kalp notaları', '15 dk – 2 sa', parfum.notalar.orta, ph.ortaNotaPerformansi],
+    ['Alt notalar', '2 sa +', parfum.notalar.alt, ph.altNotaPerformansi],
+  ];
+
+  const bugunBu = todaySotd?.parfumId === parfum.id;
+  const menu: { icon: IconName; title: string; subtitle?: string; onPress: () => void }[] = [
+    ...(wardrobeItem
+      ? [{ icon: 'file-tray-stacked-outline' as IconName, title: 'Dolaptaki şişe', subtitle: wardrobeItem.hacimMl ? `%${Math.round(wardrobeItem.kalanYuzde)} kaldı · düzenle` : 'Ayrıntıları düzenle', onPress: () => setWardrobeSheet(true) }]
+      : bugunBu ? [] : [{ icon: 'today-outline' as IconName, title: 'Bugün bunu sıktım', subtitle: 'Günlüğünüze ve serinize eklenir', onPress: wearToday }]),
+    { icon: 'git-compare-outline', title: 'Başka bir parfümle karşılaştır', onPress: () => router.push({ pathname: '/compare', params: { a: parfum.id } }) },
+    { icon: inTryList ? 'checkmark-circle' : 'storefront-outline', title: inTryList ? 'Mağazada deneyeceklerimde' : 'Mağazada deneyeceklerime ekle', onPress: toggleTry },
+    { icon: 'albums-outline', title: 'Koleksiyona ekle', onPress: () => setColOpen(true) },
+    { icon: 'share-outline', title: 'Paylaş', onPress: share },
+  ];
+  const menudenSec = (fn: () => void) => { setMenuOpen(false); setTimeout(fn, 250); };
+
+  // Ana eylem: dolapta değilse "Dolabıma ekle", dolaptaysa "Bugün bunu sıktım"
+  const anaEylem = !wardrobeItem
+    ? { label: 'Dolabıma ekle', icon: 'add' as IconName, onPress: () => setWardrobeSheet(true) }
+    : bugunBu
+      ? { label: 'Bugünün kokusu', icon: 'checkmark-circle' as IconName, onPress: () => router.push('/diary'), tamam: true }
+      : { label: 'Bugün bunu sıktım', icon: 'checkmark' as IconName, onPress: wearToday };
+
+  const uyarilar = result.uyumKategorileri.filter(k => !k.uyum);
+  const benzerListe = benzerSekme === 'benzer' || !cheaper.length ? similar : cheaper;
+
+  const body = (
+    <View>
+      {/* Uyum + ana eylem + deneyim (tek kart) */}
+      <Card style={{ marginTop: Spacing.xl }}>
+        <View style={styles.rowBetween}>
+          <T variant="h2">Teninize uyumu</T>
+          <MatchBadge value={result.matchPercentage} />
+        </View>
+        <View style={{ marginTop: Spacing.md, gap: Spacing.sm }}>
+          {result.matchReasons.slice(0, 2).map((r, i) => (
+            <View key={i} style={styles.reason}>
+              <View style={[styles.dot, { backgroundColor: c.accent }]} />
+              <T variant="body" style={{ flex: 1 }}>{r}</T>
             </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <View style={[styles.typeBadge, { backgroundColor: tipColor + '20' }]}>
-                <ThemedText style={[styles.typeText, { color: tipColor }]}>{parfum.tip}</ThemedText>
+          ))}
+        </View>
+        {uyarilar.length ? (
+          <View style={{ marginTop: Spacing.md, gap: 4 }}>
+            {uyarilar.map(k => (
+              <View key={k.kategori} style={styles.inline}>
+                <Ionicons name="alert-circle-outline" size={14} color={c.warning} />
+                <T variant="small" color="muted" style={{ flex: 1 }}>{k.kategori}: {k.detay}</T>
               </View>
-              <ThemedText type="title" center style={{ marginTop: Spacing.md }}>{parfum.isim}</ThemedText>
-              <ThemedText type="subtitle" center style={{ color: colors.textMuted, marginTop: 4 }}>{parfum.marka}</ThemedText>
+            ))}
+          </View>
+        ) : null}
+        <Button label={anaEylem.label} icon={anaEylem.icon} onPress={anaEylem.onPress} variant={'tamam' in anaEylem ? 'secondary' : 'primary'} style={{ marginTop: Spacing.lg }} />
+        <Divider style={{ marginVertical: Spacing.lg }} />
+        <View style={styles.rowBetween}>
+          <T variant="smallStrong" color="muted">Denediniz mi?</T>
+          <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+            <Button label="Sevdim" icon={loved ? 'heart' : 'heart-outline'} size="sm" variant={loved ? 'accent' : 'secondary'} onPress={() => setVerdict('sevdim')} />
+            <Button label="Sevmedim" size="sm" variant={disliked ? 'primary' : 'secondary'} onPress={() => setVerdict('sevmedim')} />
+          </View>
+        </View>
+      </Card>
 
-              <Ionicons name="lock-closed-outline" size={40} color={colors.textMuted} style={{ marginTop: Spacing.xl }} />
-              <ThemedText type="subtitle" center style={{ marginTop: Spacing.lg }}>
-                Detayları görmek için Premium'a geç
-              </ThemedText>
-              <ThemedText type="body" center style={{ color: colors.textMuted, marginTop: Spacing.xs }}>
-                Ücretsiz {FREE_PARFUM_DETAIL_LIMIT} parfüm inceleme hakkını kullandın. Sınırsız erişim için Premium'a geç.
-              </ThemedText>
-              <Button title="Premium'a Geç" onPress={() => setPaywallVisible(true)} style={{ marginTop: Spacing.xl }} />
+      {/* Nota piramidi (tek kart) */}
+      <Section title="Nota piramidi">
+        <Card>
+          {layers.map(([t, time, notes, perf], li) => (
+            <View key={t}>
+              {li ? <Divider style={{ marginVertical: Spacing.md }} /> : null}
+              <View style={styles.rowBetween}>
+                <T variant="bodyStrong">{t}</T>
+                <T variant="small" color="subtle">{time} · tende %{perf}</T>
+              </View>
+              <View style={styles.notes}>
+                {notes.length ? notes.map((n, i) => {
+                  const known = !!notaAciklamasi(n);
+                  return (
+                    <T
+                      key={n + i}
+                      variant="h3"
+                      onPress={known ? () => explainNote(n) : undefined}
+                      style={[{ textTransform: 'capitalize' }, known && { textDecorationLine: 'underline', textDecorationStyle: 'dotted', textDecorationColor: c.inkSubtle }]}
+                    >
+                      {n}{i < notes.length - 1 ? ' ·' : ''}
+                    </T>
+                  );
+                }) : <T variant="h3">—</T>}
+              </View>
+              <View style={{ marginTop: Spacing.sm }}><ProgressLine value={perf} /></View>
             </View>
-          )}
-        </SafeAreaView>
+          ))}
+        </Card>
+        <T variant="small" color="subtle" style={{ marginTop: Spacing.sm }}>
+          {parfum.dogrulandi ? 'Notalar markanın resmi nota piramidiyle doğrulandı.' : 'Nota bilgileri doğrulama sürecindedir; küçük farklılıklar olabilir.'} Altı çizili notaya dokunarak nasıl koktuğunu öğrenin.
+        </T>
+      </Section>
 
-        <PaywallScreen
-          visible={paywallVisible}
-          onClose={() => setPaywallVisible(false)}
-          onPurchaseSuccess={() => setDetailAccess('allowed')}
-          title="Sınırsız Parfüm Detayı"
-          subtitle="Tüm parfümlerin detaylı pH analizini ve notalarını aç."
-        />
-      </ThemedView>
-    );
-  }
+      {/* Ayrıntılar: açılır-kapanır */}
+      <Card style={{ marginTop: Spacing.xl, paddingVertical: Spacing.sm }}>
+        <ListRow icon="options-outline" title="Karakter ve performans" subtitle={`${YOG[parfum.yogunluk]} · ${PROFIL[parfum.cinsiyet]} · kalıcılık ${KAL[parfum.kalicilik]?.toLocaleLowerCase('tr')}`} onPress={() => setAcik(a => ({ ...a, karakter: !a.karakter }))} right={<Ionicons name={acik.karakter ? 'chevron-up' : 'chevron-down'} size={18} color={c.inkSubtle} />} />
+        {acik.karakter ? (
+          <View style={styles.acilir}>
+            <View style={{ flexDirection: 'row' }}>
+              <Stat label="Ten kimyası" value={`%${ph.phUyumSkoru}`} />
+              <Stat label="Performans" value={`%${ph.toplamPerformans}`} />
+              <Stat label="Fiyat" value={parfum.fiyatAraligi ? FIYAT[parfum.fiyatAraligi] : '—'} />
+            </View>
+            <T variant="small" color="muted" style={{ marginTop: Spacing.md }}>{ph.aciklama}.</T>
+            <T variant="overline" color="subtle" style={{ marginTop: Spacing.md }}>Mevsim</T>
+            <View style={styles.tags}>{(parfum.mevsim || []).map(m => <Tag key={m} label={m} />)}</View>
+            <T variant="overline" color="subtle" style={{ marginTop: Spacing.md }}>Kullanım</T>
+            <View style={styles.tags}>{(parfum.kullanimAmaci || []).map(m => <Tag key={m} label={AMAC[m] ?? m} />)}</View>
+          </View>
+        ) : null}
+        <Divider />
+        <ListRow icon="bag-handle-outline" title="Nereden alınır?" subtitle={parfum.fiyatAraligi ? `${FIYAT_KADEMESI[parfum.fiyatAraligi].label} · ${FIYAT_KADEMESI[parfum.fiyatAraligi].yaklasik}` : 'Mağazalar ve numune'} onPress={() => setAcik(a => ({ ...a, alis: !a.alis }))} right={<Ionicons name={acik.alis ? 'chevron-up' : 'chevron-down'} size={18} color={c.inkSubtle} />} />
+        {acik.alis ? (
+          <View style={styles.acilir}>
+            <View style={styles.stores}>
+              {STORES.map(st => <Button key={st.id} label={st.label} size="sm" variant="secondary" iconRight="open-outline" onPress={() => openUrl(storeUrl(st, query))} style={{ flexGrow: 1 }} />)}
+            </View>
+            <Pressable onPress={() => openUrl(storeUrl(STORES[0], sampleQuery(parfum.marka ?? '', parfum.isim)))} style={[styles.inline, { marginTop: Spacing.md }]}>
+              <Ionicons name="water-outline" size={16} color={c.accent} />
+              <T variant="smallStrong" color="accent">Önce numunesini deneyin</T>
+            </Pressable>
+            <T variant="small" color="subtle" style={{ marginTop: Spacing.sm }}>Fiyatlar yaklaşıktır; güncel fiyat mağazada görünür.</T>
+          </View>
+        ) : null}
+      </Card>
+
+      {/* Benzerleri (tek liste, sekmeli) */}
+      {similar.length > 0 ? (
+        <Section title="Buna benzeyenler">
+          {cheaper.length ? (
+            <View style={{ marginBottom: Spacing.md }}>
+              <Segmented value={benzerSekme} onChange={setBenzerSekme} options={[{ value: 'benzer', label: 'En benzer' }, { value: 'uygun', label: 'Daha uygun fiyatlı' }]} />
+            </View>
+          ) : null}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.md }}>
+            {benzerListe.map(s => (
+              <View key={s.parfum.id} style={{ width: 130 }}>
+                <PerfumeTile parfum={s.parfum} width={130} badge={`%${Math.round(s.benzerlik * 100)} benzer`} onPress={() => router.push(`/parfum/${s.parfum.id}`)} />
+                <T variant="small" color="muted" numberOfLines={2} style={{ marginTop: 2 }}>
+                  {benzerSekme === 'uygun' && cheaper.length ? (s.parfum.fiyatAraligi ? FIYAT_KADEMESI[s.parfum.fiyatAraligi].label : '') : s.ortakNotalar.length ? `Ortak: ${s.ortakNotalar.slice(0, 2).join(', ')}` : ''}
+                </T>
+              </View>
+            ))}
+          </ScrollView>
+          <T variant="small" color="subtle" style={{ marginTop: Spacing.sm }}>Benzerlik nota ve aile yapısından hesaplanır; aynı koku olduğu anlamına gelmez.</T>
+        </Section>
+      ) : null}
+    </View>
+  );
 
   return (
-    <ThemedView style={styles.container}>
-      <LinearGradient colors={[tipColor + '30', 'transparent']} style={styles.headerGradient} />
-      
-      <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
-          <Pressable onPress={() => router.back()} style={[styles.headerBtn, { backgroundColor: colors.card }]}>
-            <Ionicons name="arrow-back" size={22} color={colors.text} />
-          </Pressable>
-          <View style={styles.headerActions}>
-            <Pressable onPress={() => setShowCollectionModal(true)} style={[styles.headerBtn, { backgroundColor: colors.card }]}>
-              <Ionicons name="folder-outline" size={22} color={colors.text} />
-            </Pressable>
-            <Pressable onPress={handleToggleFavorite} style={[styles.headerBtn, { backgroundColor: colors.card }]}>
-              <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={22} color={isFav ? colors.accent : colors.text} />
-            </Pressable>
-            <Pressable onPress={handleShare} style={[styles.headerBtn, { backgroundColor: colors.card }]}>
-              <Ionicons name="share-outline" size={22} color={colors.text} />
-            </Pressable>
+    <Screen
+      padded={false}
+      stickyHeaderIndices={[0]}
+      scrollEventThrottle={32}
+      onScroll={e => { const y = e.nativeEvent.contentOffset.y; if ((y > 300) !== baslikGorunur) setBaslikGorunur(y > 300); }}
+    >
+      {/* Sabit üst bar: kaydırınca da ekranda kalır; ad başlıktan geçince ortada görünür */}
+      <View style={[styles.topBar, { backgroundColor: c.bg, borderBottomColor: baslikGorunur ? c.border : 'transparent' }]}>
+        <Header
+          title={baslikGorunur ? parfum.isim : undefined}
+          right={
+            <View style={{ flexDirection: 'row' }}>
+              <IconButton name={fav ? 'heart' : 'heart-outline'} color={fav ? c.accent : c.ink} onPress={toggleFav} accessibilityLabel="Favori" />
+              <IconButton name="ellipsis-horizontal" onPress={() => setMenuOpen(true)} accessibilityLabel="Diğer eylemler" />
+            </View>
+          }
+        />
+      </View>
+
+      <View style={{ paddingHorizontal: Spacing.lg }}>
+        <View style={[styles.hero, { backgroundColor: c.surfaceAlt }]}>
+          <Bottle parfum={parfum} size={110} />
+        </View>
+        <T variant="overline" caps={brandCaps(parfum)} color="subtle" style={{ marginTop: Spacing.xl }}>{parfum.marka}</T>
+        <T variant="hero" style={{ marginTop: 2 }}>{parfum.isim}</T>
+        <View style={styles.tags}>
+          <View style={styles.inline}><FamilyDot family={parfum.tip} /><T variant="small" color="muted">{parfum.tip}{parfum.ikincilTip ? ` · ${parfum.ikincilTip}` : ''}</T></View>
+          {parfum.konsantrasyon ? <Tag label={KONS[parfum.konsantrasyon] ?? parfum.konsantrasyon} /> : null}
+        </View>
+        <T variant="body" color="muted" style={{ marginTop: Spacing.md }} numberOfLines={acik.aciklama ? undefined : 3} onPress={() => setAcik(a => ({ ...a, aciklama: !a.aciklama }))}>{parfum.aciklama}</T>
+
+        {access === 'locked' ? (
+          <View style={{ marginTop: Spacing.xl }}>
+            <LockedFeatureOverlay onUnlock={() => setPaywallVisible(true)} title="Ücretsiz detay hakkınız doldu" subtitle={`${FREE_PARFUM_DETAIL_LIMIT} farklı parfümü ücretsiz incelediniz. Premium ile sınırsız.`}>
+              <View style={{ height: 380 }}>{body}</View>
+            </LockedFeatureOverlay>
           </View>
-        </Animated.View>
+        ) : access === 'allowed' ? body : null}
+      </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* Title Section */}
-          <Animated.View entering={FadeInUp.delay(100).duration(500)} style={styles.titleSection}>
-            <View style={[styles.typeBadge, { backgroundColor: tipColor + '20' }]}>
-              <ThemedText style={[styles.typeText, { color: tipColor }]}>{parfum.tip}</ThemedText>
-            </View>
-            <ThemedText type="title" style={styles.parfumName}>{parfum.isim}</ThemedText>
-            <ThemedText type="subtitle" style={{ color: colors.textMuted }}>{parfum.marka}</ThemedText>
-          </Animated.View>
-
-          {/* pH Performance Card */}
-          <Animated.View entering={FadeInUp.delay(200).duration(500)}>
-            <Card variant="elevated" style={styles.phCard}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.cardIcon, { backgroundColor: colors.success + '20' }]}>
-                  <Ionicons name="analytics" size={20} color={colors.success} />
+      <Modal visible={colOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setColOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: c.bg, padding: Spacing.lg, paddingBottom: insets.bottom + Spacing.lg }}>
+          <View style={styles.rowBetween}>
+            <T variant="h2">Koleksiyona ekle</T>
+            <IconButton name="close" onPress={() => setColOpen(false)} />
+          </View>
+          <View style={{ marginTop: Spacing.md }}>
+            {collections.map(col => {
+              const inside = col.parfumIds.includes(parfum.id);
+              return (
+                <View key={col.id}>
+                  <ListRow
+                    icon="albums-outline"
+                    title={col.name}
+                    subtitle={`${col.parfumIds.length} parfüm`}
+                    onPress={() => toggleInCollection(col.id, inside, col.parfumIds.length)}
+                    right={<Ionicons name={inside ? 'checkmark-circle' : 'add-circle-outline'} size={22} color={inside ? c.accent : c.inkSubtle} />}
+                  />
+                  <Divider />
                 </View>
-                <ThemedText type="heading">pH Performansı</ThemedText>
-              </View>
-              
-              {phScore !== null ? (
-                <>
-                  <View style={styles.phScoreContainer}>
-                    <View style={[styles.phScoreCircle, { borderColor: phScore >= 70 ? colors.success : phScore >= 50 ? colors.warning : colors.error }]}>
-                      <ThemedText style={[styles.phScoreValue, { color: phScore >= 70 ? colors.success : phScore >= 50 ? colors.warning : colors.error }]}>{phScore}</ThemedText>
-                      <ThemedText type="caption">Uyum</ThemedText>
-                    </View>
-                    <View style={styles.phDetails}>
-                      <View style={styles.phDetailRow}><ThemedText type="body">pH Aralığı:</ThemedText><ThemedText type="subtitle">{parfum.phUyumu.minPH} - {parfum.phUyumu.maxPH}</ThemedText></View>
-                      <View style={styles.phDetailRow}><ThemedText type="body">İdeal pH:</ThemedText><ThemedText type="subtitle">{parfum.phUyumu.idealPH}</ThemedText></View>
-                      <View style={styles.phDetailRow}><ThemedText type="body">Senin pH:</ThemedText><ThemedText type="subtitle">{kullaniciPH?.toFixed(1)}</ThemedText></View>
-                    </View>
-                  </View>
-
-                  <View style={styles.notaPerformans}>
-                    <ThemedText type="label" style={{ marginBottom: Spacing.md }}>Cildinizde Nota Performansı</ThemedText>
-                    {(['ust', 'orta', 'alt'] as const).map((layer) => (
-                      <View key={layer} style={styles.performansRow}>
-                        <ThemedText style={styles.performansLabel}>{layer === 'ust' ? '🌸 Üst' : layer === 'orta' ? '💐 Orta' : '🌲 Alt'}</ThemedText>
-                        <View style={styles.performansBarBg}>
-                          <Animated.View entering={SlideInRight.delay(300).duration(600)} style={[styles.performansBar, { width: `${notaPerformans[layer]}%`, backgroundColor: tipColor }]} />
-                        </View>
-                        <ThemedText style={styles.performansValue}>{notaPerformans[layer]}%</ThemedText>
-                      </View>
-                    ))}
-                  </View>
-                </>
-              ) : (
-                <View style={styles.noPHData}>
-                  <Ionicons name="information-circle-outline" size={24} color={colors.textMuted} />
-                  <ThemedText type="body" center style={{ color: colors.textMuted, marginTop: Spacing.sm }}>pH testini tamamlayın</ThemedText>
-                </View>
-              )}
-            </Card>
-          </Animated.View>
-
-          {/* Nota Piramidi */}
-          <Animated.View entering={FadeInUp.delay(300).duration(500)}>
-            <Card variant="elevated" style={styles.notaCard}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.cardIcon, { backgroundColor: colors.primary + '20' }]}>
-                  <Ionicons name="layers" size={20} color={colors.primary} />
-                </View>
-                <ThemedText type="heading">Nota Piramidi</ThemedText>
-              </View>
-              
-              <View style={styles.notaTabs}>
-                {(['ust', 'orta', 'alt'] as const).map((tab) => (
-                  <Pressable key={tab} onPress={() => setActiveNotaTab(tab)} style={[styles.notaTab, activeNotaTab === tab && { backgroundColor: tipColor + '20' }]}>
-                    <ThemedText style={[styles.notaTabText, { color: activeNotaTab === tab ? tipColor : colors.textMuted }]}>
-                      {tab === 'ust' ? '🌸 Üst' : tab === 'orta' ? '💐 Orta' : '🌲 Alt'}
-                    </ThemedText>
-                  </Pressable>
-                ))}
-              </View>
-              
-              <View style={styles.notaList}>
-                {(parfum.notalar?.[activeNotaTab] || []).map((nota, index) => (
-                  <Animated.View key={nota} entering={FadeIn.delay(index * 50).duration(300)} style={[styles.notaItem, { backgroundColor: tipColor + '10' }]}>
-                    <ThemedText style={{ color: tipColor }}>{nota}</ThemedText>
-                  </Animated.View>
-                ))}
-              </View>
-            </Card>
-          </Animated.View>
-
-          {/* Özellikler Grid */}
-          <Animated.View entering={FadeInUp.delay(400).duration(500)}>
-            <Card variant="elevated" style={styles.featuresCard}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.cardIcon, { backgroundColor: colors.accent + '20' }]}>
-                  <Ionicons name="options" size={20} color={colors.accent} />
-                </View>
-                <ThemedText type="heading">Özellikler</ThemedText>
-              </View>
-              
-              <View style={styles.featuresGrid}>
-                <FeatureItem icon="speedometer-outline" label="Yoğunluk" value={parfum.yogunluk} colors={colors} />
-                <FeatureItem icon="time-outline" label="Kalıcılık" value={parfum.kalicilik} colors={colors} />
-                <FeatureItem icon="leaf-outline" label="Mevsim" value={parfum.mevsim?.join(', ') || '-'} colors={colors} />
-                <FeatureItem icon="person-outline" label="Cinsiyet" value={parfum.cinsiyet} colors={colors} />
-              </View>
-            </Card>
-          </Animated.View>
-
-          {/* Konsantrasyon Bilgisi */}
-          {parfum.konsantrasyon && KONSANTRASYON_INFO[parfum.konsantrasyon] && (
-            <Animated.View entering={FadeInUp.delay(450).duration(500)}>
-              <Card variant="elevated" style={styles.konsantrasyonCard}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIcon, { backgroundColor: colors.warning + '20' }]}>
-                    <Ionicons name="flask" size={20} color={colors.warning} />
-                  </View>
-                  <ThemedText type="heading">Konsantrasyon</ThemedText>
-                </View>
-                
-                <View style={styles.konsantrasyonContent}>
-                  <View style={styles.konsantrasyonMain}>
-                    <ThemedText type="title" style={{ color: tipColor }}>
-                      {KONSANTRASYON_INFO[parfum.konsantrasyon].label}
-                    </ThemedText>
-                    <ThemedText type="caption" style={{ color: colors.textMuted, marginTop: 4 }}>
-                      {KONSANTRASYON_INFO[parfum.konsantrasyon].aciklama}
-                    </ThemedText>
-                  </View>
-                  
-                  <View style={styles.konsantrasyonStats}>
-                    <View style={styles.konsantrasyonStat}>
-                      <Ionicons name="time" size={16} color={tipColor} />
-                      <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600', marginLeft: 6 }}>
-                        {KONSANTRASYON_INFO[parfum.konsantrasyon].saat}
-                      </ThemedText>
-                    </View>
-                    <View style={styles.konsantrasyonStat}>
-                      <Ionicons name="water" size={16} color={tipColor} />
-                      <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600', marginLeft: 6 }}>
-                        {KONSANTRASYON_INFO[parfum.konsantrasyon].yuzde} yağ oranı
-                      </ThemedText>
-                    </View>
-                  </View>
-                </View>
-              </Card>
-            </Animated.View>
-          )}
-
-          {/* İzlenim ve Kişilik */}
-          {(parfum.izlenim && parfum.izlenim.length > 0) || (parfum.kisilikTipi && parfum.kisilikTipi.length > 0) ? (
-            <Animated.View entering={FadeInUp.delay(500).duration(500)}>
-              <Card variant="elevated" style={styles.izlenimCard}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIcon, { backgroundColor: colors.primary + '20' }]}>
-                    <Ionicons name="sparkles" size={20} color={colors.primary} />
-                  </View>
-                  <ThemedText type="heading">İzlenim & Kişilik</ThemedText>
-                </View>
-                
-                {parfum.izlenim && parfum.izlenim.length > 0 && (
-                  <View style={styles.izlenimSection}>
-                    <ThemedText type="label" style={{ marginBottom: Spacing.sm, color: colors.textMuted }}>
-                      Bu koku nasıl bir izlenim bırakır?
-                    </ThemedText>
-                    <View style={styles.izlenimTags}>
-                      {parfum.izlenim.map((izlenim, index) => (
-                        <Animated.View 
-                          key={izlenim} 
-                          entering={SlideInRight.delay(index * 80).duration(300)}
-                          style={[styles.izlenimTag, { backgroundColor: tipColor + '20' }]}
-                        >
-                          <ThemedText style={{ color: tipColor, fontSize: FontSizes.sm, fontWeight: '600', textTransform: 'capitalize' }}>
-                            {izlenim}
-                          </ThemedText>
-                        </Animated.View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-                
-                {parfum.kisilikTipi && parfum.kisilikTipi.length > 0 && (
-                  <View style={[styles.izlenimSection, { marginTop: Spacing.lg }]}>
-                    <ThemedText type="label" style={{ marginBottom: Spacing.sm, color: colors.textMuted }}>
-                      Hangi kişilik tipine uygun?
-                    </ThemedText>
-                    <View style={styles.izlenimTags}>
-                      {parfum.kisilikTipi.map((kisilik, index) => (
-                        <Animated.View 
-                          key={kisilik} 
-                          entering={SlideInRight.delay(index * 80).duration(300)}
-                          style={[styles.kisilikTag, { backgroundColor: colors.backgroundTertiary }]}
-                        >
-                          <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, textTransform: 'capitalize' }}>
-                            {kisilik}
-                          </ThemedText>
-                        </Animated.View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-              </Card>
-            </Animated.View>
-          ) : null}
-
-          {/* Kullanım Zamanı & Ortam */}
-          <Animated.View entering={FadeInUp.delay(550).duration(500)}>
-            <Card variant="elevated" style={styles.kullanimCard}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.cardIcon, { backgroundColor: colors.accent + '20' }]}>
-                  <Ionicons name="calendar" size={20} color={colors.accent} />
-                </View>
-                <ThemedText type="heading">Kullanım Rehberi</ThemedText>
-              </View>
-              
-              <View style={styles.kullanimGrid}>
-                {/* Gün Saati */}
-                {parfum.gununSaati && parfum.gununSaati.length > 0 && (
-                  <View style={styles.kullanimItem}>
-                    <Ionicons name="sunny" size={20} color={tipColor} />
-                    <ThemedText type="caption" style={{ color: colors.textMuted }}>Günün Saati</ThemedText>
-                    <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600', textAlign: 'center', textTransform: 'capitalize' }}>
-                      {parfum.gununSaati.map(s => s.replace('_', ' ')).join(', ')}
-                    </ThemedText>
-                  </View>
-                )}
-                
-                {/* Ortam */}
-                {parfum.ortam && (
-                  <View style={styles.kullanimItem}>
-                    <Ionicons name={parfum.ortam === 'kapali' ? 'home' : parfum.ortam === 'acik' ? 'leaf' : 'globe'} size={20} color={tipColor} />
-                    <ThemedText type="caption" style={{ color: colors.textMuted }}>Ortam</ThemedText>
-                    <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600', textTransform: 'capitalize' }}>
-                      {parfum.ortam === 'kapali' ? 'Kapalı Alan' : parfum.ortam === 'acik' ? 'Açık Alan' : 'Her İkisi'}
-                    </ThemedText>
-                  </View>
-                )}
-                
-                {/* İklim */}
-                {parfum.iklim && parfum.iklim.length > 0 && (
-                  <View style={styles.kullanimItem}>
-                    <Ionicons name="thermometer" size={20} color={tipColor} />
-                    <ThemedText type="caption" style={{ color: colors.textMuted }}>İklim</ThemedText>
-                    <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600', textTransform: 'capitalize' }}>
-                      {parfum.iklim.join(', ')}
-                    </ThemedText>
-                  </View>
-                )}
-                
-                {/* Yaş Grubu */}
-                {parfum.yasGrubu && parfum.yasGrubu.length > 0 && (
-                  <View style={styles.kullanimItem}>
-                    <Ionicons name="people" size={20} color={tipColor} />
-                    <ThemedText type="caption" style={{ color: colors.textMuted }}>Yaş Grubu</ThemedText>
-                    <ThemedText style={{ color: colors.text, fontSize: FontSizes.sm, fontWeight: '600' }}>
-                      {parfum.yasGrubu.join(', ')}
-                    </ThemedText>
-                  </View>
-                )}
-              </View>
-            </Card>
-          </Animated.View>
-
-          {/* Fiyat ve Puan */}
-          <Animated.View entering={FadeInUp.delay(600).duration(500)}>
-            <View style={styles.statsRow}>
-              {parfum.puan && (
-                <Card variant="elevated" style={styles.statCard}>
-                  <View style={styles.statContent}>
-                    <Ionicons name="star" size={24} color={colors.warning} />
-                    <ThemedText style={styles.statValue}>{parfum.puan.toFixed(1)}</ThemedText>
-                    <ThemedText type="caption" style={{ color: colors.textMuted }}>Puan</ThemedText>
-                  </View>
-                </Card>
-              )}
-              
-              {parfum.fiyatAraligi && (
-                <Card variant="elevated" style={styles.statCard}>
-                  <View style={styles.statContent}>
-                    <Ionicons 
-                      name={parfum.fiyatAraligi === 'luks' ? 'diamond' : parfum.fiyatAraligi === 'premium' ? 'star-half' : 'pricetag'} 
-                      size={24} 
-                      color={parfum.fiyatAraligi === 'luks' ? colors.warning : parfum.fiyatAraligi === 'premium' ? colors.primary : colors.success} 
-                    />
-                    <ThemedText style={[styles.statValue, { textTransform: 'capitalize' }]}>
-                      {parfum.fiyatAraligi}
-                    </ThemedText>
-                    <ThemedText type="caption" style={{ color: colors.textMuted }}>Fiyat</ThemedText>
-                  </View>
-                </Card>
-              )}
-            </View>
-          </Animated.View>
-
-          {/* Etiketler */}
-          {parfum.etiketler && parfum.etiketler.length > 0 && (
-            <Animated.View entering={FadeInUp.delay(650).duration(500)}>
-              <View style={styles.etiketlerContainer}>
-                <ThemedText type="label" style={{ marginBottom: Spacing.sm, color: colors.textMuted }}>Etiketler</ThemedText>
-                <View style={styles.etiketlerRow}>
-                  {parfum.etiketler.map((etiket, index) => (
-                    <Animated.View 
-                      key={etiket} 
-                      entering={FadeIn.delay(index * 50).duration(200)}
-                      style={[styles.etiketTag, { backgroundColor: tipColor + '15' }]}
-                    >
-                      <ThemedText style={{ color: tipColor, fontSize: FontSizes.xs }}>#{etiket}</ThemedText>
-                    </Animated.View>
-                  ))}
-                </View>
-              </View>
-            </Animated.View>
-          )}
-
-          {/* Açıklama */}
-          {parfum.aciklama && (
-            <Animated.View entering={FadeInUp.delay(700).duration(500)}>
-              <Card variant="elevated" style={styles.aciklamaCard}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.cardIcon, { backgroundColor: tipColor + '20' }]}>
-                    <Ionicons name="document-text" size={20} color={tipColor} />
-                  </View>
-                  <ThemedText type="heading">Hakkında</ThemedText>
-                </View>
-                <ThemedText style={{ color: colors.textSecondary, lineHeight: 22 }}>
-                  {parfum.aciklama}
-                </ThemedText>
-              </Card>
-            </Animated.View>
-          )}
-
-          {/* Benzer Parfümler */}
-          {similarParfums.length > 0 && (
-            <Animated.View entering={FadeInUp.delay(500).duration(500)}>
-              <View style={styles.sectionHeader}><ThemedText type="heading">Benzer Parfümler</ThemedText></View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.similarList}>
-                {similarParfums.map((p, index) => (
-                  <Pressable key={p.id} onPress={() => router.push(`/parfum/${p.id}`)}>
-                    <Animated.View entering={FadeIn.delay(index * 100).duration(400)} style={[styles.similarCard, { backgroundColor: colors.card }]}>
-                      <View style={[styles.similarType, { backgroundColor: (ScentTypeColors[p.tip] || colors.tint) + '20' }]}>
-                        <ThemedText style={{ color: ScentTypeColors[p.tip] || colors.tint, fontSize: 10 }}>{p.tip}</ThemedText>
-                      </View>
-                      <ThemedText type="subtitle" numberOfLines={1} style={{ fontSize: FontSizes.sm }}>{p.isim}</ThemedText>
-                      <ThemedText type="caption" numberOfLines={1} style={{ color: colors.textMuted }}>{p.marka}</ThemedText>
-                    </Animated.View>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </Animated.View>
-          )}
-
-          <View style={{ height: 40 }} />
-        </ScrollView>
-      </SafeAreaView>
-
-      {/* Koleksiyona Ekleme Modal */}
-      <Modal visible={showCollectionModal} animationType="slide" presentationStyle="pageSheet">
-        <ThemedView style={styles.modalContainer}>
-          <SafeAreaView style={{ flex: 1 }}>
-            <View style={styles.modalHeader}>
-              <Pressable onPress={() => setShowCollectionModal(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </Pressable>
-              <ThemedText type="heading">Koleksiyona Ekle</ThemedText>
-              <View style={{ width: 24 }} />
-            </View>
-
-            <ScrollView style={styles.modalContent}>
-              {collections.length === 0 ? (
-                <View style={styles.noCollections}>
-                  <Ionicons name="folder-open-outline" size={48} color={colors.textMuted} />
-                  <ThemedText type="subtitle" center style={{ marginTop: Spacing.md }}>Henüz koleksiyon yok</ThemedText>
-                  <ThemedText type="body" center style={{ color: colors.textMuted, marginTop: Spacing.xs }}>
-                    Profil &gt; Favoriler &gt; Koleksiyonlar'dan yeni koleksiyon oluşturun
-                  </ThemedText>
-                  <Button title="Koleksiyonlara Git" onPress={() => { setShowCollectionModal(false); router.push('/(tabs)/favorites'); }} style={{ marginTop: Spacing.xl }} />
-                </View>
-              ) : (
-                <View style={styles.collectionsList}>
-                  {collections.map((collection) => {
-                    const isInCollection = collection.parfumIds.includes(parfum.id);
-                    return (
-                      <Pressable key={collection.id} onPress={() => handleAddToCollection(collection.id)} style={[styles.collectionItem, { backgroundColor: colors.card }]}>
-                        <View style={[styles.collectionIcon, { backgroundColor: collection.color + '20' }]}>
-                          <Ionicons name={collection.icon as keyof typeof Ionicons.glyphMap} size={22} color={collection.color} />
-                        </View>
-                        <View style={styles.collectionInfo}>
-                          <ThemedText type="subtitle">{collection.name}</ThemedText>
-                          <ThemedText type="caption" style={{ color: colors.textMuted }}>{collection.parfumIds.length} parfüm</ThemedText>
-                        </View>
-                        <View style={[styles.collectionCheck, { backgroundColor: isInCollection ? colors.success : colors.backgroundTertiary }]}>
-                          {isInCollection && <Ionicons name="checkmark" size={16} color="#FFF" />}
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
-            </ScrollView>
-          </SafeAreaView>
-        </ThemedView>
+              );
+            })}
+          </View>
+          <T variant="overline" color="subtle" style={{ marginTop: Spacing.xl }}>Yeni koleksiyon</T>
+          <View style={[styles.newRow, { borderColor: c.border, backgroundColor: c.surface }]}>
+            <TextInput
+              value={newCol}
+              onChangeText={setNewCol}
+              placeholder="Örn. Kış akşamları"
+              placeholderTextColor={c.inkSubtle}
+              style={[styles.newInput, { color: c.ink }]}
+              returnKeyType="done"
+              onSubmitEditing={createAndAdd}
+              maxLength={40}
+            />
+            <Button label="Oluştur" size="sm" variant="accent" onPress={createAndAdd} disabled={!newCol.trim()} />
+          </View>
+          <View style={{ flex: 1 }} />
+          <Button label="Tamam" onPress={() => setColOpen(false)} />
+        </View>
       </Modal>
 
-      <PaywallScreen
-        visible={paywallVisible}
-        onClose={() => setPaywallVisible(false)}
-        title="Auram Premium'a Geç"
-        subtitle="Sınırsız favori, koleksiyon ve parfüm detayına eriş."
-      />
-    </ThemedView>
-  );
-}
+      {/* "⋯" diğer eylemler */}
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <Pressable style={[styles.backdrop, { backgroundColor: c.scrim }]} onPress={() => setMenuOpen(false)}>
+          <Pressable style={[styles.sheet, { backgroundColor: c.bg, paddingBottom: insets.bottom + Spacing.md }]}>
+            <View style={[styles.grabber, { backgroundColor: c.border }]} />
+            <T variant="overline" caps={brandCaps(parfum)} color="subtle">{parfum.marka}</T>
+            <T variant="h3" style={{ marginBottom: Spacing.sm }}>{parfum.isim}</T>
+            {menu.map((m, i) => (
+              <View key={m.title}>
+                {i ? <Divider /> : null}
+                <ListRow icon={m.icon} title={m.title} subtitle={m.subtitle} onPress={() => menudenSec(m.onPress)} />
+              </View>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
-function FeatureItem({ icon, label, value, colors }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; colors: typeof Colors.light }) {
-  return (
-    <View style={styles.featureItem}>
-      <View style={[styles.featureIcon, { backgroundColor: colors.backgroundTertiary }]}>
-        <Ionicons name={icon} size={18} color={colors.tint} />
-      </View>
-      <ThemedText type="caption" style={{ color: colors.textMuted }}>{label}</ThemedText>
-      <ThemedText type="body" style={{ fontWeight: '600', textTransform: 'capitalize', textAlign: 'center' }} numberOfLines={2}>{value}</ThemedText>
-    </View>
+      <WardrobeItemSheet
+        visible={wardrobeSheet}
+        parfum={parfum}
+        item={wardrobeItem}
+        onClose={() => setWardrobeSheet(false)}
+        onSave={async d => {
+          if (wardrobeItem) await updateWardrobeItem(wardrobeItem.id, d);
+          else { await addToWardrobe(parfum.id, d); track('wardrobe_add', { kaynak: 'detay' }); }
+          setWardrobeSheet(false);
+          hapticSuccess();
+        }}
+        onRemove={wardrobeItem ? () => { removeFromWardrobe(wardrobeItem.id); setWardrobeSheet(false); } : undefined}
+      />
+      <PaywallScreen visible={paywallVisible} onClose={() => setPaywallVisible(false)} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  headerGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 200 },
-  safeArea: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md },
-  headerBtn: { width: 42, height: 42, borderRadius: 21, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  headerActions: { flexDirection: 'row', gap: Spacing.sm },
-  content: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.xl },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Spacing['2xl'] },
-  titleSection: { marginBottom: Spacing.xl },
-  typeBadge: { alignSelf: 'flex-start', paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, marginBottom: Spacing.md },
-  typeText: { fontSize: FontSizes.sm, fontWeight: FontWeights.bold },
-  parfumName: { fontSize: FontSizes['2xl'], marginBottom: Spacing.xs },
-  phCard: { marginBottom: Spacing.lg },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.lg },
-  cardIcon: { width: 36, height: 36, borderRadius: BorderRadius.md, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md },
-  phScoreContainer: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xl, marginBottom: Spacing.xl },
-  phScoreCircle: { width: 80, height: 80, borderRadius: 40, borderWidth: 4, justifyContent: 'center', alignItems: 'center' },
-  phScoreValue: { fontSize: FontSizes.xl, fontWeight: FontWeights.bold },
-  phDetails: { flex: 1, gap: Spacing.sm },
-  phDetailRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  notaPerformans: { paddingTop: Spacing.lg, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' },
-  performansRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.sm, gap: Spacing.sm },
-  performansLabel: { width: 60, fontSize: FontSizes.sm },
-  performansBarBg: { flex: 1, height: 8, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, overflow: 'hidden' },
-  performansBar: { height: '100%', borderRadius: 4 },
-  performansValue: { width: 40, fontSize: FontSizes.sm, textAlign: 'right' },
-  noPHData: { alignItems: 'center', padding: Spacing.lg },
-  notaCard: { marginBottom: Spacing.lg },
-  notaTabs: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  notaTab: { flex: 1, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg, alignItems: 'center' },
-  notaTabText: { fontSize: FontSizes.sm, fontWeight: FontWeights.semiBold },
-  notaList: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  notaItem: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full },
-  featuresCard: { marginBottom: Spacing.lg },
-  featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  featureItem: { width: '47%', alignItems: 'center', padding: Spacing.md, borderRadius: BorderRadius.lg, gap: 4 },
-  featureIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: Spacing.xs },
-  sectionHeader: { marginBottom: Spacing.md },
-  similarList: { paddingRight: Spacing.xl, gap: Spacing.md },
-  similarCard: { width: 140, padding: Spacing.md, borderRadius: BorderRadius.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  similarType: { alignSelf: 'flex-start', paddingHorizontal: Spacing.sm, paddingVertical: 2, borderRadius: BorderRadius.sm, marginBottom: Spacing.sm },
-  // Konsantrasyon
-  konsantrasyonCard: { marginBottom: Spacing.lg },
-  konsantrasyonContent: { gap: Spacing.md },
-  konsantrasyonMain: { marginBottom: Spacing.sm },
-  konsantrasyonStats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  konsantrasyonStat: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.03)', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg },
-  // İzlenim
-  izlenimCard: { marginBottom: Spacing.lg },
-  izlenimSection: {},
-  izlenimTags: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  izlenimTag: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full },
-  kisilikTag: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.lg },
-  // Kullanım
-  kullanimCard: { marginBottom: Spacing.lg },
-  kullanimGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
-  kullanimItem: { width: '47%', alignItems: 'center', padding: Spacing.md, backgroundColor: 'rgba(0,0,0,0.02)', borderRadius: BorderRadius.lg, gap: 4 },
-  // Stats
-  statsRow: { flexDirection: 'row', gap: Spacing.md, marginBottom: Spacing.lg },
-  statCard: { flex: 1 },
-  statContent: { alignItems: 'center', gap: Spacing.xs },
-  statValue: { fontSize: FontSizes.xl, fontWeight: FontWeights.bold },
-  // Etiketler
-  etiketlerContainer: { marginBottom: Spacing.lg },
-  etiketlerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
-  etiketTag: { paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.sm },
-  // Açıklama
-  aciklamaCard: { marginBottom: Spacing.lg },
-  // Modal
-  modalContainer: { flex: 1 },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.md, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.05)' },
-  modalContent: { flex: 1, paddingHorizontal: Spacing.xl, paddingTop: Spacing.xl },
-  noCollections: { alignItems: 'center', paddingTop: Spacing['3xl'] },
-  collectionsList: { gap: Spacing.md },
-  collectionItem: { flexDirection: 'row', alignItems: 'center', padding: Spacing.md, borderRadius: BorderRadius.lg },
-  collectionIcon: { width: 48, height: 48, borderRadius: BorderRadius.lg, justifyContent: 'center', alignItems: 'center', marginRight: Spacing.md },
-  collectionInfo: { flex: 1 },
-  collectionCheck: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  hero: { height: 200, borderRadius: BorderRadius.lg, alignItems: 'center', justifyContent: 'center' },
+  tags: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm },
+  inline: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  reason: { flexDirection: 'row', gap: Spacing.md },
+  dot: { width: 5, height: 5, borderRadius: 3, marginTop: 9 },
+  notes: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 6, marginTop: 6 },
+  topBar: { paddingHorizontal: Spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth },
+  acilir: { paddingLeft: 52, paddingBottom: Spacing.md },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: BorderRadius.lg, borderTopRightRadius: BorderRadius.lg, paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
+  grabber: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: Spacing.md },
+  stores: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.md },
+  newRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm, borderWidth: StyleSheet.hairlineWidth, borderRadius: BorderRadius.md, paddingLeft: Spacing.md, paddingRight: 6, paddingVertical: 6 },
+  newInput: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 16, paddingVertical: 8 },
 });

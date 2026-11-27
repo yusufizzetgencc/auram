@@ -1,5 +1,5 @@
 /**
- * AURAM - Lüks Parfüm Öneri Uygulaması
+ * TENİNDE - Lüks Parfüm Öneri Uygulaması
  * Type Tanımlamaları - Genişletilmiş
  */
 
@@ -130,6 +130,14 @@ export interface Parfum {
   yasGrubu?: YasGrubu[];
   gununSaati?: GununSaati[];
   etiketler: string[];
+  /** Niş (bağımsız / seçici dağıtımlı) marka mı */
+  nis?: boolean;
+  /** Markanın menşei, ISO ülke kodu (ör. 'TR', 'FR') */
+  mensei?: string;
+  /** Notalar markanın resmi sayfasıyla doğrulandı mı */
+  dogrulandi?: boolean;
+  /** Doğrulama kaynağı (markanın resmi ürün sayfası) */
+  kaynak?: string | null;
   phUyumu: ParfumPHUyumu;
   notaKalicilik: {
     ust: NotaKalicilikMod;
@@ -184,10 +192,13 @@ export type GumusOksitlenme = 'asidik' | 'notr_alkali' | 'emin_degil';
 export type SuTuketimi = 'az' | 'normal' | 'cok';
 export type BeslenmeAliskanligi = 'asidik' | 'notr' | 'alkali';
 export type VucutIsisi = 'sicak' | 'serin' | 'dengeli';
-export type ParfumReaksiyonu = 'tatli_pudrali' | 'eksi_uzaklasir' | 'ayni_kalir';
+export type ParfumReaksiyonu = 'tatli_pudrali' | 'eksi_uzaklasir' | 'ayni_kalir' | 'bilmiyorum';
 export type UygulamaYeri = 'sadece_ten' | 'ten_kiyafet' | 'sadece_kiyafet';
 export type Aura = 'temiz' | 'gizemli' | 'cekici' | 'dinamik' | 'otoriter';
-export type CinsiyetAlgisi = 'feminen' | 'maskulen' | 'unisex';
+export type CinsiyetAlgisi = 'feminen' | 'maskulen' | 'unisex' | 'farketmez';
+/** Kullanıcının kendi gözlemi: parfümler tende ne kadar kalıyor */
+export type GozlenenKalicilik = 'lt2' | '2-4' | '4-6' | '6+' | 'bilmiyorum';
+export type ButceTercihi = Butce | 'farketmez';
 
 // Kullanıcı Tercihleri - Biyolojik Odaklı YENİ Yapı
 export interface UserPreferences {
@@ -240,7 +251,24 @@ export interface UserPreferences {
   aktivite?: AktiviteYogunlugu | null;
   sevilenNotalar?: string[];
   sevilmeyenNotalar?: string[];
+  /** Kullanıcının denediği ve sevdiği parfümler (id) — onboarding "Sevdiğiniz parfümler" + detay sayfasındaki geri bildirim */
+  sevilenParfumler?: string[];
+  /** Denediği ve sevmediği parfümler (id) */
+  sevilmeyenParfumler?: string[];
   kalicilikTercihi?: KalicilikTercihi | null;
+  gozlenenKalicilik?: GozlenenKalicilik | null;
+  /** Profil tamamlamada bilerek atlanan soruların kimlikleri (doluluk yüzdesinde cevaplanmış sayılır) */
+  atlananSorular?: string[];
+  butceTercihi?: ButceTercihi | null;
+}
+
+// Ten Profili — parfümün tende nasıl davranacağını belirleyen eksenler (0-100)
+export interface TenProfili {
+  yaglilik: number;        // lipit/sebum → kalıcılık
+  isi: number;             // ten ısısı → buharlaşma & yayılım
+  asiditeEgilimi: number;  // -1 (asidik) … +1 (nötre yakın)
+  kalicilikEndeksi: number;
+  yayilimEndeksi: number;
 }
 
 // pH Hesaplama Sonucu
@@ -249,6 +277,9 @@ export interface PHHesapSonucu {
   aralik: PHAraligi;
   guvenilirlik: number;
   aciklama: string;
+  aralikMin?: number;
+  aralikMax?: number;
+  tenProfili?: TenProfili;
   faktorler: {
     ciltTipiEtkisi: number;
     gumusEtkisi: number;
@@ -432,13 +463,45 @@ export interface SpinResult {
 export type NotificationType = 'weather_suggestion' | 'special_day_reminder' | 'usage_reminder' | 'discovery' | 'mood_check';
 
 export interface NotificationPreferences {
+  /** Ana anahtar: kapalıysa hiçbir bildirim planlanmaz */
   enabled: boolean;
   weatherSuggestions: boolean;
   specialDayReminders: boolean;
   dailyMoodCheck: boolean;
   discoveryTips: boolean;
   reminderTime?: string; // "09:00" format
+  // ---- 2026-11 bildirim sistemi (eksikse varsayılanlar kullanılır) ----
+  /** Sabah: dolabınızdan günün önerisi */
+  sabah?: boolean;
+  /** Günün kokusu seçilince akşam değerlendirmesi */
+  aksam?: boolean;
+  /** Bugün kayıt yoksa ve seri riskteyse akşam hatırlatması */
+  seri?: boolean;
+  /** Pazar akşamı haftalık özet */
+  haftalik?: boolean;
+  /** Ayın 1'inde aylık rapor hazır bildirimi */
+  aylik?: boolean;
+  /** Dolaptaki parfüm azalınca */
+  azalan?: boolean;
 }
+
+// 🧴 Dolabım — kullanıcının sahip olduğu parfümler
+export interface WardrobeItem {
+  id: string;
+  parfumId: string;
+  /** Şişe hacmi (ml); bilinmiyorsa null */
+  hacimMl: number | null;
+  /** Kalan miktar yüzdesi (0–100). Her sıkış tahmini olarak düşürülür, kullanıcı düzeltebilir. */
+  kalanYuzde: number;
+  /** "Azalıyor" bildirimi bu şişe için gönderildi mi */
+  azalanBildirildi?: boolean;
+  alinmaTarihi?: string | null;
+  not?: string;
+  addedAt: string;
+}
+
+/** Günün kokusu seçimi için etkinlik */
+export type Etkinlik = 'gunluk' | 'is' | 'bulusma' | 'ozel' | 'spor' | 'ev';
 
 export interface ScheduledNotification {
   id: string;
@@ -460,6 +523,8 @@ export interface SOTDEntry {
     condition: string;
     city: string;
   };
+  /** Kayıt anındaki "Bugün ne var?" seçimi — öğrenen motor bağlamı öğrenir */
+  etkinlik?: Etkinlik;
   createdAt: string;
 }
 
@@ -470,6 +535,12 @@ export interface StreakData {
   lastSOTDDate: string | null;  // Son SOTD tarihi
   totalSOTDs: number;       // Toplam seçim sayısı
   badges: StreakBadge[];    // Kazanılan rozetler
+  /** Seri koruma hakkı (haftada 1 yenilenir): bir gün atlanırsa seri bozulmaz */
+  korumaHakki?: number;
+  /** Hakkın en son yenilendiği haftanın pazartesisi (YYYY-MM-DD) */
+  korumaYenilenme?: string | null;
+  /** Korumayla kurtarılan günler */
+  korunanGunler?: string[];
 }
 
 export interface StreakBadge {

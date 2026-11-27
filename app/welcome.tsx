@@ -1,326 +1,149 @@
 /**
- * AURAM - Luxury Welcome Screen
- * Premium, elegant ve sophisticated tasarım - Velvet & Amber
- * ATT (App Tracking Transparency) izin talebi burada yapılır.
+ * TENİNDE — Tanıtım (3 sayfa)
  */
-
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Dimensions, Image, Pressable, StyleSheet, View } from 'react-native';
-import Animated, {
-  Easing,
-  FadeInDown,
-  FadeInUp,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming
-} from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { ThemedText } from '@/components/themed-text';
-import { BorderRadius, Colors, Spacing } from '@/constants/theme';
+import { Button, T, useTheme } from '@/components/kit';
+import { Monogram, Wordmark } from '@/components/kit/brand';
+import { Bottle, brandCaps } from '@/components/kit/perfume';
+import { QUESTIONS } from '@/constants/questions';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useApp } from '@/context/AppContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useRouter } from 'expo-router';
+import React, { useRef, useState } from 'react';
+import { NativeScrollEvent, NativeSyntheticEvent, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width, height } = Dimensions.get('window');
-
-// Elegant floating particle
-function Particle({ delay, x, y, size }: { delay: number; x: number; y: number; size: number }) {
-  const translateY = useSharedValue(0);
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    translateY.value = withDelay(
-      delay,
-      withRepeat(
-        withTiming(-50, { duration: 4000, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true
-      )
-    );
-    opacity.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(0.4, { duration: 2000 }),
-          withTiming(0, { duration: 2000 })
-        ),
-        -1,
-        true
-      )
-    );
-  }, [delay]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    opacity: opacity.value,
-  }));
-
-  return (
-    <Animated.View style={[{
-      position: 'absolute',
-      left: x,
-      top: y,
-      width: size,
-      height: size,
-      borderRadius: size / 2,
-      backgroundColor: '#D6A06F',
-      shadowColor: '#D6A06F',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.8,
-      shadowRadius: size,
-    }, animatedStyle]} />
-  );
-}
+const PAGES = [
+  {
+    overline: 'Teninde',
+    title: 'Aynı parfüm,\niki farklı ten.',
+    body: 'Bir parfüm herkeste aynı kokmaz. Ten yağı, ısısı ve kimyası, şişedeki kokuyu size özel bir şeye dönüştürür.',
+  },
+  {
+    overline: 'Ten profili',
+    title: 'Önce teninizi\ntanıyoruz.',
+    body: 'Birkaç somut soruyla yağlılık, ten ısısı ve pH eğiliminizi çıkarıyoruz. pH değeri bir tahmindir; ölçtüyseniz kendi değerinizi girebilirsiniz.',
+  },
+  {
+    overline: 'Açıklanabilir öneri',
+    title: 'Her önerinin\nbir gerekçesi var.',
+    body: '“Serin teniniz bu yoğun parfümü nazikçe açar.” Neden önerdiğimizi her zaman açıkça görürsünüz.',
+  },
+];
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  const isDark = colorScheme === 'dark';
-  const { parfumler } = useApp();
-  const [isLoading, setIsLoading] = useState(false);
+  const c = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const { parfumler, setCurrentStep } = useApp();
+  const [page, setPage] = useState(0);
+  const ref = useRef<ScrollView>(null);
 
-  const handleStart = () => {
-    if (isLoading) return;
-    setIsLoading(true);
-    router.push('/onboarding');
-    setIsLoading(false);
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => setPage(Math.round(e.nativeEvent.contentOffset.x / width));
+  // 1. sayfa: AYNI parfüm iki tende; 3. sayfa: gerekçeyle uyumlu yoğun bir parfüm
+  const sameBottle = parfumler.find(p => p.isim === 'Bleu de Chanel') ?? parfumler[0];
+  const dense = parfumler.find(p => p.yogunluk === 'yogun' && p.isim === 'Baccarat Rouge 540') ?? parfumler.find(p => p.yogunluk === 'yogun') ?? parfumler[0];
+  const sample = [sameBottle, sameBottle, dense].filter(Boolean);
+
+  // Kodla kaydırmada iOS onMomentumScrollEnd tetiklemez; sayfayı burada da güncelle
+  const goPage = (i: number) => {
+    setPage(i);
+    ref.current?.scrollTo({ x: width * i, animated: true });
+  };
+
+  const next = () => {
+    if (page < PAGES.length - 1) {
+      goPage(page + 1);
+    } else {
+      setCurrentStep(0);
+      router.push('/onboarding');
+    }
+  };
+
+  const art = (i: number) => {
+    if (i === 0) {
+      return (
+        <View style={styles.artRow}>
+          {sample.slice(0, 2).map((p, k) => (
+            <View key={k} style={[styles.artCard, { backgroundColor: c.surfaceAlt, transform: [{ rotate: k === 0 ? '-6deg' : '6deg' }] }]}>
+              <Bottle parfum={p} size={70} />
+              <T variant="overline" color="muted" style={{ marginTop: 10 }}>{k === 0 ? 'Ten A' : 'Ten B'}</T>
+            </View>
+          ))}
+        </View>
+      );
+    }
+    if (i === 1) {
+      const bars: [string, number][] = [['Yağlılık', 0.7], ['Ten ısısı', 0.45], ['pH eğilimi', 0.35]];
+      return (
+        <View style={[styles.profileArt, { backgroundColor: c.surface, borderColor: c.border }]}>
+          {bars.map(([l, v]) => (
+            <View key={l} style={{ marginBottom: 18 }}>
+              <T variant="smallStrong" style={{ marginBottom: 8 }}>{l}</T>
+              <View style={{ height: 2, backgroundColor: c.border }}>
+                <View style={{ position: 'absolute', left: `${v * 100}%`, top: -5, width: 12, height: 12, marginLeft: -6, borderRadius: 6, backgroundColor: c.accent }} />
+              </View>
+            </View>
+          ))}
+        </View>
+      );
+    }
+    return (
+      <View style={[styles.profileArt, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <T variant="overline" caps={brandCaps(sample[2])} color="subtle">{sample[2]?.marka}</T>
+        <T variant="h2">{sample[2]?.isim}</T>
+        <View style={[styles.quote, { borderLeftColor: c.accent }]}>
+          <T variant="body" color="muted">Serin teniniz bu yoğun parfümü nazikçe açacak.</T>
+        </View>
+      </View>
+    );
   };
 
   return (
-    <View style={styles.container}>
-      {/* Background Gradient */}
-      <LinearGradient
-        colors={isDark ? ['#1C1420', '#2D2833', '#110D14'] : ['#FDFBF7', '#F5F0E6', '#EBE3D5']}
-        locations={[0, 0.5, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Decorative Particles */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Particle delay={0} x={width * 0.2} y={height * 0.3} size={4} />
-        <Particle delay={1000} x={width * 0.8} y={height * 0.2} size={6} />
-        <Particle delay={500} x={width * 0.5} y={height * 0.6} size={3} />
-        <Particle delay={1500} x={width * 0.1} y={height * 0.7} size={5} />
-        <Particle delay={800} x={width * 0.85} y={height * 0.8} size={7} />
+    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
+      <View style={styles.top}>
+        <Wordmark size={22} />
+        {page < PAGES.length - 1 ? (
+          <T variant="smallStrong" color="muted" onPress={() => goPage(PAGES.length - 1)}>Geç</T>
+        ) : null}
       </View>
 
-      <SafeAreaView style={styles.safeArea}>
-        
-        <View style={styles.content}>
-          {/* Logo Section */}
-          <Animated.View 
-            entering={FadeInDown.delay(300).duration(1000).springify()} 
-            style={styles.logoSection}
-          >
-            <Image 
-              source={require('@/assets/images/logo.png')} 
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </Animated.View>
+      <ScrollView ref={ref} horizontal pagingEnabled showsHorizontalScrollIndicator={false} onMomentumScrollEnd={onScroll} style={{ flex: 1 }}>
+        {PAGES.map((p, i) => (
+          <View key={i} style={{ width, paddingHorizontal: Spacing.xl }}>
+            <View style={styles.artArea}>{art(i)}</View>
+            <T variant="overline" color="accent">{p.overline}</T>
+            <T variant="hero" style={{ marginTop: Spacing.sm }}>{p.title}</T>
+            <T variant="body" color="muted" style={{ marginTop: Spacing.md }}>{p.body}</T>
+          </View>
+        ))}
+      </ScrollView>
 
-          {/* Elegant Tagline */}
-          <Animated.View entering={FadeInDown.delay(500).duration(800)} style={styles.taglineWrapper}>
-            <View style={[styles.taglineLine, { backgroundColor: colors.accent }]} />
-            <ThemedText style={[styles.tagline, { color: colors.accent }]}>
-              KİŞİYE ÖZEL İMZA KOKUNUZ
-            </ThemedText>
-            <View style={[styles.taglineLine, { backgroundColor: colors.accent }]} />
-          </Animated.View>
-
-          {/* Main Title */}
-          <Animated.View entering={FadeInDown.delay(700).duration(800)} style={styles.titleSection}>
-            <ThemedText style={[styles.title, { color: colors.textPrimary }]}>
-              Koku{'\n'}Sanatını{'\n'}Keşfedin
-            </ThemedText>
-            <ThemedText style={[styles.description, { color: colors.textSecondary }]}>
-              Ten kimyanız ve yaşam tarzınızla kusursuz uyum sağlayan mükemmel parfümü yapay zeka ile bulun.
-            </ThemedText>
-          </Animated.View>
-
-          {/* Feature Highlights */}
-          <Animated.View entering={FadeInDown.delay(900).duration(800)} style={styles.featuresRow}>
-            <FeatureBox icon="finger-print-outline" text="pH Analizi" color={colors.accent} textColor={colors.textPrimary} />
-            <View style={[styles.featureDivider, { backgroundColor: colors.border }]} />
-            <FeatureBox icon="star-outline" text="Premium Seçki" color={colors.accent} textColor={colors.textPrimary} />
-            <View style={[styles.featureDivider, { backgroundColor: colors.border }]} />
-            <FeatureBox icon="flask-outline" text="Mükemmel Uyum" color={colors.accent} textColor={colors.textPrimary} />
-          </Animated.View>
+      <View style={[styles.bottom, { paddingBottom: insets.bottom + Spacing.lg }]}>
+        <View style={styles.dots}>
+          {PAGES.map((_, i) => (
+            <View key={i} style={[styles.dot, { width: i === page ? 22 : 6, backgroundColor: i === page ? c.ink : c.border }]} />
+          ))}
         </View>
-
-        {/* Bottom Section */}
-        <Animated.View entering={FadeInUp.delay(1100).duration(800)} style={styles.bottomSection}>
-          
-          {/* CTA Button */}
-          <Pressable 
-            style={({ pressed }) => [
-              styles.ctaButton,
-              { backgroundColor: colors.primary },
-              pressed && styles.ctaButtonPressed,
-              isLoading && { opacity: 0.7 },
-            ]}
-            onPress={handleStart}
-            disabled={isLoading}
-          >
-            <ThemedText style={styles.ctaText}>Yolculuğa Başla</ThemedText>
-            <Ionicons name="arrow-forward" size={20} color="#FFF" style={styles.ctaIcon} />
-          </Pressable>
-
-          {/* Info Note */}
-          <ThemedText style={[styles.bottomNote, { color: colors.textSecondary }]}>
-            18 kısa soru • Sadece size özel parfüm eşleşmeleri
-          </ThemedText>
-        </Animated.View>
-
-      </SafeAreaView>
-    </View>
-  );
-}
-
-// Simple Feature Component
-function FeatureBox({ icon, text, color, textColor }: { icon: string; text: string; color: string; textColor: string }) {
-  return (
-    <View style={styles.featureBox}>
-      <Ionicons name={icon as any} size={22} color={color} style={{ marginBottom: 8 }} />
-      <ThemedText style={[styles.featureBoxText, { color: textColor }]}>{text}</ThemedText>
+        <Button label={page === PAGES.length - 1 ? 'Ten profilimi oluştur' : 'Devam'} iconRight="arrow-forward" onPress={next} />
+        <View style={styles.meta}>
+          <Monogram size={16} />
+          <T variant="small" color="subtle">Yaklaşık 3 dakika · {QUESTIONS.filter(q => !q.showIf && !q.onboardingDisi).length} kısa soru · Veriler cihazınızda kalır</T>
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1,
-  },
-  safeArea: { 
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.xl,
-    marginTop: Spacing['2xl'],
-  },
-  
-  // Logo
-  logoSection: {
-    marginBottom: Spacing.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 200,
-    height: 200,
-  },
-  
-  // Tagline
-  taglineWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xl,
-    width: '100%',
-  },
-  taglineLine: {
-    height: 1,
-    flex: 1,
-    opacity: 0.3,
-  },
-  tagline: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 4,
-    paddingHorizontal: Spacing.md,
-  },
-  
-  // Title & Description
-  titleSection: {
-    alignItems: 'center',
-    marginBottom: Spacing['2xl'],
-  },
-  title: {
-    fontSize: 42,
-    fontWeight: '300',
-    textAlign: 'center',
-    lineHeight: 52,
-    letterSpacing: 1,
-    marginBottom: Spacing.lg,
-  },
-  description: {
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 24,
-    fontWeight: '400',
-    paddingHorizontal: Spacing.md,
-  },
-
-  // Features
-  featuresRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    paddingHorizontal: Spacing.md,
-  },
-  featureBox: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  featureBoxText: {
-    fontSize: 11,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  featureDivider: {
-    width: 1,
-    height: 30,
-    opacity: 0.5,
-  },
-
-  // Bottom Section
-  bottomSection: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing['2xl'],
-    alignItems: 'center',
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    paddingVertical: Spacing.lg,
-    borderRadius: BorderRadius.full,
-    marginBottom: Spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  ctaButtonPressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.9,
-  },
-  ctaText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 1,
-  },
-  ctaIcon: {
-    marginLeft: Spacing.sm,
-  },
-  bottomNote: {
-    fontSize: 12,
-    textAlign: 'center',
-    opacity: 0.7,
-  },
+  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.xl, height: 56 },
+  artArea: { height: 320, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.xl },
+  artRow: { flexDirection: 'row', gap: Spacing.lg },
+  artCard: { width: 130, height: 190, borderRadius: BorderRadius.lg, alignItems: 'center', justifyContent: 'center' },
+  profileArt: { width: '100%', padding: Spacing.xl, borderRadius: BorderRadius.lg, borderWidth: StyleSheet.hairlineWidth },
+  quote: { borderLeftWidth: 2, paddingLeft: Spacing.md, marginTop: Spacing.lg },
+  bottom: { paddingHorizontal: Spacing.xl, gap: Spacing.lg },
+  dots: { flexDirection: 'row', gap: 6, alignSelf: 'center' },
+  dot: { height: 6, borderRadius: 3 },
+  meta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
 });
